@@ -66,3 +66,71 @@ test('the gentle start: no hazard reaches a fish in the first metres', () => {
     assert.equal(b.events.length, 0);
   }
 });
+
+// Every golden scale can be reached: some flop or slap from a point a fish can stand on (route points, drops, water)
+// passes through it.
+for (const id of COURSE_IDS) {
+  test(`${id}: every golden scale can be reached`, async () => {
+    const { predictArc } = await import('../src/sim/body.js');
+    const { SCALES, BODY_RADIUS } = await import('../src/sim/config.js');
+    const c = getCourse(id);
+    const w = c.world;
+    const scales = c.builder.items.filter((i) => i.kind === 'scale');
+    assert.equal(scales.length, 3, `${id} has three scales`);
+    const froms = [...c.spine, ...(c.expert ?? []), ...c.builder.items.filter((i) => i.kind === 'drop').map((i) => [i.p[0], i.p[1] - 0.3, i.p[2]]), ...c.builder.zones.filter((z) => z.rate).map((z) => z.c)];
+    const reach = (s) => {
+      for (const f of froms) {
+        const dx = s.p[0] - f[0], dz = s.p[2] - f[2];
+        if (Math.hypot(dx, dz) > 11) continue;
+        const body = createBody('mackerel', [f[0], f[1] + 0.17, f[2]], 0);
+        const surf = w.query(f[0], f[1] + 0.05, f[2], 0.3)[0]?.surf ?? 'sand';
+        for (const dy of [-0.15, 0, 0.15])
+          for (let ch = 0; ch <= 1.0001; ch += 0.1)
+            for (const mode of ['flop', 'slap5']) {
+              const from = mode === 'flop' ? null : { x: f[0], y: f[1] + 0.17, z: f[2], vel: [0, 0], slap: true, chain: 5, surf };
+              const pts = [];
+              body.ground = true;
+              predictArc(body, w, Math.atan2(dx, dz) + dy, ch, undefined, { dt: 1 / 120, every: 1, points: pts, from, maxT: 3 });
+              for (let k = 0; k < pts.length; k += 3) {
+                const ex = pts[k] - s.p[0], ey = pts[k + 1] - s.p[1], ez = pts[k + 2] - s.p[2];
+                if (ex * ex + ey * ey + ez * ez < (SCALES.radius + BODY_RADIUS) ** 2) return true;
+              }
+            }
+      }
+      return false;
+    };
+    for (const s of scales) assert.ok(reach(s), `${id} scale ${s.n} at (${s.p.map((v) => v.toFixed(1))}) can't be reached`);
+  });
+}
+
+test('the blowhole throws a fish clear: nobody hovers in the spout', () => {
+  const c = getCourse('beach');
+  const z = c.builder.zones.find((q) => q.kind === 'updraft' && q.look === 'blowhole');
+  assert.ok(z, 'the beach has a blowhole');
+  const env = { world: c.world, hazards: null, t: 0 };
+  // dropped dead centre with no speed at all, from just above the vent
+  const b = createBody('mackerel', [z.c[0], z.c[1] + 0.6, z.c[2]], 0);
+  b.ground = false;
+  let inside = 0;
+  for (let t = 0; t < 6; t += STEP) {
+    stepBody(b, { hold: false, yaw: 0 }, env);
+    if (Math.hypot(b.x - z.c[0], b.z - z.c[2]) < z.r && b.y > z.c[1] + 0.3) inside += STEP;
+  }
+  assert.ok(inside < 2.5, `the fish hung in the spout for ${inside.toFixed(1)} s`);
+  assert.ok(Math.hypot(b.x - z.c[0], b.z - z.c[2]) > z.r, 'and landed outside it');
+});
+
+test('a slap on something springy goes higher than one on sand', async () => {
+  const { predictArc } = await import('../src/sim/body.js');
+  const c = getCourse('beach');
+  const top = (surf) => {
+    const body = createBody('mackerel', [0, 20.17, 0], 0);
+    body.ground = true;
+    const pts = [];
+    predictArc(body, c.world, 0, 1, undefined, { dt: 1 / 120, every: 1, points: pts, from: { x: 0, y: 20.17, z: 0, vel: [0, 0], slap: true, chain: 0, surf }, maxT: 2 });
+    let m = -Infinity;
+    for (let k = 1; k < pts.length; k += 3) m = Math.max(m, pts[k]);
+    return m - 20.17;
+  };
+  assert.ok(top('bounce') > top('sand') * 1.15, `springy ${top('bounce').toFixed(2)} vs sand ${top('sand').toFixed(2)}`);
+});

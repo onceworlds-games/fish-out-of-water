@@ -167,9 +167,10 @@ export function courseBuilder(id) {
     /** A tree: a solid trunk, a crown that casts shade (and is drawn by its decor). */
     tree(x, y, z, opts = {}) {
       const h = opts.h ?? 4.2, cr = opts.r ?? 2.0;
-      b.cyl([x, y, z], opts.trunk ?? 0.2, h * 0.6, { surf: 'wood', look: 'trunk' });
+      // a look that draws its own trunk (with limbs) leaves the solid trunk undrawn
+      b.cyl([x, y, z], opts.trunk ?? 0.2, h * 0.6, { surf: 'wood', look: opts.look ? null : 'trunk' });
       b.casterSphere([x, y + h - cr * 0.55, z], cr);
-      b.decor(opts.look ?? 'tree', [x, y, z], { h, r: cr, seed: opts.seed ?? Math.round(x * 7 + z * 3) });
+      b.decor(opts.look ?? 'tree', [x, y, z], { h, r: cr, seed: opts.seed ?? Math.round(x * 7 + z * 3), kind: opts.kind });
     },
     /** A beach or café parasol: a pole and a bouncy canopy that shades the ground under it. */
     parasol(x, y, z, opts = {}) {

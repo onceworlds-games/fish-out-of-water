@@ -8,6 +8,7 @@ import { M } from './materials.js';
 import { makeSea } from './scene.js';
 import { tagAtlas } from './tags.js';
 import { makeKites, makeSpout } from './beach.js';
+import { makePond } from './park.js';
 
 export function buildCourseView(course, camera = null) {
   const root = new THREE.Group();
@@ -27,7 +28,7 @@ export function buildCourseView(course, camera = null) {
     else if (z.kind === 'updraft' && z.look) waters.push(makeSteam(root, z));
     if (z.kind === 'drain') waters.push(makeDrain(root, z));
     if (!z.rate || z.look === 'spray-hidden' || z.look === 'tub') continue;
-    if (z.kind === 'puddle') waters.push(makePuddle(root, z));
+    if (z.kind === 'puddle') waters.push(z.look === 'pond' ? makePond(root, z) : makePuddle(root, z));
     else waters.push(makeSpray(root, z));
   }
   for (const col of course.builder.colliders) {

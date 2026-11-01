@@ -11,6 +11,7 @@ import { drawHouse, drawStep, drawRunnel, drawFountain, drawCafeTable, drawChair
 import { HARBOUR_BOX_LOOKS, HARBOUR_DECOR, catchFish } from './harbour.js';
 import { KITCHEN_DECOR } from './kitchen.js';
 import { BEACH_BOX_LOOKS, BEACH_SPHERE_LOOKS, BEACH_DECOR } from './beach.js';
+import { PARK_BOX_LOOKS, PARK_CYL_LOOKS, PARK_DECOR } from './park.js';
 export { G };
 
 /** Instanced small things (ice cubes, lemons, shells): collect transforms, build at the end. */
@@ -110,6 +111,7 @@ function iceTop(scatter, w, d, t, y, density = 22, seed = 1) {
 }
 
 const BOX_LOOKS = {
+  ...PARK_BOX_LOOKS,
   ...BEACH_BOX_LOOKS,
   ...HARBOUR_BOX_LOOKS,
   house(batch, sc, w, h, d, t, col) {
@@ -411,15 +413,6 @@ const BOX_LOOKS = {
     batch.add(M.quay(), tiledBox(w, h, d, 1.25), inFrame(t, [0, 0, 0]));
     batch.add(M.quayside(), G.box, inFrame(t, [0, h / 2 - 0.04, d / 2 - 0.06], [0, 0, 0], [w, 0.09, 0.14]));
   },
-  hedge(batch, sc, w, h, d, t) {
-    batch.add(M.hedge(), G.rbox, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
-    const r = rng(Math.round(t.p[2] * 3 + t.p[0]));
-    const L = Math.max(w, d);
-    for (let i = 0; i < L * 1.2; i++) {
-      const u = (r() - 0.5) * (L - 0.4);
-      sc.add('hedgebump', G.lowSphere, M.hedge(), d > w ? [t.p[0] + (r() - 0.5) * w * 0.6, t.p[1] + h / 2 - 0.05, t.p[2] + u] : [t.p[0] + u, t.p[1] + h / 2 - 0.05, t.p[2]], [0, r() * 3, 0], [0.3, 0.18, 0.3]);
-    }
-  },
   trestle(batch, sc, w, h, d, t) {
     batch.add(M.gingham(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w + 0.1, h, d + 0.1]));
     for (const sz of [-1, 1]) batch.add(M.gingham(), G.box, inFrame(t, [0, -0.12, sz * (d / 2 + 0.05)], [0, 0, 0], [w + 0.1, 0.24, 0.02]));
@@ -429,18 +422,6 @@ const BOX_LOOKS = {
   },
   picnicbench(batch, sc, w, h, d, t) {
     batch.add(M.planks(), tiledBox(w, h, d, 1.0), inFrame(t, [0, 0, 0]));
-  },
-  roses(batch, sc, w, h, d, t) {
-    batch.add(M.soil(), G.box, inFrame(t, [0, -0.05, 0], [0, 0, 0], [w, h - 0.1, d]));
-    batch.add(M.quayside(), G.box, inFrame(t, [0, -0.1, 0], [0, 0, 0], [w + 0.14, h - 0.2, d + 0.14]));
-    const r = rng(Math.round(t.p[2] * 7 + t.p[0]));
-    const n = Math.round(w * d * 5);
-    const cols = [M.red(), M.pink(), M.white(), M.lemonPaint()];
-    for (let i = 0; i < n; i++) {
-      const p = [t.p[0] + (r() - 0.5) * (w - 0.3), t.p[1] + h / 2 + 0.05, t.p[2] + (r() - 0.5) * (d - 0.3)];
-      sc.add('rosebush', G.lowSphere, M.hedge(), p, [0, r() * 3, 0], [0.22, 0.16, 0.22]);
-      batch.add(cols[Math.floor(r() * 4)], G.lowSphere, { p: [p[0], p[1] + 0.13, p[2]], s: [0.08, 0.07, 0.08] });
-    }
   },
   handrail(batch, sc, w, h, d, t) {
     batch.add(M.brass(), G.cyl8, inFrame(t, [0, 0, 0], [Math.PI / 2, 0, 0], [w * 0.4, d, w * 0.4]));
@@ -502,6 +483,7 @@ function valance(batch, mat, t, w, d) {
 }
 
 const CYL_LOOKS = {
+  ...PARK_CYL_LOOKS,
   cafetable(batch, sc, col) {
     drawCafeTable(batch, col);
   },
@@ -551,13 +533,6 @@ const CYL_LOOKS = {
       batch.add(M.slate(), G.cyl8, { p: [x + Math.cos(a) * col.r * 0.55, base + h / 2, z + Math.sin(a) * col.r * 0.55], r: [Math.sin(a) * 0.15, 0, -Math.cos(a) * 0.15], s: [0.03, h, 0.03] });
     }
     batch.add(M.red(), G.box, { p: [x + 0.2, top + 0.03, z], s: [0.3, 0.04, 0.12] });
-  },
-  tree(batch, sc, col) {
-    const [x, y, z] = col.c;
-    const base = y - col.hh;
-    batch.add(M.bark(), G.cyl8, { p: [x, base + col.hh, z], s: [col.r, col.hh * 2, col.r] });
-    const r = rng(Math.round(x * 13 + z * 7));
-    for (let i = 0; i < 6; i++) batch.add(M.hedge(), G.lowSphere, { p: [x + (r() - 0.5) * 2, base + col.hh * 2 + 0.6 + r() * 1.4, z + (r() - 0.5) * 2], s: [1.2 + r() * 0.6, 1.0 + r() * 0.4, 1.2 + r() * 0.6] });
   },
   oldcafetable(batch, sc, col) {
     const [x, y, z] = col.c;
@@ -742,6 +717,7 @@ const DECOR = {
   ...HARBOUR_DECOR,
   ...KITCHEN_DECOR,
   ...BEACH_DECOR,
+  ...PARK_DECOR,
   jars(batch, sc, d, at) {
     // spice jars and tins along a shelf (along z), on their own: lids, coloured contents behind glass
     const r = rng(d.seed ?? 3);
@@ -1058,33 +1034,13 @@ const DECOR = {
       const u = i / (n - 1);
       const z = d.z0 + (d.z1 - d.z0) * u;
       const top = d.top0 + (d.top1 - d.top0) * u;
-      const ground = 4 - 0.25 * Math.max(0, Math.min(10, Math.ceil(z - 104)));
+      const ground = 4 - 0.25 * Math.max(0, Math.min(10, Math.ceil(z - (d.s0 ?? 104))));
       batch.add(M.brass(), G.cyl8, { p: [at[0], (top + ground) / 2, z], s: [0.03, top - ground, 0.03] });
-    }
-  },
-  trees(batch, sc, d) {
-    const r = rng(d.seed ?? 1);
-    for (let i = 0; i < d.n; i++) {
-      const side = r() < 0.5 ? -1 : 1;
-      const x = side * (d.xin + r() * (d.xout - d.xin));
-      const z = d.z0 + r() * (d.z1 - d.z0);
-      const y = z < 45 ? 6 : z < 104 ? 4 : 1.5;
-      CYL_LOOKS.tree(batch, sc, { c: [x, y + 1.6 + r(), z], r: 0.3, hh: 1.6 + r() });
     }
   },
   town(batch, sc, d) {
     houses(batch, sc, [-14, d.z0], [-14, d.z1], -1, 91, 0.6, 0.9);
     houses(batch, sc, [14, d.z0], [14, d.z1], 1, 93, 0.6, 0.9);
-  },
-  bandstand(batch, sc, d, at) {
-    const [x, y, z] = at;
-    batch.add(M.white(), G.cyl, { p: [x, y + 0.3, z], s: [4, 0.6, 4] });
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      batch.add(M.white(), G.cyl8, { p: [x + Math.cos(a) * 3.6, y + 2.2, z + Math.sin(a) * 3.6], s: [0.1, 3.2, 0.1] });
-    }
-    batch.add(M.red(), new THREE.ConeGeometry(4.6, 1.6, 8), { p: [x, y + 4.6, z] });
-    batch.add(M.lemonPaint(), G.sphere, { p: [x, y + 5.5, z], s: [0.25, 0.25, 0.25] });
   },
   // ------------------------------------------------------------ the beach
   lamps(batch, sc, d, at) {
@@ -1129,7 +1085,12 @@ const DECOR = {
     const r = rng(d.seed ?? 1);
     for (let i = 0; i < d.n; i++) {
       const x = d.x0 + r() * (d.x1 - d.x0), z = d.z0 + r() * (d.z1 - d.z0);
-      for (let k = 0; k < 5; k++) sc.add('weed', G.lowSphere, M.weed(), [x + (r() - 0.5) * 1.2, 0.01, z + (r() - 0.5) * 0.4], [0, r() * 3, 0], [0.25 + r() * 0.2, 0.02, 0.06]);
+      // a heap of wrack: broad fronds overlapping, olive and brown, a few bladders
+      for (let k = 0; k < 9; k++) {
+        const fx = x + (r() - 0.5) * 0.9, fz = z + (r() - 0.5) * 0.35;
+        sc.add(r() < 0.5 ? 'weed' : 'wrack', G.lowSphere, r() < 0.5 ? M.weed() : M.wrack(), [fx, 0.012 + k * 0.004, fz], [0, r() * 3, 0], [0.16 + r() * 0.12, 0.018, 0.07 + r() * 0.05]);
+        if (r() < 0.4) sc.add('bladder', G.lowSphere, M.wrack(), [fx + (r() - 0.5) * 0.1, 0.04, fz + (r() - 0.5) * 0.1], [0, 0, 0], [0.025, 0.02, 0.025]);
+      }
       if (r() < 0.6) sc.add('shell2', G.lowSphere, M.china(), [x + (r() - 0.5) * 2, 0.02, z + (r() - 0.5) * 2], [0, r() * 3, 0], [0.05, 0.025, 0.04]);
     }
   },

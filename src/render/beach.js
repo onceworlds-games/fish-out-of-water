@@ -41,7 +41,7 @@ function capsuleOf(r, len) {
 }
 
 /** A limb from a to b (points in the person's frame), radius r: a capsule between them. */
-function limb(batch, mat, p, yaw, a, b, r, paint) {
+export function limb(batch, mat, p, yaw, a, b, r, paint) {
   const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   const len = d.length();
   const q = new THREE.Quaternion().setFromUnitVectors(UP, d.normalize());

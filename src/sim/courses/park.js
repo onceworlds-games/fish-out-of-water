@@ -30,8 +30,13 @@ export function park() {
   }
   b.wall(-XW, -7, XW, -7, 14, 4);
   b.decor('mowstripes', [0, 0, 0], { x: 11.55, w: 2.5, bands: [[-6.6, 36, 6], [44, 50, 4], [70, S0, 4], [S0 + 10, 138, 1.5]] });
-  b.decor('woods', [0, 0, 0], { seed: 3, n: 70, xin: 14, xout: 44, z0: -8, z1: 142, levels: [[44, 6], [S0 + 5, 4], [999, 1.5]] });
-  b.decor('parkfolk', [0, 0, 0], { seed: 8, n: 34, xin: 14, xout: 30, z0: 0, z1: 136, levels: [[44, 6], [S0 + 5, 4], [999, 1.5]] });
+  // beyond the hedges: gravel walks with lamps, the woods, people out in the sun; flower borders inside the hedges
+  const levels = [[44, 6], [S0 + 5, 4], [999, 1.5]];
+  const skip = [[35, 45], [S0 - 1, S0 + 11], [137, 999]];
+  b.decor('walks', [0, 0, 0], { x: 17, w: 2.2, bands: [[-8, 35, 6], [45, S0 - 1, 4], [S0 + 11, 137, 1.5]] });
+  b.decor('woods', [0, 0, 0], { seed: 3, n: 80, xin: 15.5, xout: 46, walk: 17, z0: -8, z1: 142, levels, skip });
+  b.decor('parkfolk', [0, 0, 0], { seed: 8, n: 40, xin: 14.5, xout: 30, walk: 17, z0: 0, z1: 136, levels, skip });
+  b.decor('borders', [0, 0, 0], { x: 11.15, w: 0.75, bands: [[-6, 35.5, 6], [44.5, 85.5, 4], [96.5, 137.5, 1.5]] });
   b.decor('town', [0, 0, 0], { z0: 146, z1: 176 });
   b.decor('lamps', [0, 4, 46], { x0: -11, x1: 11, every: 22 });
 
@@ -62,9 +67,9 @@ export function park() {
   b.puddle(1.5, 6, 25, 0.35, { look: 'bowl' });
   b.decor('dogbowl', [1.5, 6, 25], {});
   b.puddle(-1.5, 6, 33, 0.8);
-  b.tree(-9.2, 6, 5, { h: 5.2, r: 2.3, look: 'parktree' });
-  b.tree(9.4, 6, 23, { h: 5.6, r: 2.4, look: 'parktree' });
-  b.tree(-8.8, 6, 33.5, { h: 4.8, r: 2.1, look: 'parktree' });
+  b.tree(-9.2, 6, 5, { h: 5.2, r: 2.3, trunk: 0.24, look: 'parktree', kind: 'oak' });
+  b.tree(9.4, 6, 23, { h: 5.6, r: 2.4, trunk: 0.24, look: 'parktree', kind: 'lime' });
+  b.tree(-8.8, 6, 33.5, { h: 4.8, r: 2.1, trunk: 0.22, look: 'parktree', kind: 'blossom' });
   b.drops([[0, 6, 3.6], [-1.4, 6, 8], [-2.8, 6, 13]], 1.4);
   b.drops([[-1, 6, 20.5], [1.5, 6, 25], [0, 6, 29.5]], 1.5);
   // down the slope: a line to roll
@@ -87,8 +92,8 @@ export function park() {
   b.fountain(0, 4, 77.5, 2.3, { rim: 0.5 });
   b.drops([[-3.6, 4, 72], [-3.6, 4, 83.5]], 1.5);
   b.drops([[3.6, 4, 72], [3.6, 4, 83.5]], 1.5);
-  b.tree(-8.6, 4, 80, { h: 5.4, r: 2.4, look: 'parktree' });
-  b.tree(8.8, 4, 70.5, { h: 5, r: 2.2, look: 'parktree' });
+  b.tree(-8.6, 4, 80, { h: 5.4, r: 2.4, trunk: 0.24, look: 'parktree', kind: 'copper' });
+  b.tree(8.8, 4, 70.5, { h: 5, r: 2.2, trunk: 0.22, look: 'parktree', kind: 'oak' });
 
   // ---------------------------------------------------------------- C: the grand stairs and their handrails (z 86-96)
   for (const x of [-6, 0, 6]) {
@@ -126,8 +131,8 @@ export function park() {
   b.puddle(1.8, 1.5, 133.6, 0.8);
   b.drops([[2.6, 1.5, 101], [0, 1.5, 107], [-1.4, 1.5, 111.5]], 1.5);
   b.drops([[-0.8, 1.5, 119], [-1.2, 1.5, 125.5], [0.8, 1.5, 130.5], [0, 1.5, 137.6]], 1.6);
-  b.tree(-9, 1.5, 125, { h: 5.4, r: 2.4, look: 'parktree' });
-  b.tree(9.2, 1.5, 106, { h: 5.2, r: 2.3, look: 'parktree' });
+  b.tree(-9, 1.5, 125, { h: 5.4, r: 2.4, trunk: 0.24, look: 'parktree', kind: 'oak' });
+  b.tree(9.2, 1.5, 106, { h: 5.2, r: 2.3, trunk: 0.22, look: 'parktree', kind: 'blossom' });
 
   // ---------------------------------------------------------------- E: the harbour front (z 144-158)
   b.puddle(3, 0.6, 146.6, 0.8);
