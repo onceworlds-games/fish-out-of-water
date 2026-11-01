@@ -367,18 +367,26 @@ it escaped the stall). Every number in the game is on one: timer, place, Last ca
 button. Tags swing on a spring when they change.
 
 **Lighting and camera:** a high noon sun ahead of the camera, toward the sea, so the water throws a glitter path and shadows fall
-toward the player (`#FFF1D6`); hemisphere sky `#BFE3FF` over terracotta bounce; PMREM sky environment so wet surfaces and fish
-reflect; ACES Filmic, sRGB; warm sea haze fog (40-160 m). Soft shadows from a tight shadow camera (±14 m) following your fish: none
-on low, 1024 medium, 2048 high. No post-processing: the sea's glints are additive sparkle sprites in its shader, antialiasing by
-quality. Camera: third person, 2.6 m behind and 1.45 m up, looking 1 m ahead; yaw is the aim (exact), position springs behind;
-it tilts up while charging so the arc shows. When something solid is right behind the fish (a crate stack, the kitchen
-wall, the lifeguard hut) the boom swings round it or up over it and looks down, and otherwise eases in; it never ends up inside
-a solid (a sphere sweep against every solid, including the invisible walls under the drawn houses and kitchen walls; the
-Kitchen also keeps it under the beams). A node check over bot races counts frames with the camera inside a solid: none.
-Hanging signs and shoppers' legs that pass through the lens step out of the picture. Over the finish line the camera stops,
-up over the edge, and looks down at where the fish will go in (worked out the moment it crosses): a crown of water jets and a
-ring of foam. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
-motion.
+toward the player; a Poly Haven HDRI sky for the background and the reflections (a made-up tiled room for the Kitchen's);
+scanned CC0 materials (Poly Haven, ambientCG) mapped in world space so a tile or a cobble keeps its size on any piece, with a slow
+colour drift, grime at the foot of walls and a wet sheen where it's wet. Post: bloom on the glitter and the water, ambient
+occlusion on high, ACES Filmic, a warm grade and a vignette; antialiasing by quality. Soft shadows from a tight shadow camera
+following your fish (none on low, 1024 medium, 2048 high). Camera: third person at fish height, 1.8 m behind and 0.8 m up,
+looking ahead of the fish; yaw is the aim (exact), position springs behind; it pulls back and tilts up while charging so the arc
+shows, kicks the FOV on release and shakes on hard landings (trauma², none with reduced motion). When something solid is right
+behind the fish the boom swings round it or up over it; it never ends up inside a solid (a sphere sweep against every solid,
+including the invisible walls under the drawn houses and kitchen walls; the Kitchen also keeps it under the beams). A node check
+over bot races counts frames with the camera inside a solid: none. Hanging signs and shoppers' legs that pass through the lens
+step out of the picture. Over the finish line the camera stops, up over the edge, and looks down at where the fish will go in: a
+crown of water jets, a ring of foam, the fish sinking in slow motion. Portrait widens the vertical FOV to keep 55° across.
+
+**Set dressing at fish height:** every course is filled where the camera is. The Quay has a blue trawler tied up alongside (land
+on its deck or its wheelhouse roof, then off into the sea) and gulls on the bollards turning their heads; out on the bay,
+trawlers with wheelhouses and gantries and dinghies heeling under red, yellow and cream sails ride the swell on every course
+with a sea. The Park's lawn is mown in stripes with tufts the mower missed, patches of daisies and clover, leaves and blossom
+petals under the trees, picnics on red, blue and yellow gingham; seven kinds of tree with lumpy crowns, clipped hedges, rose
+beds in flower. The Beach's rock pools are pale weathered stone split into flat faces, wet at the foot, with weed, barnacles,
+mussels, anemones and a starfish.
 
 **Players and bots:** your fish lies side-on to the camera (broadside) on the ground and through a flop, rolling forward in
 the air, so its shape, curl and face always read from the chase camera. Glossy fish (clearcoat, low roughness, a species pattern in a small canvas texture), skinned on the chain;

@@ -194,7 +194,10 @@ const SCENES = {
   async cover(stage, W, H) {
     const r = stageRace(stage, 'market', 2.05, { seed: 4 });
     const lead = r.fish.reduce((a, f) => (f.b.y > a.b.y ? f : a), r.fish[0]);
-    shoot(stage, [lead.b.x - 2.6, 2.1, lead.b.z - 4.2], [lead.b.x + 0.6, 0.9, lead.b.z + 5], 52);
+    const y0 = r.course.start.y;
+    // inside the lane (houses either side at x ±4)
+    const cx = Math.max(-2.8, Math.min(2.8, lead.b.x - 2.2));
+    shoot(stage, [cx, y0 + 1.15, lead.b.z - 4.2], [lead.b.x + 0.5, y0 - 0.1, lead.b.z + 5], 52);
     for (const f of r.fish) if (!f.b.ground) r.fx.burst(f.b.x, f.b.y - 0.05, f.b.z, 6, 'splash', 0.5);
     for (let i = 0; i < 6; i++) r.fx.update(1 / 60);
     wordmark(W, H, { size: Math.round(H * 0.15), top: '5%', left: '29%' });
@@ -333,9 +336,18 @@ const SCENES = {
     const i = Number(params.get('i') ?? 0);
     const h = r.hazards.list[i];
     const st = r.hazards.at(r.time)[i];
-    const x = st.x ?? h.at?.[0] ?? 0, z = st.z ?? h.at?.[2] ?? 0;
-    const y = h.at?.[1] ?? h.floor ?? 0;
-    shoot(stage, [x + 2.5, y + 2.6, z - 7.5], [x, y + 1.6, z], 60);
+    const x = st.x ?? h.at?.[0] ?? h.pivot?.[0] ?? 0, z = st.z ?? h.at?.[2] ?? h.pivot?.[2] ?? 0;
+    const y = h.at?.[1] ?? h.floor ?? (h.pivot ? h.pivot[1] - h.len : 0);
+    // from the route's own line a few metres back, where nothing stands in the way
+    const { spine, lens } = r.course;
+    let best = 0;
+    for (let s = 0, d = Infinity; s < lens[lens.length - 1]; s += 0.5) {
+      const p = pointAt(spine, lens, s);
+      const dd = Math.abs(p[2] - z) + Math.abs(p[0] - x) * 0.3;
+      if (dd < d) (d = dd), (best = s);
+    }
+    const c = pointAt(spine, lens, Math.max(0, best - 6));
+    shoot(stage, [c[0] + 0.8, Math.max(c[1], y) + 2.2, c[2]], [x, y + 0.8, z], 60);
   },
   async 'test-course'(stage, W, H, params) {
     const s = Number(params.get('s') ?? 40);
