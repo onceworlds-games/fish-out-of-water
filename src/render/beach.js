@@ -656,6 +656,10 @@ function rockGeo(i) {
   const pos = g.attributes.position;
   const r = rng(101 + i * 17);
   const bumps = Array.from({ length: 6 }, () => [r() * 2 - 1, r() * 2 - 1, r() * 2 - 1, 0.15 + r() * 0.25]);
+  const cuts = Array.from({ length: 6 }, (_, j) => {
+    const a = r() * Math.PI * 2, e = j === 0 ? 1.2 : (r() - 0.25) * 1.3;
+    return [Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e), 0.62 + r() * 0.3];
+  });
   const v = new THREE.Vector3();
   for (let k = 0; k < pos.count; k++) {
     v.fromBufferAttribute(pos, k);
@@ -664,6 +668,11 @@ function rockGeo(i) {
     // flatten the bottom, so it sits
     v.multiplyScalar(s);
     if (v.y < -0.3) v.y = -0.3 + (v.y + 0.3) * 0.2;
+    // a few flat faces, as if split along the bedding: it reads as stone, not a pebble
+    for (const [nx, ny, nz, d] of cuts) {
+      const o = v.x * nx + v.y * ny + v.z * nz - d;
+      if (o > 0) v.set(v.x - nx * o, v.y - ny * o, v.z - nz * o);
+    }
     pos.setXYZ(k, v.x, v.y, v.z);
   }
   g.computeVertexNormals();

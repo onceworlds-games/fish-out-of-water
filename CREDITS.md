@@ -23,6 +23,7 @@ ambient occlusion / roughness / metalness.
 | tablewood | Wood Table Worn | Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/wood_table_worn |
 | quaystone | Seaworn Stone Tiles | Dimitrios Savva | https://polyhaven.com/a/seaworn_stone_tiles |
 | sandstone | Large Sandstone Blocks | Rob Tuytel | https://polyhaven.com/a/large_sandstone_blocks |
+| boulder | Rock Boulder Dry | Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/rock_boulder_dry |
 | sand | Coast Sand 01 | Rob Tuytel | https://polyhaven.com/a/coast_sand_01 |
 | wetsand | Damp Beach Sand | Dimitrios Savva | https://polyhaven.com/a/damp_beach_sand |
 | grass | Leafy Grass | Charlotte Baglioni | https://polyhaven.com/a/leafy_grass |
