@@ -1,0 +1,13 @@
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  // Relative paths: the game is served from its own folder on Onceworlds.
+  base: './',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    target: 'es2022',
+    chunkSizeWarningLimit: 1500,
+    assetsInlineLimit: 0,
+  },
+});
