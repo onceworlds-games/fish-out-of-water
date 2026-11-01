@@ -435,6 +435,14 @@ export const HARBOUR_DECOR = {
     batch.add(dialMat(), G.cyl20, { p: [x, top + 0.95, z - 0.1], r: [Math.PI / 2, 0, 0], s: [0.55, 0.02, 0.55] });
     batch.add(M.yellowSteel(), G.box, { p: [x, top + 0.42, z], s: [0.18, 0.3, 0.18] });
   },
+  /** A mooring line from a to b, sagging a little between. */
+  rope(batch, sc, d) {
+    const a = new THREE.Vector3(...d.a), b = new THREE.Vector3(...d.b);
+    const mid = a.clone().lerp(b, 0.5);
+    mid.y -= a.distanceTo(b) * (d.sag ?? 0.12);
+    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    batch.add(M.rope(), new THREE.TubeGeometry(curve, 14, 0.028, 5, false), null);
+  },
   ropecoil(batch, sc, d, p) {
     const [x, y, z] = p;
     for (let i = 0; i < 4; i++) batch.add(M.rope(), new THREE.TorusGeometry(0.32 - i * 0.02, 0.045, 6, 20), { p: [x, y + 0.045 + i * 0.075, z], r: [Math.PI / 2, 0, i] });

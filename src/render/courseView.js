@@ -9,6 +9,7 @@ import { makeSea } from './scene.js';
 import { tagAtlas } from './tags.js';
 import { makeKites, makeSpout } from './beach.js';
 import { makePond } from './park.js';
+import { makeBoats } from './boats.js';
 
 export function buildCourseView(course, camera = null) {
   const root = new THREE.Group();
@@ -52,12 +53,14 @@ export function buildCourseView(course, camera = null) {
 
   // ---------------------------------------------------------------- the sea, the lighthouse, boats
   let sea = null;
+  let boats = null;
   if (course.sea) {
     sea = makeSea(course.sea);
     root.add(sea);
     const lh = course.sea.lighthouse;
     if (lh) root.add(makeLighthouse(lh));
-    root.add(makeBoats(course));
+    boats = makeBoats(course);
+    root.add(boats.group);
   }
   // the surf: a sheet of foam that runs up the sand and back
   const surf = course.surf ? makeSurf(course.surf) : null;
@@ -77,6 +80,7 @@ export function buildCourseView(course, camera = null) {
     pickups,
     update(t) {
       sea?.userData.update(t);
+      boats?.update(t);
       pickups?.update(t);
       for (const w of waters) w.update(t);
       gulls?.update(t);
@@ -698,37 +702,6 @@ function makeLighthouse(at) {
   const cap = new THREE.Mesh(new THREE.ConeGeometry(1.2, 1.2, 12), M.red());
   cap.position.y = top + 2.5;
   g.add(cap);
-  return g;
-}
-
-function makeBoats(course) {
-  const g = new THREE.Group();
-  const sea = course.sea;
-  const hullCols = [M.blue(), M.red(), M.white(), M.lemonPaint()];
-  const positions = [
-    [sea.x0 * 0.3 - 12, sea.z0 + 22],
-    [sea.x1 * 0.3 + 14, sea.z0 + 30],
-    [-26, sea.z0 + 55],
-    [32, sea.z0 + 70],
-    [-6, sea.z0 + 95],
-  ];
-  positions.forEach(([x, z], i) => {
-    const b = new THREE.Group();
-    const hull = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.7, 6, 10, 1, false, 0, Math.PI), hullCols[i % 4]);
-    hull.rotation.set(Math.PI / 2, 0, Math.PI / 2);
-    hull.scale.set(1, 1, 0.6);
-    b.add(hull);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 1.4), M.white());
-    cabin.position.set(-0.6, 0.7, 0);
-    b.add(cabin);
-    const mast = new THREE.Mesh(G.cyl8, M.crateDark());
-    mast.scale.set(0.06, 4, 0.06);
-    mast.position.set(0.8, 2, 0);
-    b.add(mast);
-    b.position.set(x, sea.y + 0.1, z);
-    b.rotation.y = i * 1.3;
-    g.add(b);
-  });
   return g;
 }
 

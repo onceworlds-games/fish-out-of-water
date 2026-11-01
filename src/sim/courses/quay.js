@@ -39,6 +39,11 @@ export function quay() {
   b.bollard(4.5, 0, 6.2);
   b.bollard(9.0, 0, 6.0);
   b.decor('quayedge', [0, 0, 7], { x0: -11, x1: 11 });
+  // a trawler tied up alongside: land on its deck or the wheelhouse roof, then off into the sea
+  b.box([-5.2, -0.12, 8.55], [5.4, 0.24, 1.9], { surf: 'wood', look: null });
+  b.box([-5.55, 0.7, 8.55], [1.7, 1.4, 1.5], { surf: 'wood', look: null });
+  b.decor('rope', [0, 0, 0], { a: [-8.5, 0.5, 6.0], b: [-8.3, 0.25, 7.75] });
+  b.decor('rope', [0, 0, 0], { a: [-2.0, 0.5, 6.2], b: [-2.4, 0.45, 8.05] });
   b.decor('podium', [0, 0, 2.6], {});
   b.decor('bunting', [0, 0, 5.5], { x0: -11, x1: 11, h: 4.8 });
 
@@ -54,7 +59,11 @@ export function quay() {
     start: { x: 0.6, y: 0.17, z: -2.2, yaw: 0 },
     slots: [[0.6, 0.17, -2.2], [-1.8, 0.17, -3.4], [2.8, 0.17, -3.0], [-0.8, 0.17, 1.4], [3.4, 0.17, 0.6], [-4.4, 0.17, -1.2], [-3.0, 0.17, 2.4], [5.6, 0.17, 2.2]],
     bounds: { minY: -10, min: [-14, -12], max: [14, 82] },
-    sea: { y: -0.7, z0: 7.2, x0: -80, x1: 80, lighthouse: [14, 0, 70] },
+    sea: {
+      y: -0.7, z0: 7.2, x0: -80, x1: 80, lighthouse: [14, 0, 70],
+      moored: [{ x: -5.2, z: 8.55, yaw: 0, kind: 'trawler', i: 0, lift: 0.1 }],
+      perched: [[-8.5, 0.55, 6.0, 2.2], [4.5, 0.55, 6.2, -0.6], [9.0, 0.55, 6.0, 1.1]],
+    },
     sky: 'noon',
     podium: [[0, 1.4, 2.6], [-1.5, 1.0, 2.6], [1.5, 0.7, 2.6]],
   };
