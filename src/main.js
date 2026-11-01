@@ -1072,8 +1072,8 @@ async function boot() {
     camL.set(Math.sin(t) * 1.2 + 0.5, 0.2, 4.5);
     cam.place(dt, camP, camL, 2);
   }
-  const CHASE = { dist: 2.6, up: 1.45, ceil: Infinity };
-  const WATCH = { dist: 4.2, up: 1.9, ceil: Infinity };
+  const CHASE = { dist: 1.8, up: 0.8, ceil: Infinity };
+  const WATCH = { dist: 2.8, up: 1.3, ahead: 1.6, ceil: Infinity };
   function chaseCam(dt, a) {
     const b = a.body;
     CHASE.ceil = G.course.camCeil ?? Infinity;
@@ -1086,12 +1086,13 @@ async function boot() {
       cam.place(dt, camP, camL, 4);
       return;
     }
-    const s = b ? { x: b.x, y: b.y, z: b.z, yaw: input.state.yaw, curl: a.rs.curl, ground: b.ground } : { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: a.rs.aim, curl: a.rs.curl, ground: a.rs.ground };
+    const r = a.rs;
+    const s = { x: r.x, y: r.y, z: r.z, vx: r.vx, vy: r.vy, vz: r.vz, yaw: b ? input.state.yaw : r.aim, curl: r.curl, ground: b ? b.ground : r.ground };
     cam.follow(dt, s, G.course.world, CHASE);
   }
   function watchCam(dt, a) {
     const yaw = Math.atan2(a.rs.vx, a.rs.vz);
-    const s = { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: Math.hypot(a.rs.vx, a.rs.vz) > 1 ? yaw : a.rs.aim, curl: 0, ground: a.rs.ground };
+    const s = { x: a.rs.x, y: a.rs.y, z: a.rs.z, vx: a.rs.vx, vy: a.rs.vy, vz: a.rs.vz, yaw: Math.hypot(a.rs.vx, a.rs.vz) > 1 ? yaw : a.rs.aim, curl: 0, ground: a.rs.ground };
     WATCH.ceil = G.course.camCeil ?? Infinity;
     cam.follow(dt, s, G.course.world, WATCH);
   }
@@ -1150,7 +1151,9 @@ async function boot() {
     stage.camera.getWorldDirection(sunAt).multiplyScalar(5).add(stage.camera.position);
     if (G.camMode === 'chase' && G.me?.rs) sunAt.set(G.me.rs.x, G.me.rs.y, G.me.rs.z);
     stage.focus(sunAt.x, Math.min(sunAt.y, 6), sunAt.z);
-    stage.render();
+    stage.fovKick = cam.fovKick;
+    stage.fit();
+    stage.render(dt);
   }
 
   function tick(dt) {

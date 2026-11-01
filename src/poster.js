@@ -15,6 +15,7 @@ import { STEP, WATER, SEAT_COLOURS } from './sim/config.js';
 import { pointAt } from './sim/build.js';
 import { NO_TWIST } from './sim/race.js';
 import { loadFonts } from './fonts.js';
+import { texturesReady } from './render/materials.js';
 
 const CAST = [
   ['mackerel', 0, 'steady'], ['goldfish', 0, 'careful'], ['puffer', 0, 'hothead'], ['flatfish', 0, 'steady'],
@@ -58,7 +59,7 @@ export async function runPoster(name, params) {
     make = SCENES['test-start'];
   }
   await make(stage, W, H, params);
-  await Promise.race([stage.envReady, new Promise((r) => setTimeout(r, 4000))]);
+  await Promise.race([Promise.all([stage.envReady, texturesReady()]), new Promise((r) => setTimeout(r, 6000))]);
   stage.render();
   await new Promise((r) => requestAnimationFrame(r));
   stage.render();

@@ -69,6 +69,9 @@ export function simulate(a, until, inputFn, env, onEvent, maxSteps = 60) {
   while (a.simT + STEP <= until + 1e-9) {
     a.simT += STEP;
     env.t = a.simT;
+    b.px = b.x;
+    b.py = b.y;
+    b.pz = b.z;
     const input = inputFn(a, STEP, a.simT);
     stepBody(b, input, env);
     if (input.yaw !== undefined) a.rs.aim = input.yaw;
@@ -85,16 +88,24 @@ export function simulate(a, until, inputFn, env, onEvent, maxSteps = 60) {
     }
     n++;
   }
+  a.alpha = Math.max(0, Math.min(1, (until - a.simT) / STEP));
   return n;
 }
 
-/** Copy a simulated body into the render state. */
+/** Copy a simulated body into the render state, between its last two steps (so motion is smooth at any frame rate). */
 export function syncFromBody(a) {
   const b = a.body;
   const s = a.rs;
-  s.x = b.x;
-  s.y = b.y;
-  s.z = b.z;
+  const k = a.alpha ?? 1;
+  if (b.px === undefined || Math.abs(b.x - b.px) + Math.abs(b.y - b.py) + Math.abs(b.z - b.pz) > 1.5) {
+    s.x = b.x;
+    s.y = b.y;
+    s.z = b.z;
+  } else {
+    s.x = b.px + (b.x - b.px) * k;
+    s.y = b.py + (b.y - b.py) * k;
+    s.z = b.pz + (b.z - b.pz) * k;
+  }
   s.vx = b.vx;
   s.vy = b.vy;
   s.vz = b.vz;
@@ -140,6 +151,11 @@ export function eventFx(ctx, a, e, near = 1) {
   switch (e.type) {
     case 'flop':
       if (loud) audio.flop(e.charge * near, e.slap && mine);
+      if (mine) {
+        cam.kick?.(2 + e.charge * 5 + (e.slap ? 4 : 0));
+        cam.punch?.(-0.08 - e.charge * 0.12);
+        if (e.slap) cam.addTrauma(0.12);
+      }
       fx.burst(a.rs.x, a.rs.y - 0.1, a.rs.z, 4 + Math.round(e.charge * 6), WET_SURF.has(a.body?.lastSurf) ? 'splash' : 'dust', 0.6 + e.charge * 0.5);
       if (e.slap) fx.burst(a.rs.x, a.rs.y - 0.1, a.rs.z, 14, 'sparkle', 1.2);
       break;
@@ -149,7 +165,10 @@ export function eventFx(ctx, a, e, near = 1) {
       const kind = e.surf === 'sand' || e.surf === 'gravel' ? 'sand' : wet ? 'splash' : 'dust';
       fx.burst(e.x, e.y - 0.12, e.z, Math.min(18, 3 + Math.round(e.speed * 1.4)), kind, Math.min(1.4, e.speed / 7));
       if (e.speed > 3.5 && a.kind !== 'ghost') fx.splat(e.x, e.y - 0.15, e.z, 0.24 + Math.min(0.2, e.speed * 0.02), a.rs.wet);
-      if (mine && e.speed > 8) cam.addTrauma(0.12);
+      if (mine) {
+        cam.punch?.(Math.min(0.25, e.speed * 0.025));
+        if (e.speed > 7) cam.addTrauma(Math.min(0.3, (e.speed - 7) * 0.06));
+      }
       break;
     }
     case 'bonk':
