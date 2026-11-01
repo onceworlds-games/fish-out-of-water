@@ -223,17 +223,18 @@ const SCENES = {
   // The splash home: seen from the harbour, a fish going in nose first inside its crown of water, the next ones coming off
   // the quay edge behind.
   async win(stage) {
+    // the market's quay edge is at z 120, the sea below it
     const r = stageRace(stage, 'market', 0.1, { n: 0 });
-    posed(stage, 'goldfish', 0, { x: 6.4, y: -0.2, z: 189.7, vx: 0.6, vy: -6, vz: 1.2, aim: 0, flop: true }, 10);
-    posed(stage, 'mackerel', 1, { x: 8.3, y: 1.45, z: 189.1, vx: -2.6, vy: 1.4, vz: 1.0, aim: -1.2, flop: true, curl: 0.2 }, 12);
-    posed(stage, 'puffer', 2, { x: 4.6, y: 0.76, z: 187.6, aim: 0.3, curl: 0.8, ground: true, broadside: true }, 30);
-    posed(stage, 'flatfish', 3, { x: 10.2, y: 0.76, z: 187.2, aim: -0.4, curl: 0.5, ground: true, broadside: true }, 30);
-    r.fx.burst(6.4, -0.55, 189.7, 60, 'splash', 2.2);
-    r.fx.crown(6.4, -0.6, 189.7, 0.7);
+    posed(stage, 'goldfish', 0, { x: 6.4, y: -0.2, z: 121.7, vx: 0.6, vy: -6, vz: 1.2, aim: 0, flop: true }, 10);
+    posed(stage, 'mackerel', 1, { x: 8.3, y: 1.45, z: 121.1, vx: -2.6, vy: 1.4, vz: 1.0, aim: -1.2, flop: true, curl: 0.2 }, 12);
+    posed(stage, 'puffer', 2, { x: 4.9, y: 0.76, z: 119.4, aim: 0.3, curl: 0.8, ground: true, broadside: true }, 30);
+    posed(stage, 'flatfish', 3, { x: 8.6, y: 0.76, z: 119.0, aim: -0.4, curl: 0.5, ground: true, broadside: true }, 30);
+    r.fx.burst(6.4, -0.55, 121.7, 60, 'splash', 2.2);
+    r.fx.crown(6.4, -0.6, 121.7, 0.7);
     for (let i = 0; i < 9; i++) r.fx.update(1 / 60);
-    r.fx.burst(6.4, -0.55, 189.7, 30, 'splash', 1.4);
+    r.fx.burst(6.4, -0.55, 121.7, 30, 'splash', 1.4);
     for (let i = 0; i < 3; i++) r.fx.update(1 / 60);
-    shoot(stage, [9.2, 1.25, 193.6], [6.8, 0.35, 189.0], 46);
+    shoot(stage, [9.2, 1.25, 125.6], [6.8, 0.35, 121.0], 46);
   },
   // Eight fish flopping down the kitchen line as the chef's pan goes up.
   async multi(stage) {
