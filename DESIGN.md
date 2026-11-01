@@ -118,19 +118,29 @@ splash back at the last refill point** (the start counts) with a full tank.
 
 ## Courses
 
-Four courses, each 155-245 m from start to water, built from data (pieces with a surface type, refills, hazards, decor) over one
-modular prop kit (bevelled crates, ice trays, stall counters, barrels, tiles, awnings, buckets) plus each course's own landmarks.
-Each course has a **spine** (a polyline of the main line, for progress and the safe bot route) and an **expert line**. The sea is
-visible from the start or pointed to: the harbour window at the end of the Kitchen, the lighthouse at the end of every street,
-blue enamel signs with a wave and an arrow, gulls drifting over the water, the wave at the end of the HUD's fishing line, and a
-"This way" chevron for a player facing away from the route for 2 s. Puddles and no hazards early, busier near the end.
+Four courses, each 124-182 m from start to water, built from data (pieces with a surface type, refills, hazards, decor) over a
+modular prop kit plus each course's own landmarks and art module (`render/kitchen.js`, `beach.js`, `park.js`, `harbour.js`).
+Each course has a **spine** (the main line, for progress and the safe bot route) and an **expert line**, and three **golden
+scales** on its risky lines. The sea is visible from the start or pointed to: the harbour window at the end of the Kitchen, the
+lighthouse at the end of every street, blue enamel signs, gulls drifting over the water. Puddles and no hazards early, busier
+near the end. Lines of **water drops** (the arcs to fly and the lines to roll) run along every course: each one tops you up a
+little, and taken quickly they climb a scale.
 
-| # | Course | Length | The water | Signature hazard | Refills | Shortcuts |
+| # | Course | Length | The water | Signature hazard | Refills | Lines and scales |
 |---|---|---|---|---|---|---|
-| 1 | **The Fish Market** | 193 m | the harbour off the quay | **the cat** on a barrel (swipe) and **shoppers' feet** | ice trays, mop bucket, puddles under the stalls, a dripping hose | bounce awning to awning over the cat aisle; crate stacks; the kiosk roof |
-| 2 | **The Kitchen** | 157 m | the big pot sink under the harbour window | **the chef** walking the line with his pan (slams) and the hot range | the ice pan (start), a dripping prep sink, the mop bucket, the dish tub, puddles | the shelf over the range (a spill on it); the steel pass (slide); the scullery drain strip |
-| 3 | **The Beach** | 231 m | the surf line | **gulls** that grab you and drop you back; **hot sand** | tide pools, kids' buckets, the beach shower, a melting cool box, wet sand near the water | the boardwalk; the lifeguard tower ramp; the **lucky gull** (lemon, slow, rare) that drops you 20 m ahead |
-| 4 | **The Park** | 245 m | the harbour wall at the bottom of the hill | **boules** rolling across four lanes; sweeping **sprinklers** (moving refills that nudge you) | sprinkler jets, the fountain, dog bowls, watering cans, puddles | the brass handrails down the grand stairs (a long slide); picnic tables; café parasols (bounce) |
+| 1 | **The Fish Market** | 124 m | the harbour off the quay | **the cat** on a barrel and **shoppers' feet**, the fishmonger's swinging scale | ice trays, mop bucket, puddles under the stalls, a dripping hose | awning to awning over the cat aisle; crate stacks; the kiosk roof |
+| 2 | **The Kitchen** | 157 m | the big pot sink under the harbour window | **the chef** walking the line with his pan; the hot range | the ice pan (start), a dripping prep sink, the mop bucket, the dish tub, puddles | the shelf over the range; the steel pass (slide); steam from the hood that lifts you |
+| 3 | **The Beach** | 158 m | the surf line | **crabs** that scuttle along the rock pools, rear up and snap; **gulls** that grab you; hot sand | rock pools, kids' buckets, the beach shower, a melting cool box, the paddling pool, wet sand near the water | parasols in a row (bounce lane); the lifeguard tower; the **blowhole** that throws you high to a scale; the old groyne; the **lucky gull** |
+| 4 | **The Park** | 182 m | the harbour wall at the bottom of the hill | **boules** rolling across two lanes; sweeping **sprinklers** (moving refills that nudge you) | sprinkler jets, the fountain, the duck pond, dog bowls, watering cans, puddles | the **bouncy castle** (a scale high over it); the brass handrails down the grand stairs (a scale over them); a trampoline onto the **bandstand's** springy roof |
+
+**The Kitchen** is a real room: tiled walls to head height under plaster, a ceiling with light panels, pipes and a clock, the
+hood over the range, the ticket rail, the walk-in, wet-floor signs and mats. **The Beach** runs from the promenade (railings,
+lamps, bunting, the ice-cream kiosk, a row of painted huts) over dunes of marram and sand fences, past a pier with its
+helter-skelter, a crowd under parasols beyond the groynes and kites over the dunes, to rock pools (barnacles, mussels,
+anemones, starfish, weed) and the surf. **The Park** starts on a picnic trestle's ice tray at the top of the hill: the lawn and
+its bouncy castle, the boules pitch and the fountain, the grand stairs, the garden with the duck pond (lilies, reeds, a duck
+house, ducks paddling round) and the bandstand (the band playing), then the harbour front and its café. Trees of seven kinds,
+clipped hedges, flower borders, gravel walks and people out in the sun fill the park beyond the hedges.
 
 The Kitchen has no knives anywhere: you start in a pan of ice on the prep island and finish in the big pot sink. The Park starts
 on a picnic trestle's ice tray at the top of the hill: lawn, the boules pitch, the fountain, the grand stairs, the rose garden and
@@ -147,7 +157,9 @@ computes the same cat, chef, gulls and boules with no messages, and a host chang
 - Gulls: 3 on the beach, each dives every 7.4-8.8 s at its stations; the shadow and a red ring grow over 1.1 s (0.8 m). Caught:
   carried 1.6 s and dropped 15-20 m back, then immune for 3 s. The lucky gull (lemon, bigger, every 15 s, off to the side) drops
   you 20 m ahead and is never a danger.
-- Boules: four lanes, a throw every 2.6-3.2 s from alternate ends; red chevrons run along the lane for 0.8 s before (the way the
+- Crabs: five on the beach, each scuttling a short path by a rock pool, stopping, then rearing up with its claws open (0.8 s
+  warning, a red disc) and snapping. Knock away and up.
+- Boules: two lanes, a throw every 2.6-2.9 s from alternate ends; red chevrons run along the lane for 0.8 s before (the way the
   ball will come); a steel boule rolls the lane at 5 m/s. Knock 5 m/s along + 2.2 up.
 - Sprinklers: four, each sweeping a 80-90° arc of 4-5 m every 4.6-5.4 s, the swept grass darker: inside the jet you refill (+55/s)
   and get nudged along it.
@@ -227,12 +239,23 @@ puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), 
 
 ## Progression and reasons to come back
 
-- Course unlocks in order; medals; fish unlocks (above); personal bests and ghosts per course.
-- **Saves** (`ow.save`): `profile` (fish, colourway, per-course best ms + medal, daily best for today's date, tips seen, the
-  `firstRace` flag, counters for badges); `ghost-<course>` (your best run at 8 Hz, delta-coded int16, base64, about 10 KB each,
-  40 KB for all four: fits a guest's 128 KB).
-- **Leaderboards** (16 of the 25 allowed, lower is better, seconds to 0.1): `time-<course>` × 4, and `daily-<course>-<twist>` × 12
-  (the daily picks one combo per day, so each board is that combo's all-time best).
+- **Short term (a run):** drops and Flow chains as you go, three golden scales per course on the risky lines, a medal time, your
+  ghost and the gold ghost to beat, and **the course record**: the fastest time anyone has flopped that course, with who holds it
+  (shared game data, on the trial board and the course card), and "Course record!" when you take it.
+- **Mid term (a day):** **the Catch**, a level filled by XP from every run (finishing, medals, places, drops, new scales, Flow,
+  perfect slaps, close shaves), **three daily goals** (the same for everyone that day, 100 XP each) and a **day streak**; the
+  **Daily Catch** (one course and twist a day, its own board).
+- **Long term:** the **locker**: hats (eleven by level, three by feats: gold in the Kitchen, every golden scale, gold everywhere),
+  trails behind every flight (six by level, gold leaf for Flow ×5), splashes at the finish (three by level, the whale spout for a
+  seven-day streak) and five colourways per fish; fish unlocks by medals; all four golds; the boards. Everything is earned by
+  playing, never bought, and other players see what you wear.
+- **Everyone together:** the Catch card on the Quay counts every fish anyone has flopped back to the sea.
+- **Saves** (`ow.save`): `profile` (fish, colourway, look, per-course best and medal, scales kept, XP, goals, streak, feats,
+  daily best, tips seen, counters for badges); `ghost-<course>` (your best run at 8 Hz, delta-coded int16, base64, about 10 KB
+  each).
+- **Leaderboards** (lower is better, seconds to 0.1): `time-<course>` × 4, and `daily-<course>-<twist>` × 12.
+- **Game data** (`ow.data.game`, declared in `onceworlds.json`): `record-<course>` × 4 (records, lowest wins, 8-600 s, signed
+  in) and `saved` (a counter, +1 per finish).
 - **Badges** (10):
 
 | id | Name | Earned |
@@ -262,8 +285,8 @@ puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), 
 | Cup | 3 races ≈ 6 min with intros (4.5 s), race results (7 s) and cup results (15 s) |
 | Bots in races | skill 0.25-0.85 (two clumsy, three middling, two sharp), × 0.75 in a first race |
 
-Medals (gold / silver / bronze), set from bot simulations (6 seeds per skill): Market 0:50 / 1:04 / 1:32, Kitchen 0:46 / 0:58 /
-1:24, Beach 1:12 / 1:45 / 2:40, Park 1:08 / 1:32 / 2:25. Gold sits just above the skill-1 bot's best runs (it takes a clean,
+Medals (gold / silver / bronze), set from bot simulations (`npm test` checks they fit): Market 0:21 / 0:38 / 1:05, Kitchen
+0:26 / 0:40 / 1:20, Beach 0:36 / 1:02 / 1:50, Park 0:33 / 0:55 / 1:40. Gold sits just above the skill-1 bot's best runs (it takes a clean,
 quick line), silver near the skill-0.55 bot, bronze near the skill-0.3 bot.
 
 **Checked in node tests** (`npm test`):
@@ -272,7 +295,9 @@ quick line), silver near the skill-0.55 bot, bronze near the skill-0.3 bot.
 - Water: drain on dry ground, a puddle fills you in about a second, drying out sends you back to the last puddle.
 - The finish: on every course the splash goes off where the camera was told it would, at the water's surface.
 - Courses: every start slot settles on the ice; bots of every skill (1, 0.8, 0.55, 0.3; steady, careful, wobbly) reach the sea;
-  the best runs beat gold, gold isn't easy for the skill-0.8 bot, silver and bronze are within reach of the slower bots.
+  the best runs beat gold, gold isn't easy for the skill-0.8 bot, silver and bronze are within reach of the slower bots; every
+  golden scale can be reached by some flop or slap from a place a fish can stand; the blowhole throws a fish clear (nobody
+  hovers in the spout); a slap on something springy goes higher than one on sand.
 - Hazards: the same states for the same clock and seed; the cat, chef, gulls and boules warn ≥ 0.8 s; nothing reaches a fish in
   the gentle start.
 - Cups, medals, ghosts (encode/decode), presence read defensively, and the host refusing forged finishes (too fast, an old race,
@@ -373,7 +398,9 @@ water; text over the scene in white with a thick slate outline. No boxes around 
 - Refill: splash and rising bubbles. Low water: dry gasps, faster under 15%. Dry out: a deflating wheeze, then a splash back.
 - Hazards: the cat's swipe, shoppers' footfalls, the chef's pan BONG, gull squawks (brighter for the lucky gull), the clack of a
   boule thrown. Bump between fish: a rubbery bonk.
-- No ambience beds: the music and the hazards carry each course.
+- Each place has its own air: water lapping and gulls on the quay, the market's murmur, the kitchen's fridge hum, extractor
+  fan, sizzle and a pan now and then, waves coming in on the beach, birdsong, a breeze and the fountain's trickle in the park. A
+  made-up room's echo under everything, deepest in the tiled kitchen.
 - Stingers: ship's bell 3-2-1, foghorn GO, a big SPLASH with crowd cheer at your finish, an accordion fanfare for a win, medal
   stamp thunk.
 - **Music:** a little sequencer playing a jaunty tarantella in D minor (6/8, 132 BPM): musette accordion (three detuned voices
