@@ -1,12 +1,13 @@
 # Status (working notes, deleted before the final commit)
 
 Done:
-- DESIGN.md approved; Market, Quay; fish broadside view, camera springs substepped.
-- Kitchen (chef + pan), Beach (gulls, lucky gull, surf), Park (sprinklers, boules lanes, fountain, stairs + handrails, café).
-- Medals from bot sims; arc preview slides off walls it starts against; tests (flop/arc, courses, race/ghost/net).
-- Sounds for slam, squawk, boule throws; grab callout + gull-bait badge.
+- Four courses (Market, Kitchen, Beach, Park) with hazards, medals from sims, tests (21), posters action/multi restaged.
+- Review fixes: sun follows view, podium solid, HUD after cup, presence flags, finish sink, trial ghosts, gentle first race.
+- DESIGN.md and README updated to what's built.
+- From the first takes: camera swings/lifts round solids behind the fish, drawn walls block it, kitchen ceiling; lifeguard hut
+  moved aside and solid; shortcut bots fall back to the main way; autoplay skill 0.95.
 
 Next:
-- Gold ghost: faster of expert/spine; play shots (park start, phone portrait/landscape, two thumbs)
-- Posters (cover/action/win/multi), trailer
-- DESIGN.md/README; re-read all files; delete STATUS.md
+- Trailer retakes running (market, beach, kitchen, park, title) → cut 3-6 shots, contact sheet, store/trailer.mp4
+- posters.mjs → store/*.png, look at each
+- CLI check; final re-read; delete STATUS.md; commit

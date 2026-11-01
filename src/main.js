@@ -682,7 +682,7 @@ async function boot() {
       if (s.me) {
         const a = makeMe(s.index, slot, course.start.yaw);
         a.name = s.name;
-        if (AUTOPLAY) G.autoplayBrain = createBrain(course, { skill: 0.8, seed: 7, yaw: course.start.yaw, personality: 'steady' });
+        if (AUTOPLAY) G.autoplayBrain = createBrain(course, { skill: 0.95, seed: 7, yaw: course.start.yaw, personality: 'steady' });
         continue;
       }
       const style = s.bot ? BOT_STYLE[s.name] ?? { personality: 'steady', fish: FISH_IDS[s.index % 5], cw: s.index % 3 } : null;
@@ -1069,16 +1069,19 @@ async function boot() {
     camL.set(Math.sin(t) * 1.2 + 0.5, 0.2, 4.5);
     cam.place(dt, camP, camL, 2);
   }
-  const CHASE = { dist: 2.6, up: 1.45 };
+  const CHASE = { dist: 2.6, up: 1.45, ceil: Infinity };
+  const WATCH = { dist: 4.2, up: 1.9, ceil: Infinity };
   function chaseCam(dt, a) {
     const b = a.body;
+    CHASE.ceil = G.course.camCeil ?? Infinity;
     const s = b ? { x: b.x, y: b.y, z: b.z, yaw: input.state.yaw, curl: a.rs.curl, ground: b.ground } : { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: a.rs.aim, curl: a.rs.curl, ground: a.rs.ground };
     cam.follow(dt, s, G.course.world, CHASE);
   }
   function watchCam(dt, a) {
     const yaw = Math.atan2(a.rs.vx, a.rs.vz);
     const s = { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: Math.hypot(a.rs.vx, a.rs.vz) > 1 ? yaw : a.rs.aim, curl: 0, ground: a.rs.ground };
-    cam.follow(dt, s, G.course.world, { dist: 4.2, up: 1.9 });
+    WATCH.ceil = G.course.camCeil ?? Infinity;
+    cam.follow(dt, s, G.course.world, WATCH);
   }
   const fp = [0, 0, 0];
   const fl = [0, 0, 0];

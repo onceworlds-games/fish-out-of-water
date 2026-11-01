@@ -22,9 +22,9 @@ export function createBrain(course, opts = {}) {
   const pers = PERSONALITIES[opts.personality] ?? PERSONALITIES.steady;
   const rng = createRng(opts.seed ?? 1);
   const useExpert = !!course.expert && (opts.route === 'expert' || (opts.route !== 'spine' && rng.next() < clamp((skill - 0.45) * 1.6 * pers.shortcut, 0, 0.95)));
-  const route = useExpert ? course.expert : course.spine;
-  const lens = useExpert ? course.expertLens ?? polyLengths(route) : course.lens;
-  const total = lens[lens.length - 1];
+  let route = useExpert ? course.expert : course.spine;
+  let lens = useExpert ? course.expertLens ?? polyLengths(route) : course.lens;
+  let total = lens[lens.length - 1];
   const world = course.world;
   const sAim = lerp(9, 1.2, skill) * pers.aim * (Math.PI / 180);
   const sCharge = lerp(0.14, 0.022, skill) * pers.aim;
@@ -77,6 +77,18 @@ export function createBrain(course, opts = {}) {
         brain.best = pr.s;
         brain.stuck = 0;
       } else brain.stuck += dt;
+      // the shortcut didn't work out (missed the awning, can't get up the kiosk): take the main way like a person would
+      if (brain.expert && brain.stuck > 3.2 && b.ground) {
+        route = course.spine;
+        lens = course.lens;
+        total = lens[lens.length - 1];
+        brain.route = route;
+        brain.expert = false;
+        brain.stuck = 0;
+        brain.best = -Infinity;
+        brain.seg = -1;
+        brain.chain = null;
+      }
       if (brain.stuck > 9 && b.ground) {
         respawn(b);
         brain.stuck = 0;

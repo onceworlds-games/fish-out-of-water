@@ -1061,18 +1061,20 @@ const DECOR = {
     for (let i = 0; i < 3; i++) sc.add('starfish', G.lowSphere, M.coral(), [at[0] + (r() - 0.5) * d.r, at[1] + 0.02, at[2] + (r() - 0.5) * d.r], [0, r() * 3, 0], [0.08, 0.02, 0.08]);
   },
   tower(batch, sc, d, at) {
-    // the lifeguard tower: white legs, a red and lemon hut, a flag
+    // the lifeguard tower: white legs, a red and lemon hut on the right of the deck (the left is the run-up), a flag
     const [x, y, z] = at;
     for (const sx of [-1, 1])
       for (const sz of [-1, 1]) batch.add(M.white(), G.box, { p: [x + sx * (d.w / 2 - 0.1), y / 2 - 0.1, z + sz * (d.d / 2 - 0.1)], s: [0.14, y, 0.14] });
     batch.add(M.white(), G.box, { p: [x, y * 0.45, z], s: [d.w - 0.2, 0.08, 0.08], r: [0, 0, 0.9] });
-    batch.add(M.red(), G.box, { p: [x, y + 1.0, z + d.d / 2 - 0.5], s: [d.w, 1.8, 0.9] });
-    batch.add(M.lemonPaint(), G.box, { p: [x, y + 1.95, z + d.d / 2 - 0.5], s: [d.w + 0.3, 0.12, 1.3] });
-    batch.add(M.window(), G.box, { p: [x, y + 1.2, z + d.d / 2 - 0.96], s: [d.w * 0.7, 0.6, 0.02] });
-    for (const sx of [-1, 1]) batch.add(M.white(), G.box, { p: [x + sx * (d.w / 2 - 0.05), y + 0.45, z - 0.3], s: [0.06, 0.06, d.d - 1.2] });
-    batch.add(M.white(), G.cyl8, { p: [x + d.w / 2, y + 2.6, z + d.d / 2 - 0.5], s: [0.03, 2.4, 0.03] });
-    batch.add(M.red(), G.box, { p: [x + d.w / 2 + 0.35, y + 3.5, z + d.d / 2 - 0.5], s: [0.7, 0.25, 0.02] });
-    batch.add(M.lemonPaint(), G.box, { p: [x + d.w / 2 + 0.35, y + 3.25, z + d.d / 2 - 0.5], s: [0.7, 0.25, 0.02] });
+    const hx = x + d.hut[0], hz = z + d.hut[1], hw = d.hut[2], hd = d.hut[3];
+    batch.add(M.red(), G.box, { p: [hx, y + 0.9, hz], s: [hw, 1.8, hd] });
+    batch.add(M.lemonPaint(), G.box, { p: [hx - 0.05, y + 1.86, hz], s: [hw + 0.4, 0.12, hd + 0.4] });
+    batch.add(M.window(), G.box, { p: [hx, y + 1.2, hz + hd / 2 + 0.01], s: [hw * 0.7, 0.6, 0.02] });
+    batch.add(M.window(), G.box, { p: [hx - hw / 2 - 0.01, y + 1.2, hz], s: [0.02, 0.6, hd * 0.6] });
+    batch.add(M.white(), G.box, { p: [x - d.w / 2 + 0.05, y + 0.45, z - 0.3], s: [0.06, 0.06, d.d - 1.2] });
+    batch.add(M.white(), G.cyl8, { p: [hx + hw / 2, y + 2.6, hz + hd / 2], s: [0.03, 2.4, 0.03] });
+    batch.add(M.red(), G.box, { p: [hx + hw / 2 + 0.35, y + 3.5, hz + hd / 2], s: [0.7, 0.25, 0.02] });
+    batch.add(M.lemonPaint(), G.box, { p: [hx + hw / 2 + 0.35, y + 3.25, hz + hd / 2], s: [0.7, 0.25, 0.02] });
   },
   gullpost(batch, sc, d, at) {
     batch.add(M.driftwood(), G.cyl8, { p: [at[0], at[1] + 0.9, at[2]], s: [0.14, 1.8, 0.14] });

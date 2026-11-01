@@ -10,10 +10,11 @@ export function kitchen() {
 
   // ---------------------------------------------------------------- the room: floor, walls, three doorways
   b.slab(-6.5, -5, 6.5, ZE + 0.6, 0, 'tile', 'kfloor', 1);
-  b.wall(X0, -5, X0, ZE + 1);
-  b.wall(X1, -5, X1, ZE + 1);
-  b.wall(-7, -4.6, 7, -4.6);
-  b.wall(-7, ZE + 0.4, 7, ZE + 0.4);
+  const drawn = { camera: true };
+  b.wall(X0, -5, X0, ZE + 1, 6, -1, drawn);
+  b.wall(X1, -5, X1, ZE + 1, 6, -1, drawn);
+  b.wall(-7, -4.6, 7, -4.6, 6, -1, drawn);
+  b.wall(-7, ZE + 0.4, 7, ZE + 0.4, 6, -1, drawn);
   b.decor('kwalls', [0, 0, 0], { x0: X0, x1: X1, z0: -4.6, z1: ZE + 0.4, windows: [[6, 16], [24, 36], [48, 62], [70, 90], [102, 118], [126, 142]], end: [-3.6, 3.6], h: 4.2 });
   for (const z of [40, 96, 122]) {
     b.box([-4.05, 2.1, z], [3.9, 4.2, 0.3], { surf: 'wall', look: 'kwalltile' });
@@ -130,6 +131,8 @@ export function kitchen() {
     sea: { y: -0.6, z0: ZE + 1.2, x0: -60, x1: 80, lighthouse: [14, 0, 230] },
     sky: 'noon',
     gentle: 30,
+    // the chase camera stays under the beams
+    camCeil: 3.95,
     indoor: true,
   };
 }

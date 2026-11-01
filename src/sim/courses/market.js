@@ -14,13 +14,14 @@ export function market() {
   for (let i = 0; i < 3; i++) b.slab(8.6, 137.5 + i * 1.0, 11.5, 141, 0.2 * (i + 1), 'stone', 'quay', 0.2 * (i + 1));
 
   // walls that keep the street a street (the houses are drawn as decor along them)
-  b.wall(-7.6, -8, -7.6, 112);
-  b.wall(-7.6, 112, -1.2, 130);
+  const drawn = { camera: true };
+  b.wall(-7.6, -8, -7.6, 112, 6, -1, drawn);
+  b.wall(-7.6, 112, -1.2, 130, 6, -1, drawn);
   b.wall(-1.2, 130, -1.2, 190);
-  b.wall(7.6, -8, 7.6, 116);
-  b.wall(7.6, 116, 13.8, 124);
-  b.wall(13.8, 124, 13.8, 190);
-  b.wall(-8, -6.5, 15, -6.5);
+  b.wall(7.6, -8, 7.6, 116, 6, -1, drawn);
+  b.wall(7.6, 116, 13.8, 124, 6, -1, drawn);
+  b.wall(13.8, 124, 13.8, 190, 6, -1, drawn);
+  b.wall(-8, -6.5, 15, -6.5, 6, -1, drawn);
   b.houses(-7.6, -8, 112, -1, { seed: 3 });
   b.houses(7.6, -8, 116, 1, { seed: 7 });
   b.houses(13.8, 124, 186, 1, { seed: 11, base: 0.6 });

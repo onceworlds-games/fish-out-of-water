@@ -49,11 +49,12 @@ export function courseBuilder(id) {
       colliders.push(col);
       return col;
     },
-    /** An invisible wall from (x0, z0) to (x1, z1). */
-    wall(x0, z0, x1, z1, h = 6, y0 = -1) {
+    /** An invisible wall from (x0, z0) to (x1, z1). The camera passes through it unless it stands where a drawn wall
+     *  or house does (`camera: true`). */
+    wall(x0, z0, x1, z1, h = 6, y0 = -1, opts = {}) {
       const len = Math.hypot(x1 - x0, z1 - z0);
       const yaw = Math.atan2(x1 - x0, z1 - z0);
-      return b.box([(x0 + x1) / 2, y0 + h / 2, (z0 + z1) / 2], [0.4, h, len], { surf: 'wall', look: null, yaw, noCamera: true });
+      return b.box([(x0 + x1) / 2, y0 + h / 2, (z0 + z1) / 2], [0.4, h, len], { surf: 'wall', look: null, yaw, noCamera: !opts.camera });
     },
     /** Water you can refill in: a puddle on a surface at height y. */
     puddle(x, y, z, r, opts = {}) {

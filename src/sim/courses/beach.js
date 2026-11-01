@@ -77,7 +77,9 @@ export function beach() {
   // the lifeguard tower: a ramp up to its deck, a long flop off the top
   b.rampZ(-3, 94.5, 0, 101.5, 2.4, 1.6, 'wood', 'plankramp', 0.15);
   b.box([-3, 2.32, 103.2], [2.4, 0.16, 3.2], { surf: 'wood', look: 'towerdeck' });
-  b.decor('tower', [-3, 2.4, 103.2], { w: 2.4, d: 3.2 });
+  // the hut on its right is solid: a fish bonks off it, and nothing flops through it
+  b.box([-2.25, 3.3, 103.5], [0.9, 1.8, 2.0], { surf: 'wood', look: null });
+  b.decor('tower', [-3, 2.4, 103.2], { w: 2.4, d: 3.2, hut: [0.75, 0.3, 0.9, 2.0] });
   b.puddle(-3.6, 2.4, 104.0, 0.4, { look: 'bucket' });
   b.puddle(5.2, 0, 113, 1.2, { look: 'pool' });
   b.decor('rocks', [5.2, 0, 113], { r: 1.2, seed: 3 });

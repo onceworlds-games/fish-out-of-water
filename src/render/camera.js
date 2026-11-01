@@ -4,6 +4,18 @@
 import * as THREE from 'three';
 
 const tmpV = new THREE.Vector3();
+const tmpW = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+// where the boom may go when the straight one is blocked: [yaw offset, lift]
+const SWINGS = [[0, 0], [0, 1], [0.7, 0], [-0.7, 0], [0.7, 1], [-0.7, 1], [1.3, 0], [-1.3, 0]];
+
+/** The end of the boom behind a fish facing `yaw`, swung by `off` and lifted by `lf` (0..1), under the ceiling. */
+function boomEnd(f, yaw, dist, up, off, lf, ceil, out) {
+  const a = yaw + off;
+  const d = dist * (1 - 0.45 * lf);
+  out.set(f.x - Math.sin(a) * d, Math.min(ceil, f.y + up + 1.8 * lf), f.z - Math.cos(a) * d);
+  return out;
+}
 
 export function createChaseCam(camera) {
   const pos = new THREE.Vector3(0, 3, -5);
@@ -11,6 +23,9 @@ export function createChaseCam(camera) {
   const follow = new THREE.Vector3(0, 0, 0); // smoothed fish position
   const followV = new THREE.Vector3();
   let block = 1; // 0..1 how much of the boom is free
+  let lift = 0; // 0..1 how far the boom has swung up over something right behind the fish
+  let swing = 0; // how far (radians) the boom has swung round something right behind the fish
+  let aimOff = 0, aimLift = 0;
   let trauma = 0;
   let t = 0;
   let charge = 0;
@@ -21,6 +36,8 @@ export function createChaseCam(camera) {
     look,
     snap() {
       inited = false;
+      swing = lift = aimOff = aimLift = 0;
+      block = 1;
     },
     addTrauma(k) {
       if (rig.reduced) return;
@@ -51,15 +68,42 @@ export function createChaseCam(camera) {
       const dx = Math.sin(s.yaw), dz = Math.cos(s.yaw);
       const ahead = 1.0 + charge * 1.9;
       look.set(follow.x + dx * ahead, follow.y + 0.15 + charge * 0.1, follow.z + dz * ahead);
-      const want = new THREE.Vector3(follow.x - dx * dist, follow.y + up, follow.z - dz * dist);
-      // keep the boom out of walls: ease in fast, out slowly
+      const ceil = opts.ceil ?? Infinity;
+      const want = boomEnd(follow, s.yaw, dist, up, 0, 0, ceil, tmpW);
+      // keep the boom out of walls: with something right behind the fish, swing round it or up over it and look down;
+      // otherwise pull in (fast) and let out (slowly)
       let free = 1;
       if (world) {
         const ox = follow.x, oy = follow.y + 0.45, oz = follow.z;
-        free = world.sweep(ox, oy, oz, want.x, want.y, want.z, 0.22, 14);
+        const freeOf = (off, lf) => {
+          const e = boomEnd(follow, s.yaw, dist, up, off, lf, ceil, tmpB);
+          return world.sweep(ox, oy, oz, e.x, e.y, e.z, 0.22, 14);
+        };
+        const straight = freeOf(0, 0);
+        if (straight >= 0.75) {
+          aimOff = 0;
+          aimLift = 0;
+        } else {
+          // the way it swung last time wins ties, so it never flips from side to side
+          let best = (aimOff === 0 && aimLift === 0 ? straight : freeOf(aimOff, aimLift)) + 0.12;
+          if (aimOff !== 0 || aimLift !== 0) best -= Math.abs(aimOff) * 0.08 + aimLift * 0.05;
+          for (const [off, lf] of SWINGS) {
+            if (off === aimOff && lf === aimLift) continue;
+            const f = (off === 0 && lf === 0 ? straight : freeOf(off, lf)) - Math.abs(off) * 0.08 - lf * 0.05;
+            if (f > best) {
+              best = f;
+              aimOff = off;
+              aimLift = lf;
+            }
+          }
+        }
+        swing += (aimOff - swing) * Math.min(1, dt * 3.2);
+        lift += (aimLift - lift) * Math.min(1, dt * (aimLift > lift ? 5 : 1.2));
+        boomEnd(follow, s.yaw, dist, up, swing, lift, ceil, want);
+        free = Math.abs(swing) < 0.01 && lift < 0.01 ? straight : world.sweep(ox, oy, oz, want.x, want.y, want.z, 0.22, 14);
       }
       block += (free - block) * Math.min(1, dt * (free < block ? 18 : 2.5));
-      const k = Math.max(0.22, block);
+      const k = Math.max(0.12, block);
       pos.set(follow.x + (want.x - follow.x) * k, follow.y + 0.45 + (want.y - follow.y - 0.45) * k, follow.z + (want.z - follow.z) * k);
       inited = true;
       rig.apply(dt);

@@ -219,6 +219,7 @@ changes don't move it. Everything read from the room is validated (types, ranges
 that won't be under an active telegraph when it lands and isn't hot when it's low on water; find the charge by bisection on the
 same trajectory predictor the arc uses; then add human error: aim σ 8° → 1.2°, charge σ 14% → 2.5%, reaction 0.65 → 0.18 s after
 landing (skill 0 → 1); slaps from skill 0.6 (timing σ 0.12 → 0.03 s); heads for the nearest refill below 45% → 25% water.
+A bot on the shortcut that makes no progress for 3 s (missed the awning, can't get up the kiosk) takes the main way instead.
 Personalities, each with a name, species and colourway of its own (no "BOT" tags): **Sal** (hothead: always full charge, skips
 puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), **Kipper** (show-off: shortcuts and slaps),
 **Bones** (wobbly: big aim errors, gets batted by everything), **Captain Gill** (steady), **Marisol** (fast and consistent),
@@ -344,8 +345,10 @@ toward the player (`#FFF1D6`); hemisphere sky `#BFE3FF` over terracotta bounce; 
 reflect; ACES Filmic, sRGB; warm sea haze fog (40-160 m). Soft shadows from a tight shadow camera (±14 m) following your fish: none
 on low, 1024 medium, 2048 high. No post-processing: the sea's glints are additive sparkle sprites in its shader, antialiasing by
 quality. Camera: third person, 2.6 m behind and 1.45 m up, looking 1 m ahead; yaw is the aim (exact), position springs behind;
-it tilts up while charging so the arc shows; it eases in when anything comes between it and the fish (raycast to every solid)
-and never ends up inside one. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
+it tilts up while charging so the arc shows. When something solid is right behind the fish (a crate stack, the kitchen
+wall, the lifeguard hut) the boom swings round it or up over it and looks down, and otherwise eases in; it never ends up inside
+a solid (a sphere sweep against every solid, including the invisible walls under the drawn houses and kitchen walls; the
+Kitchen also keeps it under the beams). A node check over bot races counts frames with the camera inside a solid: none. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
 motion.
 
 **Players and bots:** your fish lies side-on to the camera (broadside) on the ground and through a flop, rolling forward in
@@ -400,7 +403,8 @@ the puddle and the shortcut.
 
 - **Physics feels floaty or random:** own deterministic physics with honest arc previews, gravity 16, numbers tuned in node; the
   visual chain never affects the gameplay body.
-- **Camera in tight spaces** (stalls, the kitchen): raycast boom against every solid, ease in, fade small props near the lens.
+- **Camera in tight spaces** (stalls, the kitchen): the boom sweeps against every solid and swings round or over what's
+  behind the fish, then eases in.
 - **Too much content:** one modular kit plus data per course; the Fish Market to full polish first, then the rest in order, each
   checked in shots; four courses that are each finished rather than six thin ones; tests prove every course is finishable and
   within its medals.
