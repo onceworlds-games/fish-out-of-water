@@ -333,7 +333,8 @@ const SCENES = {
     const h = r.hazards.list[i];
     const st = r.hazards.at(r.time)[i];
     const x = st.x ?? h.at?.[0] ?? 0, z = st.z ?? h.at?.[2] ?? 0;
-    shoot(stage, [x + 2.5, 2.6, z - 7.5], [x, 1.6, z], 60);
+    const y = h.at?.[1] ?? h.floor ?? 0;
+    shoot(stage, [x + 2.5, y + 2.6, z - 7.5], [x, y + 1.6, z], 60);
   },
   async 'test-course'(stage, W, H, params) {
     const s = Number(params.get('s') ?? 40);
