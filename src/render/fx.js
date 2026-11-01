@@ -158,6 +158,29 @@ export function createFx(scene) {
   const S = [];
   let sNext = 0;
 
+  // ---------------------------------------------------------------- splash crowns (the finish): a ring of water jets that
+  // jump up and out round the fish and fall back, with a ring of foam left on the surface
+  const JETS = 18;
+  const jetGeo = new THREE.ConeGeometry(0.11, 1, 6, 1, true).translate(0, 0.5, 0).rotateY(Math.PI / 5);
+  const foamGeo = new THREE.RingGeometry(0.7, 1, 36).rotateX(-Math.PI / 2);
+  const crowns = [];
+  for (let i = 0; i < 3; i++) {
+    const jets = new THREE.InstancedMesh(jetGeo, new THREE.MeshStandardMaterial({ color: 0xeefaff, roughness: 0.25, transparent: true, opacity: 0.9, depthWrite: false }), JETS);
+    jets.frustumCulled = false;
+    const foam = new THREE.Mesh(foamGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+    jets.visible = foam.visible = false;
+    group.add(jets, foam);
+    const tilt = [];
+    for (let j = 0; j < JETS; j++) tilt.push(0.75 + ((j * 7) % 5) * 0.12);
+    crowns.push({ jets, foam, tilt, age: 9, size: 1, x: 0, y: 0, z: 0, spin: 0 });
+  }
+  let crownNext = 0;
+  const jetM = new THREE.Matrix4();
+  const jetQ = new THREE.Quaternion();
+  const jetE = new THREE.Euler(0, 0, 0, 'YXZ');
+  const jetP = new THREE.Vector3();
+  const jetS = new THREE.Vector3();
+
   // ---------------------------------------------------------------- the halo under the player
   const halo = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.44, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc93c, transparent: true, opacity: 0.85, depthWrite: false }));
   halo.renderOrder = 4;
@@ -239,6 +262,18 @@ export function createFx(scene) {
         });
       }
     },
+    /** A splash crown at a water surface (y), `size` about its radius in metres. */
+    crown(x, y, z, size = 0.5) {
+      const c = crowns[crownNext++ % crowns.length];
+      c.age = 0;
+      c.size = size;
+      c.x = x;
+      c.y = y;
+      c.z = z;
+      c.spin = Math.random() * 6.28;
+      c.foam.position.set(x, y + 0.02, z);
+      c.jets.visible = c.foam.visible = true;
+    },
     splat(x, y, z, size = 0.35, wet = 1) {
       const i = sNext++ % S_N;
       S[i] = { x, y, z, size: size * (0.6 + 0.4 * wet), age: 0, life: 5 + wet * 2, rot: Math.random() * 6 };
@@ -300,10 +335,44 @@ export function createFx(scene) {
       splats.count = sn;
       splats.instanceMatrix.needsUpdate = true;
       if (splats.instanceColor) splats.instanceColor.needsUpdate = true;
+      // crowns: the jets shoot up and lean out, then sink back; the foam ring spreads and fades
+      for (const c of crowns) {
+        if (c.age > 1.6) continue;
+        c.age += dt;
+        const k = c.age;
+        if (k > 1.6) {
+          c.jets.visible = c.foam.visible = false;
+          continue;
+        }
+        const up = k < 0.2 ? k / 0.2 : Math.max(0, 1 - (k - 0.2) / 0.75);
+        const lift = up * (2 - up);
+        const ring = c.size * (0.45 + Math.min(1, k / 0.7) * 0.55);
+        c.jets.visible = lift > 0.02;
+        for (let j = 0; j < JETS; j++) {
+          const a = c.spin + (j / JETS) * Math.PI * 2;
+          const h = c.size * 1.25 * lift * c.tilt[j];
+          // tilt toward +z, then turn to face out from the centre
+          jetE.set(0.35 + k * 0.5, a, 0);
+          jetQ.setFromEuler(jetE);
+          jetP.set(c.x + Math.sin(a) * ring, c.y - 0.04, c.z + Math.cos(a) * ring);
+          jetS.set(1 + c.size, Math.max(0.001, h), 1 + c.size);
+          jetM.compose(jetP, jetQ, jetS);
+          c.jets.setMatrixAt(j, jetM);
+        }
+        c.jets.instanceMatrix.needsUpdate = true;
+        c.jets.material.opacity = 0.92 * Math.min(1, lift * 1.6);
+        const fr = c.size * (0.85 + k * 1.1);
+        c.foam.scale.set(fr, 1, fr);
+        c.foam.material.opacity = 0.8 * Math.max(0, 1 - k / 1.6);
+      }
     },
     clear() {
       P.length = 0;
       S.length = 0;
+      for (const c of crowns) {
+        c.age = 9;
+        c.jets.visible = c.foam.visible = false;
+      }
       fx.hideArc();
     },
   };

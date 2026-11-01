@@ -11,7 +11,7 @@ One button. Hold to curl up, let go to fling yourself where the camera looks. A 
 will land before you let go. You bounce, slide and splat through a harbour town while your scales dry; puddles fill you back up.
 First fish into the sea wins.
 
-## The first 60 seconds
+## The first minute
 
 | Time | What the screen shows | Hint (2-5 words, once, then gone) |
 |---|---|---|
@@ -270,6 +270,7 @@ quick line), silver near the skill-0.55 bot, bronze near the skill-0.3 bot.
 - The arc: 800 flops (every course, every fish, four charges and aims) land within 0.3 m of the preview (wall hits: where the
   fish is when the arc says it touches).
 - Water: drain on dry ground, a puddle fills you in about a second, drying out sends you back to the last puddle.
+- The finish: on every course the splash goes off where the camera was told it would, at the water's surface.
 - Courses: every start slot settles on the ice; bots of every skill (1, 0.8, 0.55, 0.3; steady, careful, wobbly) reach the sea;
   the best runs beat gold, gold isn't easy for the skill-0.8 bot, silver and bronze are within reach of the slower bots.
 - Hazards: the same states for the same clock and seed; the cat, chef, gulls and boules warn ≥ 0.8 s; nothing reaches a fish in
@@ -348,7 +349,10 @@ quality. Camera: third person, 2.6 m behind and 1.45 m up, looking 1 m ahead; ya
 it tilts up while charging so the arc shows. When something solid is right behind the fish (a crate stack, the kitchen
 wall, the lifeguard hut) the boom swings round it or up over it and looks down, and otherwise eases in; it never ends up inside
 a solid (a sphere sweep against every solid, including the invisible walls under the drawn houses and kitchen walls; the
-Kitchen also keeps it under the beams). A node check over bot races counts frames with the camera inside a solid: none. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
+Kitchen also keeps it under the beams). A node check over bot races counts frames with the camera inside a solid: none.
+Hanging signs and shoppers' legs that pass through the lens step out of the picture. Over the finish line the camera stops,
+up over the edge, and looks down at where the fish will go in (worked out the moment it crosses): a crown of water jets and a
+ring of foam. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
 motion.
 
 **Players and bots:** your fish lies side-on to the camera (broadside) on the ground and through a flop, rolling forward in
@@ -378,18 +382,20 @@ water; text over the scene in white with a thick slate outline. No boxes around 
 ## Store art and the trailer
 
 All posters are drawn by the game itself (`?poster=<name>`, fixed seed, no HUD).
-- **Cover** (`thumb-1`): a mackerel mid-flop high over the market aisle, curled, scales flashing in the sun, other fish below,
-  the cat's paw mid-swipe, the harbour glittering through the arch beyond; "FISH OUT OF WATER" once, big.
-- **Action** (`thumb-2`): a gull flying straight at us with a mackerel in its feet, the surf and lighthouse behind, a puffer
-  mid-flop on the sand.
-- **Win** (`thumb-3`): the splash into the harbour, a crown of water, the fish diving, others on the quay edge behind.
+- **Cover** (`thumb-1`): the race's first leaps off the fishmonger's ice, a mackerel on the edge and others in the air, the
+  market street running down to the lighthouse; "FISH OUT OF WATER" once, big.
+- **Action** (`thumb-2`): a gull swooping straight at us over a mackerel, the lighthouse and a sandcastle behind, a puffer on
+  the sand.
+- **Win** (`thumb-3`): from the harbour, a goldfish going in nose first inside its crown of water, a mackerel flying off the
+  quay wall behind it, a puffer still on the quay.
 - **Multi** (`thumb-4`): eight fish on the kitchen line under the chef, his pan high over the red circle.
-- **Icon:** a glossy mackerel curled in a C, mid-flop, with a ring of flying water drops, on a harbour-blue disc. No text.
+- **Icon:** a glossy mackerel curled in a C, mid-flop over the market's red tiles, water flying off its tail. No text.
 - **Badges:** a bold symbol on a coloured disc each (a curled fish, a splash crown, a gold medal, a fish skeleton, a gull, an
   ice skid, a slap star, a net of fish, a golden fish, a cup).
-- **Trailer** (~30 s, autoplay with the bot brain): 0-3 s eight fish launch off the market's ice, the arc visible, the sea ahead;
-  3-8 an ice slide and a slap chain; 8-13 a gull grabs a fish and drops it; 13-19 a near-dry dash (red gauge) into a puddle, the
-  refill burst; 19-25 the chef's pan just misses; 25-30 a photo-finish splash into the harbour; last 2 s the title over the Quay.
+- **Trailer** (24 s, six hard cuts of autoplay races driven by the bot brain, the game's own sound): a mackerel flopping
+  across the quay at the sea and lighthouse, off the edge into a crown of water (the goal, 0-3 s); the eight fish leaving the
+  fishmonger's ice down the market street; the chef's pan coming down on the kitchen line; a gull taking a fish off the beach;
+  the boules lane and a swim through the park fountain; the title over the Quay to end.
 
 ## Originality check
 

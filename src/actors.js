@@ -175,7 +175,12 @@ export function eventFx(ctx, a, e, near = 1) {
       break;
     case 'finish':
       if (loud) audio.finish();
-      fx.burst(e.x, e.y, e.z, 40, 'splash', 2.2);
+      break;
+    case 'splashdown':
+      // where it goes in: a crown of water and the spray
+      fx.burst(e.x, e.y, e.z, 56, 'splash', 2.4);
+      fx.crown(e.x, e.y, e.z, 0.75);
+      if (mine) cam.addTrauma(0.2);
       break;
     case 'grab':
       if (loud) audio.gull(0.24);

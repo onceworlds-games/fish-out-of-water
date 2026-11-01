@@ -30,8 +30,8 @@ export function market() {
   b.decor('railing', [-1.0, 0.6, 140], { z1: 188 });
   b.decor('backwall', [0, 0, -6.6], { w: 16 });
   // the way to the sea: bunting across the street and blue signs on the walls
-  for (const z of [24, 58, 92]) b.decor('bunting', [0, 0, z], { x0: -7.6, x1: 7.6, h: 4.4 });
-  b.decor('bunting', [0, 0, 150], { x0: -1.2, x1: 13.8, h: 4.4 });
+  for (const z of [24, 58, 92]) b.decor('bunting', [0, 0, z], { x0: -7.6, x1: 7.6, h: 5.6 });
+  b.decor('bunting', [0, 0, 150], { x0: -1.2, x1: 13.8, h: 6.0 });
   b.decor('sign', [0, 3.55, 24], { arrow: 'ahead', hang: 0.75 });
   b.decor('sign', [0.5, 3.55, 58], { arrow: 'ahead', hang: 0.75 });
   b.decor('sign', [-0.5, 3.55, 92], { arrow: 'ahead', hang: 0.75 });
@@ -119,8 +119,8 @@ export function market() {
   b.puddle(7.4, 0.6, 162.5, 1.0, { look: 'bucketspill' });
   b.decor('bucket', [8.4, 0.6, 163.4], { tipped: true });
   b.puddle(4.0, 0.6, 179, 0.7);
-  b.decor('bunting', [6.5, 0, 186], { x0: -1, x1: 13.8, h: 4.5 });
-  b.finish([-30, -8, 188.25], [40, 0.45, 260]);
+  b.decor('bunting', [6.5, 0, 186], { x0: -1, x1: 13.8, h: 6.2 });
+  b.finish([-30, -8, 188.25], [40, 0.45, 260], 'sea', 1.6, -0.6);
   b.decor('quayedge', [6.4, 0.6, 188], { x0: -1, x1: 13.8 });
 
   const spine = [

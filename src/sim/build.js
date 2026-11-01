@@ -73,8 +73,10 @@ export function courseBuilder(id) {
       zones.push(zone);
       return zone;
     },
-    finish(min, max, look = 'sea') {
-      const zone = { id: 'finish', kind: 'finish', shape: 'box', min, max, look };
+    /** The finish: a box zone. `depth`: how far a finished fish sinks out of sight (shallow surf: a little); `surface`:
+     *  the water's height, where the splash goes (none: it splashes where it crosses). */
+    finish(min, max, look = 'sea', depth = 1.6, surface = null) {
+      const zone = { id: 'finish', kind: 'finish', shape: 'box', min, max, look, depth, surface };
       zones.push(zone);
       return zone;
     },

@@ -8,7 +8,7 @@ import { M } from './materials.js';
 import { makeSea } from './scene.js';
 import { tagAtlas } from './tags.js';
 
-export function buildCourseView(course) {
+export function buildCourseView(course, camera = null) {
   const root = new THREE.Group();
   root.name = `course:${course.id}`;
   const batch = createBatch();
@@ -47,7 +47,8 @@ export function buildCourseView(course) {
   if (gulls) root.add(gulls.group);
   // blue enamel signs: a wave and an arrow
   const signs = (course.builder.decors ?? []).filter((d) => d.look === 'sign');
-  if (signs.length) root.add(makeSigns(signs));
+  const signGroup = signs.length ? makeSigns(signs) : null;
+  if (signGroup) root.add(signGroup);
 
   const view = {
     root,
@@ -58,6 +59,8 @@ export function buildCourseView(course) {
       for (const w of waters) w.update(t);
       gulls?.update(t);
       surf?.update(t);
+      // a hanging sign the chase camera passes through steps out of the way
+      if (signGroup && camera) for (const sg of signGroup.children) sg.visible = sg.position.distanceToSquared(camera.position) > 1.2;
     },
     dispose() {
       root.traverse((o) => {

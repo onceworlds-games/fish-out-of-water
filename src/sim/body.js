@@ -40,6 +40,9 @@ export function createBody(fishId = 'mackerel', pos = [0, 0.2, 0], yaw = 0) {
     events: [],
     zones: [],
     hits: {},
+    doneY: 0, // finished: how far down it goes
+    surfY: null, // finished: the water's height, where the splash still has to happen
+    inAt: null, // finished: where it goes into the water
   };
 }
 
@@ -145,10 +148,12 @@ export function stepBody(b, input, env, dt = STEP) {
   if (b.state === 'done') {
     // in the water: carry on down under the surface (the splash has happened), then stay
     if (b.y > b.doneY) {
+      const y0 = b.y;
       b.vy -= GRAVITY * fish.gravity * dt;
       b.x += b.vx * 0.6 * dt;
       b.y += b.vy * dt;
       b.z += b.vz * 0.6 * dt;
+      if (b.surfY !== null && y0 > b.surfY && b.y <= b.surfY) b.events.push({ type: 'splashdown', x: b.x, y: b.surfY, z: b.z });
       if (b.y <= b.doneY) {
         b.y = b.doneY;
         b.vx = b.vy = b.vz = 0;
@@ -341,8 +346,20 @@ export function stepBody(b, input, env, dt = STEP) {
   for (const zone of zones) {
     if (zone.kind === 'finish') {
       b.state = 'done';
-      b.doneY = Math.max(zone.min[1] + 0.2, b.y - 1.6);
+      b.doneY = Math.max(zone.min[1] + 0.2, b.y - (zone.depth ?? 1.6));
       b.events.push({ type: 'finish', x: b.x, y: b.y, z: b.z });
+      // the splash comes when it reaches the water: now if it's already in, or on the way down
+      b.surfY = zone.surface ?? null;
+      if (b.surfY === null || b.y <= b.surfY || b.doneY >= b.surfY) {
+        b.surfY = null;
+        b.inAt = [b.x, b.y, b.z];
+        b.events.push({ type: 'splashdown', x: b.x, y: b.y, z: b.z });
+      } else {
+        // where it will go in (the camera turns to it before it gets there)
+        const g = GRAVITY * fish.gravity;
+        const t = (b.vy + Math.sqrt(b.vy * b.vy + 2 * g * (b.y - b.surfY))) / g;
+        b.inAt = [b.x + b.vx * 0.6 * t, b.surfY, b.z + b.vz * 0.6 * t];
+      }
       return;
     }
     if (zone.kind === 'shade') shade = Math.min(shade, WATER.shade);

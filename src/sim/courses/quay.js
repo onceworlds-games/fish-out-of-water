@@ -43,7 +43,7 @@ export function quay() {
   b.decor('bunting', [0, 0, 5.5], { x0: -11, x1: 11, h: 4.8 });
 
   // the sea: a splash, then you're back on the quay
-  b.finish([-40, -8, 7.2], [40, -0.1, 80]);
+  b.finish([-40, -8, 7.2], [40, -0.1, 80], 'sea', 1.6, -0.7);
 
   return {
     id: 'quay',

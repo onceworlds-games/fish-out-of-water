@@ -11,7 +11,7 @@
     { "keys": ["Space"], "action": "Hold to curl, let go to flop" },
     { "keys": ["Mouse"], "action": "Aim" },
     { "keys": ["A", "D"], "action": "Turn" },
-    { "keys": ["R"], "action": "Retry (hold in a race: back to the last puddle)" },
+    { "keys": ["R"], "action": "Retry, or hold: back to the last puddle" },
     { "keys": ["Esc"], "action": "Pause a time trial" }
   ],
   "badges": [

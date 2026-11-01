@@ -111,7 +111,8 @@ export function beach() {
   b.box([6.5, 0.4, 183], [1.5, 0.8, 4.2], { surf: 'wood', look: 'rowboat', yaw: -0.4 });
   b.puddle(-2.0, 0, 187, 0.8, { look: 'pool' });
   b.decor('rocks', [-2.0, 0, 187], { r: 0.8, seed: 6 });
-  b.finish([-40, -3, ZW - 2.5], [40, -0.12, 280]);
+  // into the surf: the fish slips under the foam rather than through the sand
+  b.finish([-40, -3, ZW - 2.5], [40, -0.12, 280], 'sea', 0.5);
 
   const spine = [
     [0, 1.72, -0.4], [-1.0, 0, 6.5], [3.0, 0, 12], [4.0, 0, 17.5], [5.0, 0, 27], [6.2, 0, 36.5], [5.4, 0, 45], [5.4, 0, 52.5],

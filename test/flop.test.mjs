@@ -94,3 +94,27 @@ test('a fish left on dry ground dries out and goes back to the last puddle', () 
   assert.equal(b.state, 'ok');
   assert.ok(b.m > 90);
 });
+
+test('the splash goes off where the finish said it would, at the water', async () => {
+  const { createBrain } = await import('../src/sim/bot.js');
+  const { createHazards } = await import('../src/sim/hazards.js');
+  for (const id of COURSE_IDS) {
+    const c = getCourse(id);
+    const b = createBody('mackerel', c.slots[0], c.start.yaw);
+    const hazards = createHazards(c, 1, {});
+    const brain = createBrain(c, { skill: 0.95, seed: 1, yaw: c.start.yaw });
+    const env = { world: c.world, hazards, t: 0 };
+    let inAt = null, splash = null;
+    for (let t = 0; t < 200 && !splash; t += STEP) {
+      env.t = t;
+      stepBody(b, brain.step(b, STEP, t, hazards), env);
+      for (const e of b.events) {
+        if (e.type === 'finish') inAt = b.inAt;
+        if (e.type === 'splashdown') splash = e;
+      }
+      b.events.length = 0;
+    }
+    assert.ok(inAt && splash, `${id}: finished and splashed`);
+    assert.ok(Math.hypot(splash.x - inAt[0], splash.z - inAt[2]) < 0.1 && Math.abs(splash.y - inAt[1]) < 0.05, `${id}: splash at ${splash.x},${splash.y},${splash.z} vs ${inAt}`);
+  }
+});

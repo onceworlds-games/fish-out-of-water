@@ -179,7 +179,17 @@ const SHOES = [0xe4432d, 0x6b3f22, 0xffc93c, 0xf4efe6];
 const COATS = [0x1a1d22, 0xffc93c, 0xf4efe6, 0x0b5cad];
 const BAGS = [0xe4432d, 0x4cd3ec, 0xcb6b3f, 0xffc93c];
 
-function makeFeet(hz) {
+/** Squared distance from point p to the segment a-b (THREE.Vector3s). */
+function segDist2(p, a, b) {
+  const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+  const l2 = abx * abx + aby * aby + abz * abz || 1;
+  const k = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2));
+  const dx = p.x - a.x - abx * k, dy = p.y - a.y - aby * k, dz = p.z - a.z - abz * k;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function makeFeet(hz, opts = {}) {
+  const cam = opts.camera ?? null;
   const group = new THREE.Group();
   const look = hz.look ?? 0;
   const cloth = std(TROUSERS[look % 4], 0.85);
@@ -252,6 +262,8 @@ function makeFeet(hz) {
         tmpA.set(x, y + 0.14, z);
         tmpB.set(hipX + -s.dz * 0.15 * side, HIP, hipZ + s.dx * 0.15 * side);
         const len = tmpA.distanceTo(tmpB);
+        // a leg striding through the chase camera steps out of the picture instead of filling it
+        leg.visible = !cam || segDist2(cam.position, tmpA, tmpB) > 0.45 * 0.45;
         leg.position.copy(tmpA).add(tmpB).multiplyScalar(0.5);
         leg.scale.set(1, len, 1);
         tmpB.sub(tmpA).normalize();
@@ -263,6 +275,11 @@ function makeFeet(hz) {
       const sway = Math.sin((s.step + s.local) * Math.PI) * 0.18;
       bag.position.set(hipX + s.dz * 0.62, 1.75, hipZ - s.dx * 0.62);
       bag.rotation.set(sway, dir, sway * 0.4);
+      if (cam) {
+        const p = cam.position;
+        bag.visible = (p.x - bag.position.x) ** 2 + (p.y - 1.5) ** 2 + (p.z - bag.position.z) ** 2 > 0.6 * 0.6;
+        coat.visible = p.y < 2.2 || (p.x - hipX) ** 2 + (p.z - hipZ) ** 2 > 0.8 * 0.8;
+      }
       shadow.position.set(next.x, 0.02, next.z);
       shadow.rotation.y = dir;
       shadow.material.opacity = s.tele > 0 ? 0.12 + s.tele * 0.4 : 0;

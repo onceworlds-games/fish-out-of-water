@@ -110,8 +110,8 @@ export function park() {
   b.box([9.6, 1.9, 214], [2.4, 2.6, 4.0], { surf: 'wood', look: 'kiosk' });
   b.decor('kioskroof', [9.6, 3.2, 214], { w: 2.4, d: 4.0 });
   for (const x of [-8, 0, 8]) b.bollard(x, 0.6, ZE - 1.2);
-  b.decor('bunting', [0, 0, ZE - 2], { x0: -XW, x1: XW, h: 4.6 });
-  b.finish([-40, -8, ZE + 0.25], [40, 0.45, 300]);
+  b.decor('bunting', [0, 0, ZE - 2], { x0: -XW, x1: XW, h: 6.0 });
+  b.finish([-40, -8, ZE + 0.25], [40, 0.45, 300], 'sea', 1.6, -0.6);
 
   const spine = [
     [0, 6.85, 0], [0, 6, 5], [-3.6, 6, 18], [1.5, 6, 25.5], [-2.5, 6, 37.5], [0, 5.0, 45], [5.2, 4, 53], [-3.2, 4, 65.2],

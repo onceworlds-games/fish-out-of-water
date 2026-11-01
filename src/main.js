@@ -94,7 +94,10 @@ async function boot() {
     layout();
   };
   function layout() {
-    const areas = ow?.ui?.reserved ?? [];
+    let areas = [];
+    try {
+      areas = (ow && ow.ui && ow.ui.reserved) || [];
+    } catch {}
     let top = 12, bottom = 12, left = 12, right = 12, menuBottom = 12;
     for (const a of areas ?? []) {
       if (a.kind === 'menu' && a.y < 40) {
@@ -127,7 +130,7 @@ async function boot() {
     const course = getCourse(id);
     let v = views.get(id);
     if (!v) {
-      v = buildCourseView(course);
+      v = buildCourseView(course, camera);
       views.set(id, v);
       scene.add(v.root);
     }
@@ -552,7 +555,7 @@ async function boot() {
     }
     // a player's very first race: nothing strikes in the first metres
     G.hazards = createHazards(course, seed, { gentle: gentle ? course.gentle : 0 });
-    G.hview = createHazardViews(course, G.hazards);
+    G.hview = createHazardViews(course, G.hazards, { camera });
     scene.add(G.hview.root);
   }
   function clearHazards() {
@@ -1074,6 +1077,15 @@ async function boot() {
   function chaseCam(dt, a) {
     const b = a.body;
     CHASE.ceil = G.course.camCeil ?? Infinity;
+    if (b && b.state === 'done') {
+      // in: the camera stops up over the edge and looks down into the splash (steep enough to see past the quay wall)
+      const [ix, iy, iz] = b.inAt ?? [b.x, b.y, b.z];
+      const yaw = input.state.yaw;
+      camP.set(ix - Math.sin(yaw) * 2.4, Math.min(iy + 3.6, CHASE.ceil), iz - Math.cos(yaw) * 2.4);
+      camL.set(ix, iy + 0.2, iz);
+      cam.place(dt, camP, camL, 4);
+      return;
+    }
     const s = b ? { x: b.x, y: b.y, z: b.z, yaw: input.state.yaw, curl: a.rs.curl, ground: b.ground } : { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: a.rs.aim, curl: a.rs.curl, ground: a.rs.ground };
     cam.follow(dt, s, G.course.world, CHASE);
   }

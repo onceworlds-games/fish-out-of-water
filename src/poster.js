@@ -216,15 +216,20 @@ const SCENES = {
     posed(stage, 'puffer', 1, { x: cx - dx * 2.0 + px * 0.9, y: fy + 0.45, z: cz - dz * 2.0 + pz * 0.9, vy: 1.5, aim: g.heading - 2.0, flop: true }, 10);
     shoot(stage, [cx, fy + 0.5, cz], [gx, gy - 0.25, gz], 50);
   },
-  // The splash home: off the end of the quay into the harbour.
+  // The splash home: seen from the harbour, a fish going in nose first inside its crown of water, the next ones coming off
+  // the quay edge behind.
   async win(stage) {
     const r = stageRace(stage, 'market', 0.1, { n: 0 });
-    posed(stage, 'goldfish', 0, { x: 6.4, y: 0.25, z: 189.4, vx: 0, vy: -5, vz: 2.5, aim: 0, flop: true }, 10);
-    r.fx.burst(6.4, -0.55, 189.6, 60, 'splash', 2.2);
-    for (let i = 0; i < 10; i++) r.fx.update(1 / 60);
-    r.fx.burst(6.4, -0.55, 189.6, 40, 'splash', 1.6);
+    posed(stage, 'goldfish', 0, { x: 6.4, y: -0.2, z: 189.7, vx: 0.6, vy: -6, vz: 1.2, aim: 0, flop: true }, 10);
+    posed(stage, 'mackerel', 1, { x: 8.3, y: 1.45, z: 189.1, vx: -2.6, vy: 1.4, vz: 1.0, aim: -1.2, flop: true, curl: 0.2 }, 12);
+    posed(stage, 'puffer', 2, { x: 4.6, y: 0.76, z: 187.6, aim: 0.3, curl: 0.8, ground: true, broadside: true }, 30);
+    posed(stage, 'flatfish', 3, { x: 10.2, y: 0.76, z: 187.2, aim: -0.4, curl: 0.5, ground: true, broadside: true }, 30);
+    r.fx.burst(6.4, -0.55, 189.7, 60, 'splash', 2.2);
+    r.fx.crown(6.4, -0.6, 189.7, 0.7);
+    for (let i = 0; i < 9; i++) r.fx.update(1 / 60);
+    r.fx.burst(6.4, -0.55, 189.7, 30, 'splash', 1.4);
     for (let i = 0; i < 3; i++) r.fx.update(1 / 60);
-    shoot(stage, [3.2, 2.0, 183.2], [6.8, 0.2, 191], 54);
+    shoot(stage, [9.2, 1.25, 193.6], [6.8, 0.35, 189.0], 46);
   },
   // Eight fish flopping down the kitchen line as the chef's pan goes up.
   async multi(stage) {
@@ -248,11 +253,14 @@ const SCENES = {
     for (let k = 0; k < 4; k++) r.fx.update(1 / 60);
     shoot(stage, [x + 1.4, 0.9, z - 6.6], [x, 1.7, z - 1.2], 60);
   },
-  // One bold fish, mid-flop, against the harbour.
+  // A mackerel curled in a C over the market's red tiles, side on, flinging water.
   async icon(stage) {
-    stageRace(stage, 'quay', 0.1, { n: 0 });
-    posed(stage, 'mackerel', 0, { x: 0, y: 1.6, z: 4, vx: 0.01, vy: 0.4, vz: 3, aim: Math.PI / 2, flop: true }, 12);
-    shoot(stage, [0.05, 1.68, 2.85], [0, 1.6, 4], 42);
+    const r = stageRace(stage, 'market', 0.1, { n: 0 });
+    posed(stage, 'mackerel', 0, { x: 1.2, y: 0.8, z: 31.5, aim: 0, curl: 1, broadside: true, wet: 1 }, 40);
+    // the spray comes off the tail end and from underneath, never across the face
+    r.fx.burst(1.45, 0.62, 31.55, 12, 'splash', 1.1);
+    for (let i = 0; i < 9; i++) r.fx.update(1 / 60);
+    shoot(stage, [1.2, 1.66, 30.2], [1.2, 0.8, 31.5], 34);
   },
 
   // ------------------------------------------------------------ checks (never part of the store art)
@@ -303,7 +311,7 @@ const BADGES = {
   'gold-fin': { bg: '#e4432d', draw: (g) => medalGlyph(g, '#e8b931') },
   'bone-dry': { bg: '#cb6b3f', draw: (g) => boneGlyph(g) },
   'gull-bait': { bg: '#4cd3ec', draw: (g) => gullGlyph(g) },
-  'ice-skater': { bg: '#9fd2ee', draw: (g) => iceGlyph(g) },
+  'ice-skater': { bg: '#2a8fd0', draw: (g) => iceGlyph(g) },
   'slap-happy': { bg: '#ffc93c', draw: (g) => slapGlyph(g) },
   'whole-catch': { bg: '#1a1d22', draw: (g) => netGlyph(g) },
   'golden-catch': { bg: '#e8b931', draw: (g) => fishGlyph(g, '#1a1d22', 0, false, '#fff3c4') },
