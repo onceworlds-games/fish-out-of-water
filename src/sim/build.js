@@ -8,7 +8,10 @@ export function courseBuilder(id) {
   const zones = [];
   const decor = [];
   const hazards = [];
+  const casters = [];
+  const items = [];
   let zid = 0;
+  let scaleN = 0;
 
   const b = {
     id,
@@ -16,6 +19,8 @@ export function courseBuilder(id) {
     zones,
     decors: decor,
     hazards,
+    casters,
+    items,
     /** A solid box by its centre and full size. */
     box(c, size, opts = {}) {
       const col = box(c, [size[0] / 2, size[1] / 2, size[2] / 2], opts);
@@ -79,6 +84,88 @@ export function courseBuilder(id) {
       const zone = { id: 'finish', kind: 'finish', shape: 'box', min, max, look, depth, surface };
       zones.push(zone);
       return zone;
+    },
+    /** Something that only blocks the sun (a tree's crown, a parasol's cloth): drawn by its decor, solid to nothing. */
+    casterSphere(c, r) {
+      const col = sphere(c, r, {});
+      casters.push(col);
+      return col;
+    },
+    casterBox(c, size, opts = {}) {
+      const col = box(c, [size[0] / 2, size[1] / 2, size[2] / 2], opts);
+      casters.push(col);
+      return col;
+    },
+    casterCyl(c, r, h) {
+      const col = cyl([c[0], c[1] + h / 2, c[2]], r, h / 2, {});
+      casters.push(col);
+      return col;
+    },
+    /** Water drops along a line of surface points [x, y, z] (they float a little above), every `gap` metres. */
+    drops(pts, gap = 1.1, lift = 0.3) {
+      let carry = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], c = pts[i];
+        const len = Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
+        let d = i === 1 ? 0 : gap - carry;
+        for (; d <= len + 1e-6; d += gap) {
+          const k = d / len;
+          items.push({ kind: 'drop', p: [a[0] + (c[0] - a[0]) * k, a[1] + (c[1] - a[1]) * k + lift, a[2] + (c[2] - a[2]) * k] });
+        }
+        carry = len - (d - gap);
+      }
+    },
+    /** `n` drops along a leap from a to c (surface points) over a hump `h` above the higher end: a line to fly. */
+    dropArc(a, c, h, n) {
+      const top = Math.max(a[1], c[1]) + h;
+      for (let i = 0; i < n; i++) {
+        const k = (i + 1) / (n + 1);
+        // a parabola through a, the top and c (the top at the middle)
+        const y = a[1] + (c[1] - a[1]) * k + 4 * (top - (a[1] + c[1]) / 2) * k * (1 - k);
+        items.push({ kind: 'drop', p: [a[0] + (c[0] - a[0]) * k, y + 0.3, a[2] + (c[2] - a[2]) * k] });
+      }
+    },
+    /** A golden scale on a surface point (three per course, on the risky lines). */
+    scale(x, y, z) {
+      items.push({ kind: 'scale', n: scaleN++, p: [x, y + 0.42, z] });
+    },
+    /** Rising air from a vent or a hood: a column that lifts a fish in the air. */
+    updraft(x, y, z, r, h, lift = 30, look = 'steam') {
+      const zone = { id: `u${zid++}`, kind: 'updraft', shape: 'cyl', c: [x, y, z], r, y0: y, y1: y + h, lift, look };
+      zones.push(zone);
+      return zone;
+    },
+    /** A drain in the floor: lie on it and you're washed back to the last water. */
+    drain(x, y, z, r = 0.45) {
+      const zone = { id: `d${zid++}`, kind: 'drain', shape: 'cyl', c: [x, y, z], r, y0: y - 0.3, y1: y + 0.3, look: 'drain' };
+      zones.push(zone);
+      return zone;
+    },
+    /** Hot air under a heat lamp or over a grill: dries you `k` times faster. */
+    heat(min, max, k = 2.2) {
+      const zone = { id: `h${zid++}`, kind: 'heat', shape: 'box', min, max, k };
+      zones.push(zone);
+      return zone;
+    },
+    /** A moving belt (a conveyor): a box whose top carries a fish at `v` [vx, vz]. */
+    belt(c, size, v, opts = {}) {
+      const col = b.box(c, size, { surf: opts.surf ?? 'steel', look: opts.look ?? 'belt', yaw: opts.yaw ?? 0 });
+      col.belt = [v[0], v[1]];
+      return col;
+    },
+    /** A tree: a solid trunk, a crown that casts shade (and is drawn by its decor). */
+    tree(x, y, z, opts = {}) {
+      const h = opts.h ?? 4.2, cr = opts.r ?? 2.0;
+      b.cyl([x, y, z], opts.trunk ?? 0.2, h * 0.6, { surf: 'wood', look: 'trunk' });
+      b.casterSphere([x, y + h - cr * 0.55, z], cr);
+      b.decor(opts.look ?? 'tree', [x, y, z], { h, r: cr, seed: opts.seed ?? Math.round(x * 7 + z * 3) });
+    },
+    /** A beach or café parasol: a pole and a bouncy canopy that shades the ground under it. */
+    parasol(x, y, z, opts = {}) {
+      const h = opts.h ?? 2.1, r = opts.r ?? 1.2;
+      b.cyl([x, y, z], 0.05, h, { surf: 'wood', look: 'pole' });
+      const top = b.cyl([x, y + h, z], r, 0.08, { surf: 'bounce', look: opts.look ?? 'umbrella', tint: opts.tint ?? 'red' });
+      return top;
     },
     decor(look, at, opts = {}) {
       const d = { look, at, ...opts };

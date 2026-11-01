@@ -1,5 +1,8 @@
 // The solid world a fish collides with: oriented boxes (ramps are pitched boxes), vertical cylinders and spheres, in a
-// spatial hash. Plus zones (puddles, shade, the finish) the fish can be inside. Pure: no three.js, no page.
+// spatial hash. Plus zones (puddles, shade, the finish, rising air) the fish can be inside, shade casters that only block
+// the sun (a tree's crown, a parasol's cloth), and the pickups along the lines. Pure: no three.js, no page.
+
+import { SUN } from './config.js';
 
 const CELL = 4;
 const keyOf = (ix, iz) => (ix + 2048) * 4096 + (iz + 2048);
@@ -125,7 +128,59 @@ export function inZone(z, x, y, zz) {
   return dx * dx + dz * dz <= z.r * z.r && y >= z.y0 && y <= z.y1;
 }
 
-export function createWorld({ colliders = [], zones = [], bounds = null } = {}) {
+/** Does the ray o + d·t (0 < t < maxT) hit the collider? */
+export function rayHits(col, ox, oy, oz, dx, dy, dz, maxT) {
+  const c = col.c;
+  const px = ox - c[0], py = oy - c[1], pz = oz - c[2];
+  if (col.kind === 'box') {
+    const { ux, uy, uz, h } = col;
+    let t0 = 0, t1 = maxT;
+    for (let k = 0; k < 3; k++) {
+      const u = k === 0 ? ux : k === 1 ? uy : uz;
+      const p = px * u[0] + py * u[1] + pz * u[2];
+      const d = dx * u[0] + dy * u[1] + dz * u[2];
+      const e = h[k];
+      if (Math.abs(d) < 1e-9) {
+        if (p < -e || p > e) return false;
+        continue;
+      }
+      let a = (-e - p) / d, b = (e - p) / d;
+      if (a > b) [a, b] = [b, a];
+      if (a > t0) t0 = a;
+      if (b < t1) t1 = b;
+      if (t0 > t1) return false;
+    }
+    return true;
+  }
+  if (col.kind === 'cyl') {
+    // the vertical slab, then the circle
+    let t0 = 0, t1 = maxT;
+    if (Math.abs(dy) < 1e-9) {
+      if (Math.abs(py) > col.hh) return false;
+    } else {
+      let a = (-col.hh - py) / dy, b = (col.hh - py) / dy;
+      if (a > b) [a, b] = [b, a];
+      t0 = Math.max(t0, a);
+      t1 = Math.min(t1, b);
+      if (t0 > t1) return false;
+    }
+    const A = dx * dx + dz * dz, B = 2 * (px * dx + pz * dz), C = px * px + pz * pz - col.r * col.r;
+    if (A < 1e-12) return C <= 0;
+    const disc = B * B - 4 * A * C;
+    if (disc < 0) return false;
+    const q = Math.sqrt(disc);
+    const a = (-B - q) / (2 * A), b = (-B + q) / (2 * A);
+    return Math.max(t0, a) <= Math.min(t1, b);
+  }
+  // sphere
+  const B = px * dx + py * dy + pz * dz, C = px * px + py * py + pz * pz - col.r * col.r;
+  const disc = B * B - C;
+  if (disc < 0) return false;
+  const q = Math.sqrt(disc);
+  return -B + q > 0 && -B - q < maxT;
+}
+
+export function createWorld({ colliders = [], zones = [], bounds = null, casters = [], items = [], sun = true } = {}) {
   const cells = new Map();
   const statics = colliders.slice();
   statics.forEach((col, i) => {
@@ -142,11 +197,18 @@ export function createWorld({ colliders = [], zones = [], bounds = null } = {}) 
   });
   let stamp = 0;
   const found = [];
+  // how far up the sun's line we look for something in the way (the tallest house's shadow)
+  const SUN_REACH = 16;
 
   const world = {
     colliders: statics,
     zones,
     finishes: zones.filter((z) => z.kind === 'finish'),
+    updrafts: zones.filter((z) => z.kind === 'updraft'),
+    casters,
+    items,
+    /** Is there a sun at all (outdoors)? */
+    sun,
     bounds,
     /** Kinematic colliders this step (hazards): each also has `v` (its velocity) and maybe `knock`. */
     dynamic: [],
@@ -170,6 +232,30 @@ export function createWorld({ colliders = [], zones = [], bounds = null } = {}) 
           }
         }
       return found;
+    },
+    /** Out in the sun (nothing between the point and the sun)? Indoors there is no sun. */
+    sunlit(x, y, z) {
+      if (!sun) return false;
+      const dx = SUN[0], dy = SUN[1], dz = SUN[2];
+      for (const col of casters) if (rayHits(col, x, y, z, dx, dy, dz, SUN_REACH)) return false;
+      stamp++;
+      const ex = x + dx * SUN_REACH, ez = z + dz * SUN_REACH;
+      const ix0 = Math.floor(Math.min(x, ex) / CELL), ix1 = Math.floor(Math.max(x, ex) / CELL);
+      const iz0 = Math.floor(Math.min(z, ez) / CELL), iz1 = Math.floor(Math.max(z, ez) / CELL);
+      for (let ix = ix0; ix <= ix1; ix++)
+        for (let iz = iz0; iz <= iz1; iz++) {
+          const list = cells.get(keyOf(ix, iz));
+          if (!list) continue;
+          for (let i = 0; i < list.length; i++) {
+            const col = list[i];
+            if (col.stamp === stamp) continue;
+            col.stamp = stamp;
+            if (col.noShade || (col.look === null && !col.shade)) continue;
+            if (col.aabb[4] < y) continue;
+            if (rayHits(col, x, y, z, dx, dy, dz, SUN_REACH)) return false;
+          }
+        }
+      return true;
     },
     zonesAt(x, y, z, out) {
       out.length = 0;

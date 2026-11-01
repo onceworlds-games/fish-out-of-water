@@ -2,10 +2,33 @@
 // messages. Each one is telegraphed before it strikes. A page applies them only to its own fish (the host to the bots).
 
 import { knock } from './body.js';
+import { box } from './world.js';
+import { NEAR_MISS } from './config.js';
 import { hashString, mulberry32 } from './rng.js';
 
 const TAU = Math.PI * 2;
 const posMod = (a, n) => ((a % n) + n) % n;
+
+/** A strike that just missed: once per strike, counted on the body. */
+function nearMiss(b, h, cycle, kind) {
+  b.near ??= {};
+  if (b.near[h.id] === cycle || b.hits[h.id] === cycle) return;
+  b.near[h.id] = cycle;
+  b.close = (b.close ?? 0) + 1;
+  b.events.push({ type: 'close', kind, x: b.x, y: b.y, z: b.z });
+}
+
+/** Move a box collider to a new centre (its bounds follow). */
+function moveBox(col, x, y, z) {
+  const dx = x - col.c[0], dy = y - col.c[1], dz = z - col.c[2];
+  col.c[0] = x;
+  col.c[1] = y;
+  col.c[2] = z;
+  const a = col.aabb;
+  a[0] += dx; a[3] += dx;
+  a[1] += dy; a[4] += dy;
+  a[2] += dz; a[5] += dz;
+}
 
 /** Where a walker is on a back-and-forth path at time t: { x, z, dx, dz } (dx, dz: the way it faces). */
 function pingpong(path, speed, t, out) {
@@ -42,8 +65,11 @@ const KINDS = {
       if (!s.striking || b.y > h.floor + 1.5) return;
       const dx = b.x - h.at[0], dz = b.z - h.at[2];
       const d = Math.hypot(dx, dz);
-      if (d > h.radius || d < 0.05) return;
-      if (Math.sign(dx) !== s.side && Math.abs(dx) > 0.25) return;
+      if (d > h.radius + NEAR_MISS || d < 0.05) return;
+      if (d > h.radius || (Math.sign(dx) !== s.side && Math.abs(dx) > 0.25)) {
+        if (d < h.radius + NEAR_MISS) nearMiss(b, h, s.cycle, 'cat');
+        return;
+      }
       if (b.hits[h.id] === s.cycle) return;
       b.hits[h.id] = s.cycle;
       const nx = dx / d, nz = dz / d;
@@ -93,10 +119,14 @@ const KINDS = {
       return s;
     },
     affect(h, b, t, s) {
-      if (!s.striking || b.y > 0.9) return;
+      if (!s.striking || b.y > (h.floor ?? 0) + 0.9) return;
       const f = s.feet[0];
       const dx = b.x - f.x, dz = b.z - f.z;
-      if (dx * dx + dz * dz > h.reach * h.reach) return;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > h.reach * h.reach) {
+        if (d2 < (h.reach + NEAR_MISS * 0.5) ** 2) nearMiss(b, h, s.step, 'foot');
+        return;
+      }
       if (b.hits[h.id] === s.step) return;
       b.hits[h.id] = s.step;
       knock(b, [f.dx * 4 + dx * 3, 2.2, f.dz * 4 + dz * 3], 'foot');
@@ -165,7 +195,10 @@ const KINDS = {
       if (!s.striking || b.y > h.floor + 1.0) return;
       const dx = b.x - s.sx, dz = b.z - s.sz;
       const d = Math.hypot(dx, dz);
-      if (d > h.radius) return;
+      if (d > h.radius) {
+        if (d < h.radius + NEAR_MISS) nearMiss(b, h, s.cycle, 'pan');
+        return;
+      }
       if (b.hits[h.id] === s.cycle) return;
       b.hits[h.id] = s.cycle;
       const nx = d > 0.05 ? dx / d : 1, nz = d > 0.05 ? dz / d : 0;
@@ -263,7 +296,11 @@ const KINDS = {
       if (!s.striking || b.y > h.floor + s.at[1] + 1.0) return;
       if ((b.immune ?? -1) > t) return;
       const dx = b.x - s.at[0], dz = b.z - s.at[2];
-      if (dx * dx + dz * dz > h.radius * h.radius) return;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > h.radius * h.radius) {
+        if (!h.lucky && d2 < (h.radius + NEAR_MISS) ** 2) nearMiss(b, h, s.cycle, 'gull');
+        return;
+      }
       b.state = 'grab';
       b.grab = { id: h.id, cycle: s.cycle, lucky: !!h.lucky };
       b.holding = false;
@@ -326,10 +363,21 @@ const KINDS = {
       return s;
     },
     affect(h, b, t, s) {
-      if (b.y > h.floor + h.r * 2 + 0.3) return;
+      const top = h.floor + h.r * 2 + 0.3;
+      if (b.y > top + 1.2) return;
       for (const ball of s.balls) {
         const dx = b.x - ball.x, dz = b.z - ball.z;
-        if (dx * dx + dz * dz > (h.r + 0.16) ** 2) continue;
+        const d2 = dx * dx + dz * dz;
+        if (b.y > top) {
+          // flying over it: a hurdle
+          if (d2 < 0.5 * 0.5) nearMiss(b, h, ball.k, 'boule');
+          continue;
+        }
+        const hitR = h.r + 0.16;
+        if (d2 > hitR * hitR) {
+          if (Math.abs(dx) < 0.3 && d2 < (hitR + NEAR_MISS * 0.6) ** 2) nearMiss(b, h, ball.k, 'boule');
+          continue;
+        }
         const key = `${h.id}`;
         if (b.hits[key] === ball.k) continue;
         b.hits[key] = ball.k;
@@ -343,6 +391,133 @@ const KINDS = {
         for (const ball of s.balls) if (Math.abs(ball.x - x) < 1.2) return true;
       }
       return false;
+    },
+  },
+
+  // Something hanging that swings (a fishmonger's scale pan, a sign, a basket): a level platform on a pendulum. Ride it
+  // and flop off at the end of a swing. It shoves what it swings into.
+  pendulum: {
+    init(h) {
+      h.period = h.period ?? 3.2;
+      h.amp = h.amp ?? 0.7;
+      h.len = h.len ?? 2.2;
+      h.yaw = h.yaw ?? Math.PI / 2; // the way it swings (about y; π/2 = along x)
+      h.size = h.size ?? [0.9, 0.08, 0.9];
+      h.col = box([h.pivot[0], h.pivot[1] - h.len, h.pivot[2]], [h.size[0] / 2, h.size[1] / 2, h.size[2] / 2], { surf: h.surf ?? 'wood', look: null });
+      h.col.v = [0, 0, 0];
+      h.col.id = h.id;
+    },
+    state(h, t, s) {
+      const w = TAU / h.period;
+      const u = (t + h.phase) * w;
+      const th = h.amp * Math.sin(u);
+      const dth = h.amp * w * Math.cos(u);
+      const dx = Math.sin(h.yaw), dz = Math.cos(h.yaw);
+      s.angle = th;
+      s.x = h.pivot[0] + Math.sin(th) * h.len * dx;
+      s.y = h.pivot[1] - Math.cos(th) * h.len;
+      s.z = h.pivot[2] + Math.sin(th) * h.len * dz;
+      s.vx = Math.cos(th) * h.len * dth * dx;
+      s.vy = Math.sin(th) * h.len * dth;
+      s.vz = Math.cos(th) * h.len * dth * dz;
+      return s;
+    },
+    solid(h, s) {
+      moveBox(h.col, s.x, s.y, s.z);
+      h.col.v[0] = s.vx;
+      h.col.v[1] = s.vy;
+      h.col.v[2] = s.vz;
+      return h.col;
+    },
+  },
+
+  // A platform that glides back and forth (a fish cart, a dumbwaiter, a bobbing boat), easing at each end.
+  mover: {
+    init(h) {
+      h.period = h.period ?? 6;
+      h.size = h.size ?? [1.2, 0.3, 1.2];
+      const a = h.path[0];
+      h.col = box([a[0], a[1], a[2]], [h.size[0] / 2, h.size[1] / 2, h.size[2] / 2], { surf: h.surf ?? 'wood', look: null, yaw: h.yaw ?? 0 });
+      h.col.v = [0, 0, 0];
+      h.col.id = h.id;
+    },
+    state(h, t, s) {
+      const [a, c] = h.path;
+      const u = ((t + h.phase) / h.period) * TAU;
+      const k = 0.5 - 0.5 * Math.cos(u);
+      const dk = (0.5 * Math.sin(u) * TAU) / h.period;
+      s.k = k;
+      s.x = a[0] + (c[0] - a[0]) * k;
+      s.y = a[1] + (c[1] - a[1]) * k;
+      s.z = a[2] + (c[2] - a[2]) * k;
+      s.vx = (c[0] - a[0]) * dk;
+      s.vy = (c[1] - a[1]) * dk;
+      s.vz = (c[2] - a[2]) * dk;
+      return s;
+    },
+    solid(h, s) {
+      moveBox(h.col, s.x, s.y + h.size[1] / 2, s.z);
+      h.col.v[0] = s.vx;
+      h.col.v[1] = s.vy;
+      h.col.v[2] = s.vz;
+      return h.col;
+    },
+  },
+
+  // A crab scuttles sideways along a line, stops, raises its claws (`tele` s), and snaps whatever is in front of it.
+  crab: {
+    init(h) {
+      h.period = h.period ?? 2.8;
+      h.tele = h.tele ?? 0.8;
+      h.strike = 0.15;
+      h.reach = h.reach ?? 0.75;
+      h.floor = h.floor ?? 0;
+      h.walk = h.period - h.tele - 0.5;
+    },
+    state(h, t, s) {
+      const u = t + h.phase;
+      const k = Math.floor(u / h.period);
+      const local = posMod(u, h.period);
+      const [a, c] = h.path;
+      // it walks to the next stop on its line, then snaps
+      const n = h.stops ?? 3;
+      const seq = (j) => {
+        const m = posMod(j, 2 * (n - 1));
+        return m < n ? m : 2 * (n - 1) - m;
+      };
+      const from = seq(k - 1) / (n - 1), to = seq(k) / (n - 1);
+      const w = Math.min(1, local / h.walk);
+      const e = w * w * (3 - 2 * w);
+      const f = from + (to - from) * e;
+      s.x = a[0] + (c[0] - a[0]) * f;
+      s.z = a[1] + (c[1] - a[1]) * f;
+      s.walking = w < 1;
+      s.dir = Math.sign(to - from) || 1;
+      s.cycle = k;
+      s.tele = local >= h.walk && local < h.walk + h.tele ? (local - h.walk) / h.tele : 0;
+      s.striking = local >= h.walk + h.tele && local < h.walk + h.tele + h.strike;
+      s.face = h.face ?? 0; // the way its claws point (yaw)
+      return s;
+    },
+    affect(h, b, t, s) {
+      if (!s.striking || b.y > h.floor + 0.8) return;
+      const dx = b.x - s.x, dz = b.z - s.z;
+      const d = Math.hypot(dx, dz);
+      if (d > h.reach) {
+        if (d < h.reach + NEAR_MISS) nearMiss(b, h, s.cycle, 'crab');
+        return;
+      }
+      if (b.hits[h.id] === s.cycle) return;
+      b.hits[h.id] = s.cycle;
+      const nx = d > 0.05 ? dx / d : Math.sin(s.face), nz = d > 0.05 ? dz / d : Math.cos(s.face);
+      knock(b, [nx * 4.5, 3.4, nz * 4.5], 'crab');
+    },
+    danger(h, x, z, t) {
+      const s = KINDS.crab.state(h, t, {});
+      const dx = x - s.x, dz = z - s.z;
+      if (dx * dx + dz * dz > (h.reach + 0.5) ** 2) return false;
+      const local = posMod(t + h.phase, h.period);
+      return local > h.walk - 0.3;
     },
   },
 
@@ -396,6 +571,9 @@ export function createHazards(course, seed = 0, opts = {}) {
     return h;
   });
   const states = list.map(() => ({}));
+  list.forEach((h, i) => (h.index = i));
+  const movers = list.filter((h) => KINDS[h.kind]?.solid);
+  const moverCols = movers.map((h) => h.col);
   let stateT = NaN;
   const gentleZ = opts.gentle ? course.start.z + opts.gentle : -Infinity;
 
@@ -436,6 +614,13 @@ export function createHazards(course, seed = 0, opts = {}) {
       return h ? KINDS[h.kind].carry(h, b, t) : null;
     },
     hit() {},
+    /** The moving solids (swinging pans, carts) where they are at race time t. */
+    solids(t) {
+      if (!movers.length) return null;
+      refresh(t);
+      for (let i = 0; i < movers.length; i++) KINDS[movers[i].kind].solid(movers[i], states[movers[i].index]);
+      return moverCols;
+    },
     /** Would a fish at (x, z) be in trouble at race time t? (for bots) */
     danger(x, z, t) {
       for (const h of list) if (KINDS[h.kind]?.danger?.(h, x, z, t)) return true;

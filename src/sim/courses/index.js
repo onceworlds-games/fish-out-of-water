@@ -23,7 +23,9 @@ export function getCourse(id) {
   c.lens = polyLengths(c.spine);
   c.length = c.lens[c.lens.length - 1];
   if (c.expert) c.expertLens = polyLengths(c.expert);
-  c.world = createWorld({ colliders: c.builder.colliders, zones: c.builder.zones, bounds: c.bounds });
+  c.world = createWorld({ colliders: c.builder.colliders, zones: c.builder.zones, bounds: c.bounds, casters: c.builder.casters, items: c.builder.items, sun: !c.indoor });
+  c.drops = c.builder.items.filter((it) => it.kind === 'drop').length;
+  c.scales = c.builder.items.filter((it) => it.kind === 'scale');
   c.refills = c.builder.zones.filter((z) => z.rate);
   /** Metres along the spine for a position (with a hint for speed). */
   c.progress = (x, z, hint) => project(c.spine, c.lens, x, z, hint);

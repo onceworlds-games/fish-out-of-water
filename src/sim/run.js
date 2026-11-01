@@ -35,8 +35,10 @@ export function runBot(course, opts = {}) {
       stats.track.push([t, b.x, b.y, b.z, brain.yaw]);
       nextTrack += 0.125;
     }
-    if (b.state === 'done') return { finished: true, time: t, water: b.m, ...stats, body: b, brain };
+    if (b.state === 'done') return { finished: true, time: t, water: b.m, ...stats, ...tally(b), body: b, brain };
   }
   const pr = course.progress(b.x, b.z);
-  return { finished: false, time: t, progress: pr.s, x: b.x, z: b.z, ...stats, body: b, brain };
+  return { finished: false, time: t, progress: pr.s, x: b.x, z: b.z, ...stats, ...tally(b), body: b, brain };
 }
+
+const tally = (b) => ({ drops: b.drops, scales: b.scales.length, close: b.close, bestChain: b.bestChain, perfects: b.perfects });

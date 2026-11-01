@@ -25,14 +25,40 @@ export const SLAP = {
   carry: 0.35, // share of the incoming speed a slap keeps
 };
 
+// Flow: every slap in a row adds power (and a perfect one, released right on the touchdown, a little more).
+export const FLOW = {
+  per: 0.045, // × power per slap already in the chain
+  links: 5, // the chain stops adding after this many
+  perfect: 0.045, // a release this close to the touchdown (either side) is PERFECT
+  perfectBonus: 0.04, // + power for a perfect slap
+};
+
+/** The power of a slap made with `chain` slaps already in a row before it. */
+export const slapPower = (chain, perfect) => SLAP.power * (1 + FLOW.per * Math.min(chain, FLOW.links)) + (perfect ? FLOW.perfectBonus : 0);
+
+// The sun: where the light comes from (the renderer's sun shines along it too, so a shadow on screen is shade in play).
+const SL = Math.hypot(0.42, 0.78, 0.47);
+export const SUN = [0.42 / SL, 0.78 / SL, 0.47 / SL];
+
+// Pickups along the lines: water drops (a sip each, counted) and three golden scales per course (kept for good).
+export const DROPS = { radius: 0.34, water: 7 };
+export const SCALES = { radius: 0.42, perCourse: 3 };
+
+// A strike that misses by less than this (m) is a near miss.
+export const NEAR_MISS = 0.75;
+
+// Rising air (the kitchen's extractor, a beach vent): up to this fast, pushed this hard.
+export const UPDRAFT = { maxUp: 6.5 };
+
 export const STUN = 0.3; // no flop after a knock
 export const RESTING = 1.0; // impacts slower than this don't bounce (m/s)
 export const GROUND_NY = 0.55; // contact normals steeper than this are ground
 
 export const WATER = {
   max: 100,
-  base: 2.8, // drain per second (36 s from full)
-  shade: 0.6,
+  base: 2.6, // drain per second on tile, before the sun
+  sun: 1.35, // × in the sun
+  shade: 0.5, // × in the shade (out of the sun's line: the shadows on screen)
   low: 35, // the gauge turns red
   gasp: 15, // gasps, faster music
   dryTime: 1.0, // the gasp before the splash back

@@ -1,7 +1,8 @@
-// A fish's gameplay body: one sphere that flops, flies, bounces, slides and dries out. The arc preview runs the same
-// code, so what it shows is where the fish lands. Pure: node tests and every page use it.
+// A fish's gameplay body: one sphere that flops, flies, bounces, slides and dries out (fast in the sun, slowly in the
+// shade), picks up drops and golden scales, and chains slaps into Flow. The arc preview runs the same code, so what it
+// shows is where the fish lands. Pure: node tests and every page use it.
 
-import { STEP, GRAVITY, BODY_RADIUS, FLOP, SLAP, STUN, RESTING, GROUND_NY, WATER, SURFACES, fishById } from './config.js';
+import { STEP, GRAVITY, BODY_RADIUS, FLOP, SLAP, FLOW, slapPower, STUN, RESTING, GROUND_NY, WATER, SURFACES, DROPS, SCALES, UPDRAFT, fishById } from './config.js';
 import { contact, inZone } from './world.js';
 
 const NO_TWIST = { wind: [0, 0], friction: 1, drain: 1 };
@@ -34,7 +35,16 @@ export function createBody(fishId = 'mackerel', pos = [0, 0.2, 0], yaw = 0) {
     refill: [pos[0], pos[1], pos[2]], // where a dry fish comes back
     refillId: null,
     slide: 0, // metres of the slide going on
-    slapChain: 0,
+    slapChain: 0, // slaps in a row (Flow)
+    bestChain: 0,
+    perfects: 0,
+    gv: [0, 0], // the ground's own velocity under the fish (a belt, a swinging pan)
+    sun: true, // out in the sun (or in the shade)
+    sunT: 0,
+    got: null, // pickups taken (one byte per pickup of the world)
+    drops: 0,
+    scales: [], // golden scales picked up this run (their indices)
+    close: 0, // near misses
     grab: null,
     flops: 0,
     events: [],
@@ -96,11 +106,11 @@ function surfOf(name) {
 /** Can it flop now (touching something, not stunned)? */
 export const canFlop = (b) => b.state === 'ok' && b.stun <= 0 && b.t - b.contactT <= FLOP.coyote;
 
-function flop(b, yaw, charge, slap) {
+function flop(b, yaw, charge, slap, perfect = false) {
   const fish = b.fish;
   const vel = slap ? b.touchV : [b.vx, b.vz];
   const wall = !b.ground && b.wall ? b.wall : null;
-  launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, slap ? SLAP.power : 1, wall, vtmp);
+  launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, slap ? slapPower(b.slapChain, perfect) : 1, wall, vtmp);
   b.vx = vtmp[0];
   b.vy = vtmp[1];
   b.vz = vtmp[2];
@@ -112,8 +122,11 @@ function flop(b, yaw, charge, slap) {
   b.flops++;
   if (b.slide > 0.5) b.events.push({ type: 'slide', dist: b.slide });
   b.slide = 0;
+  if (!slap && b.slapChain > 0) b.events.push({ type: 'flowEnd', chain: b.slapChain });
   b.slapChain = slap ? b.slapChain + 1 : 0;
-  b.events.push({ type: 'flop', charge, slap, chain: b.slapChain, wall: !!wall });
+  if (b.slapChain > b.bestChain) b.bestChain = b.slapChain;
+  if (slap && perfect) b.perfects++;
+  b.events.push({ type: 'flop', charge, slap, perfect: !!(slap && perfect), chain: b.slapChain, wall: !!wall });
 }
 
 export function respawn(b, at = b.refill) {
@@ -129,6 +142,7 @@ export function respawn(b, at = b.refill) {
   b.holding = false;
   b.holdT = 0;
   b.slide = 0;
+  if (b.slapChain > 0) b.events.push({ type: 'flowEnd', chain: b.slapChain });
   b.slapChain = 0;
   b.grab = null;
   b.airT = 0.3;
@@ -195,8 +209,9 @@ export function stepBody(b, input, env, dt = STEP) {
       const charge = chargeOf(b.holdT, fish);
       b.holdT = 0;
       if (canFlop(b)) {
-        const slap = b.t - b.touchT <= SLAP.after;
-        flop(b, input.yaw, charge, slap);
+        const late = b.t - b.touchT;
+        const slap = late <= SLAP.after;
+        flop(b, input.yaw, charge, slap, late <= FLOW.perfect);
       } else {
         b.queued = { charge, at: b.t };
       }
@@ -205,7 +220,7 @@ export function stepBody(b, input, env, dt = STEP) {
       const slap = b.touchT >= b.queued.at - 1e-6 && b.touchT - b.queued.at <= SLAP.before && b.t - b.touchT <= SLAP.after;
       const q = b.queued;
       b.queued = null;
-      flop(b, input.yaw, q.charge, slap);
+      flop(b, input.yaw, q.charge, slap, b.touchT - q.at <= FLOW.perfect);
     }
   } else {
     b.holding = false;
@@ -219,17 +234,21 @@ export function stepBody(b, input, env, dt = STEP) {
     b.vx += twist.wind[0] * dt;
     b.vz += twist.wind[1] * dt;
   }
+  if (!b.ground && world.updrafts.length) b.vy = updraft(world, b.x, b.y, b.z, b.vy, dt);
   if (b.ground) {
+    // friction pulls toward the ground's own motion (a belt, a pan): standing on it, you go with it
     const s = surfOf(b.surf);
-    const hs = Math.hypot(b.vx, b.vz);
+    const gx = b.gv[0], gz = b.gv[1];
+    const rx = b.vx - gx, rz = b.vz - gz;
+    const hs = Math.hypot(rx, rz);
     const dec = s.friction * fish.friction * twist.friction * dt;
     if (hs <= dec) {
-      b.vx = 0;
-      b.vz = 0;
+      b.vx = gx;
+      b.vz = gz;
     } else {
       const k = (hs - dec) / hs;
-      b.vx *= k;
-      b.vz *= k;
+      b.vx = gx + rx * k;
+      b.vz = gz + rz * k;
     }
     if (hs > 1.2 && s.friction <= 3.5) b.slide += hs * dt;
     else if (hs < 0.4 && b.slide > 0) {
@@ -253,11 +272,14 @@ export function stepBody(b, input, env, dt = STEP) {
   let groundSurf = null;
   let wallN = null;
   let landed = false;
+  let gvx = 0, gvz = 0;
+  const solids = env.hazards?.solids ? env.hazards.solids(env.t) : null;
   for (let iter = 0; iter < 3; iter++) {
     let any = false;
     const list = world.query(b.x, b.y, b.z, r);
-    for (let pass = 0; pass < 2; pass++) {
-      const cols = pass === 0 ? list : world.dynamic;
+    for (let pass = 0; pass < 3; pass++) {
+      const cols = pass === 0 ? list : pass === 1 ? world.dynamic : solids;
+      if (!cols) continue;
       for (let i = 0; i < cols.length; i++) {
         const col = cols[i];
         if (!contact(col, b.x, b.y, b.z, r, tmp)) continue;
@@ -279,6 +301,8 @@ export function stepBody(b, input, env, dt = STEP) {
           ground = true;
           groundSurf = col.surf;
           b.gn[0] = nx; b.gn[1] = ny; b.gn[2] = nz;
+          gvx = col.belt ? col.belt[0] : cv ? cv[0] : 0;
+          gvz = col.belt ? col.belt[1] : cv ? cv[2] : 0;
           if (vn < 0) {
             const impact = -vn;
             let tx = rvx - vn * nx, ty = rvy - vn * ny, tz = rvz - vn * nz;
@@ -326,10 +350,17 @@ export function stepBody(b, input, env, dt = STEP) {
   if (ground || wallN) b.contactT = b.t;
   b.wall = ground ? null : wallN ?? (b.t - b.contactT <= FLOP.coyote ? b.wall : null);
   b.ground = ground;
+  b.gv[0] = gvx;
+  b.gv[1] = gvz;
   if (ground) {
     b.surf = groundSurf;
     b.lastSurf = groundSurf;
     b.airT = 0;
+    // a chain of slaps ends when the fish lies there past the slap's moment
+    if (b.slapChain > 0 && !b.queued && b.t - b.touchT > SLAP.after + 1e-6) {
+      b.events.push({ type: 'flowEnd', chain: b.slapChain });
+      b.slapChain = 0;
+    }
   } else {
     b.airT += dt;
     if (b.slide > 0 && b.airT > 0.15) {
@@ -338,10 +369,11 @@ export function stepBody(b, input, env, dt = STEP) {
     }
   }
 
-  // Zones: water in, the finish, shade.
+  // Zones: water in, the finish, shade, heat, drains.
   const zones = world.zonesAt(b.x, b.y, b.z, b.zones);
   let refill = 0;
-  let shade = 1;
+  let shadeZone = false;
+  let heat = 1;
   let wetSurf = null;
   for (const zone of zones) {
     if (zone.kind === 'finish') {
@@ -362,7 +394,13 @@ export function stepBody(b, input, env, dt = STEP) {
       }
       return;
     }
-    if (zone.kind === 'shade') shade = Math.min(shade, WATER.shade);
+    if (zone.kind === 'shade') shadeZone = true;
+    else if (zone.kind === 'heat') heat = Math.max(heat, zone.k ?? 2);
+    else if (zone.kind === 'drain' && b.ground && b.state === 'ok') {
+      b.events.push({ type: 'drain', x: b.x, y: b.y, z: b.z });
+      respawn(b);
+      return;
+    }
     if (zone.rate) {
       refill += zone.rate;
       if (zone.respawn && b.refillId !== zone.id) {
@@ -376,10 +414,21 @@ export function stepBody(b, input, env, dt = STEP) {
   refill += dyn;
   if (wetSurf) b.surf = wetSurf;
 
+  // The sun (looked up a few times a second: nothing between the fish and the sun means sun).
+  if (b.t >= b.sunT) {
+    b.sunT = b.t + 0.05;
+    const lit = !shadeZone && world.sunlit(b.x, b.y + 0.12, b.z);
+    if (lit !== b.sun) {
+      b.sun = lit;
+      b.events.push({ type: 'sun', on: lit });
+    }
+  }
+
   // Water.
   if (b.state === 'ok') {
     const s = surfOf(b.ground ? b.surf : b.lastSurf);
-    const drain = WATER.base * s.drain * (s.drain > 0 ? twist.drain * shade : 1);
+    const light = world.sun ? (b.sun && !shadeZone ? WATER.sun : WATER.shade) : shadeZone ? WATER.shade : 1;
+    const drain = WATER.base * s.drain * (s.drain > 0 ? twist.drain * light * heat : 1);
     const before = b.m;
     b.m += (refill - drain) * dt;
     if (b.m > WATER.max) b.m = WATER.max;
@@ -399,6 +448,9 @@ export function stepBody(b, input, env, dt = STEP) {
     if (b.dryT <= 0) respawn(b);
   }
 
+  // Pickups: drops and golden scales.
+  if (b.state === 'ok' && world.items.length) pickUp(b, world);
+
   // Hazards that reach in (a swipe, a slam, a gull).
   if (b.state === 'ok') env.hazards?.affect?.(b, env.t);
 
@@ -409,6 +461,39 @@ export function stepBody(b, input, env, dt = STEP) {
 
 function impactBounce(speed, s) {
   return speed > 2 ? Math.min(0.35, s.rest) : 0;
+}
+
+/** Rising air: pushes a fish in the air up, toward the zone's top speed. */
+function updraft(world, x, y, z, vy, dt) {
+  for (const zone of world.updrafts) {
+    if (!inZone(zone, x, y, z)) continue;
+    const top = zone.maxUp ?? UPDRAFT.maxUp;
+    if (vy < top) vy = Math.min(top, vy + zone.lift * dt);
+  }
+  return vy;
+}
+
+function pickUp(b, world) {
+  const items = world.items;
+  if (!b.got || b.got.length !== items.length) b.got = new Uint8Array(items.length);
+  for (let i = 0; i < items.length; i++) {
+    if (b.got[i]) continue;
+    const it = items[i];
+    const p = it.p;
+    const dx = b.x - p[0], dy = b.y - p[1], dz = b.z - p[2];
+    if (Math.abs(dz) > 1 || Math.abs(dx) > 1) continue;
+    const rr = (it.kind === 'scale' ? SCALES.radius : DROPS.radius) + BODY_RADIUS;
+    if (dx * dx + dy * dy + dz * dz > rr * rr) continue;
+    b.got[i] = 1;
+    if (it.kind === 'scale') {
+      b.scales.push(it.n);
+      b.events.push({ type: 'pick', kind: 'scale', i, n: it.n, x: p[0], y: p[1], z: p[2] });
+    } else {
+      b.drops++;
+      b.m = Math.min(WATER.max, b.m + DROPS.water);
+      b.events.push({ type: 'pick', kind: 'drop', i, n: b.drops, x: p[0], y: p[1], z: p[2] });
+    }
+  }
 }
 
 /** A knock from a hazard: the fish flies off, can't flop for a moment. */
@@ -423,35 +508,52 @@ export function knock(b, v, kind) {
   b.holding = false;
   b.holdT = 0;
   b.stick = 0;
+  if (b.slapChain > 0) b.events.push({ type: 'flowEnd', chain: b.slapChain });
+  b.slapChain = 0;
   b.events.push({ type: 'knock', kind, x: b.x, y: b.y, z: b.z });
 }
 
 /**
  * Where a flop would go: the arc's points (every `every` steps) and the first thing it touches. Runs the same launch,
- * gravity and wind as stepBody, against the static world. `from` overrides the start ({ x, y, z, vel:[vx,vz], slap, wall }).
+ * gravity, wind and rising air as stepBody, against the static world. `from` overrides the start ({ x, y, z, vel:[vx,vz],
+ * slap, chain, perfect, wall }): a slap from where the fish will land, `chain` slaps already in a row.
  */
 export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
   const fish = b.fish;
-  const dt = opts.dt ?? STEP;
   const from = opts.from ?? null;
   const slap = from ? !!from.slap : false;
   const vel = from ? from.vel : [b.vx, b.vz];
   const wall = from ? from.wall ?? null : !b.ground && b.wall ? b.wall : null;
-  const v = launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, slap ? SLAP.power : 1, wall, [0, 0, 0]);
-  let x = from ? from.x : b.x, y = from ? from.y : b.y, z = from ? from.z : b.z;
-  let vx = v[0], vy = v[1], vz = v[2];
+  const power = slap ? slapPower(from.chain ?? 0, !!from.perfect) : 1;
+  const v = launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, power, wall, [0, 0, 0]);
+  const x = from ? from.x : b.x, y = from ? from.y : b.y, z = from ? from.z : b.z;
+  return trace(fish, world, x, y, z, v[0], v[1], v[2], twist, opts);
+}
+
+/** Where a fish in the air comes down, as it flies now (for the slap ring): same result shape as predictArc. */
+export function predictFall(b, world, twist = NO_TWIST, opts = {}) {
+  return trace(b.fish, world, b.x, b.y, b.z, b.vx, b.vy, b.vz, twist, { ...opts, falling: true });
+}
+
+function trace(fish, world, x, y, z, vx, vy, vz, twist, opts) {
+  const dt = opts.dt ?? STEP;
   const g = GRAVITY * fish.gravity;
   const points = opts.points ?? null;
   if (points) points.length = 0;
   const every = opts.every ?? 4;
   const r = BODY_RADIUS;
   const maxT = opts.maxT ?? 3;
+  twist = twist ?? NO_TWIST;
   let t = 0;
   let n = 0;
   if (points) points.push(x, y, z);
   // Walls the fish is already leaning on: the real step slides off them, so we do too instead of stopping there.
   const leaning = [];
   for (const col of world.query(x, y, z, r + 0.03)) if (contact(col, x, y, z, r + 0.03, tmp) && tmp.ny <= GROUND_NY) leaning.push(col);
+  // (a falling fish already touching the ground beneath doesn't count that as where it lands)
+  const resting = [];
+  if (opts.falling) for (const col of world.query(x, y, z, r + 0.01)) if (contact(col, x, y, z, r + 0.01, tmp) && tmp.ny > GROUND_NY) resting.push(col);
+  const ups = world.updrafts?.length ? world.updrafts : null;
   // The real step moves first, then resolves: so do we, and we stop at the first contact we're moving into.
   while (t < maxT) {
     t += dt;
@@ -460,6 +562,7 @@ export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
       vx += twist.wind[0] * dt;
       vz += twist.wind[1] * dt;
     }
+    if (ups) vy = updraft(world, x, y, z, vy, dt);
     x += vx * dt;
     y += vy * dt;
     z += vz * dt;
@@ -483,6 +586,7 @@ export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
         vz += -vn * tmp.nz * (1 + bounce);
         continue;
       }
+      if (resting.includes(col) && n < 3) continue;
       if (!hit || tmp.ny > ny) {
         hit = col;
         ny = tmp.ny;

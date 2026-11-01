@@ -81,18 +81,21 @@ test('a fish left on dry ground dries out and goes back to the last puddle', () 
   const env = { world: c.world, hazards: null, t: 0 };
   const b = createBody('mackerel', [c.spine[1][0], c.spine[1][1] + 0.5, c.spine[1][2]], 0);
   b.m = 3;
-  let dried = false, back = false;
+  let dried = false, back = false, mBack = 0;
   for (let t = 0; t < 6; t += STEP) {
     stepBody(b, { hold: false, yaw: 0 }, env);
     for (const e of b.events) {
       if (e.type === 'dry') dried = true;
-      if (e.type === 'respawn') back = true;
+      if (e.type === 'respawn') {
+        back = true;
+        mBack = b.m;
+      }
     }
     b.events.length = 0;
   }
   assert.ok(dried && back, 'dried and came back');
   assert.equal(b.state, 'ok');
-  assert.ok(b.m > 90);
+  assert.ok(mBack > 99, `came back with ${mBack}`);
 });
 
 test('the splash goes off where the finish said it would, at the water', async () => {
