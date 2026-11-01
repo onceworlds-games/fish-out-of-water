@@ -137,7 +137,7 @@ export function createFx(scene) {
 
   // ---------------------------------------------------------------- particles
   const P_N = 420;
-  const pMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, emissive: 0x111111 });
+  const pMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.08, emissive: 0x10262c, envMapIntensity: 1.4 });
   const parts = new THREE.InstancedMesh(dropGeo, pMat, P_N);
   parts.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(P_N * 3), 3);
   parts.frustumCulled = false;
@@ -203,6 +203,9 @@ export function createFx(scene) {
   const tmpV = new THREE.Vector3();
   const tmpS = new THREE.Vector3();
   const tmpE = new THREE.Euler();
+  const tmpQ = new THREE.Quaternion();
+  const tmpD = new THREE.Vector3();
+  const UPV = new THREE.Vector3(0, 1, 0);
 
   // ---------------------------------------------------------------- the slap ring: where you come down, a ring closing on
   // it to the moment you touch (let go then); gold inside the window
@@ -506,9 +509,19 @@ export function createFx(scene) {
         if (n >= P_N) break;
         const k = 1 - p.age / p.life;
         const s = p.kind === 'ink' ? p.size * (1 + (1 - k) * 2.2) * Math.min(1, k * 3) : p.kind === 'bubble' ? p.size * (0.7 + 0.3 * Math.sin(p.age * 9)) * Math.min(1, k * 4) : p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
-        if (p.kind === 'confetti') m4.makeRotationFromEuler(tmpE.set(p.age * 7, p.age * 5, 0)).scale(tmpS.set(s, s * 0.15, s * 0.7));
-        else m4.makeScale(s, s, s);
-        m4.setPosition(p.x, p.y, p.z);
+        const sp = Math.hypot(p.vx, p.vy, p.vz);
+        if (p.kind === 'confetti') {
+          m4.makeRotationFromEuler(tmpE.set(p.age * 7, p.age * 5, 0)).scale(tmpS.set(s, s * 0.15, s * 0.7));
+          m4.setPosition(p.x, p.y, p.z);
+        } else if ((p.kind === 'splash' || p.kind === 'sand') && sp > 0.6) {
+          // a drop in flight stretches along its path, so a splash reads as flung water, not beads
+          tmpQ.setFromUnitVectors(UPV, tmpD.set(p.vx / sp, p.vy / sp, p.vz / sp));
+          const st = 1 + Math.min(2.4, sp * 0.3);
+          m4.compose(tmpV.set(p.x, p.y, p.z), tmpQ, tmpS.set(s * 0.75, s * st, s * 0.75));
+        } else {
+          m4.makeScale(s, s, s);
+          m4.setPosition(p.x, p.y, p.z);
+        }
         parts.setMatrixAt(n, m4);
         parts.setColorAt(n, col.setHex(p.color));
         n++;

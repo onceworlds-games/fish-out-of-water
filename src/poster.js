@@ -193,12 +193,17 @@ const SCENES = {
   // The race's first leaps off the fishmonger's ice, the street and the harbour beyond.
   async cover(stage, W, H) {
     const r = stageRace(stage, 'market', 2.05, { seed: 4 });
-    const lead = r.fish.reduce((a, f) => (f.b.y > a.b.y ? f : a), r.fish[0]);
     const y0 = r.course.start.y;
-    // inside the lane (houses either side at x ±4)
-    const cx = Math.max(-2.8, Math.min(2.8, lead.b.x - 2.2));
-    shoot(stage, [cx, y0 + 1.15, lead.b.z - 4.2], [lead.b.x + 0.5, y0 - 0.1, lead.b.z + 5], 52);
-    for (const f of r.fish) if (!f.b.ground) r.fx.burst(f.b.x, f.b.y - 0.05, f.b.z, 6, 'splash', 0.5);
+    // from over the fishmonger's ice, down the lane to the harbour; a goldfish leaping off the ice right by us, side-on
+    const cam = [0.95, y0 + 1.5, -0.9];
+    shoot(stage, cam, [-0.5, y0 - 1.1, 14], 54);
+    const hero = [0.45, y0 + 1.0, 0.3];
+    const near = (f, p, d) => Math.hypot(f.b.x - p[0], f.b.y - p[1], f.b.z - p[2]) < d;
+    for (const f of r.fish) {
+      if (near(f, cam, 1.8) || near(f, hero, 1.2)) f.v.group.visible = false;
+      else if (!f.b.ground) r.fx.burst(f.b.x, f.b.y - 0.05, f.b.z, 6, 'splash', 0.5);
+    }
+    posed(stage, 'goldfish', 0, { x: hero[0], y: hero[1], z: hero[2], vx: 0.5, vy: 1.4, vz: 3.2, aim: 1.2, curl: 0.9 }, 30);
     for (let i = 0; i < 6; i++) r.fx.update(1 / 60);
     wordmark(W, H, { size: Math.round(H * 0.15), top: '5%', left: '29%' });
   },
