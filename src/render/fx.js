@@ -224,6 +224,14 @@ export function createFx(scene) {
   }
   let shockNext = 0;
 
+  const CONFETTI = [0xffc93c, 0xe4432d, 0x4cd3ec, 0xf4efe6, 0x0b5cad];
+  function pushP(x, y, z, vx, vy, vz, life, size, color, kind, g) {
+    if (P.length >= P_N) P.shift();
+    P.push({ x, y, z, vx, vy, vz, life, age: 0, size, color, kind, g });
+  }
+  // a column of water (the geyser and whale-spout finishes): a burst of spray from the surface for a second or so
+  const geyser = { age: 9, x: 0, y: 0, z: 0, h: 3, spout: false, acc: 0 };
+
   const fx = {
     reduced: false,
     lowQuality: false,
@@ -318,6 +326,57 @@ export function createFx(scene) {
       halo.visible = on;
       if (on) halo.position.set(x, y + 0.01, z);
     },
+    /**
+     * A cosmetic trail behind a fish in the air: call every frame with its position and speed. kind: drips | bubbles |
+     * sparkle | confetti | ink | rainbow | gold. `state` is the caller's own little object (emission carry-over).
+     */
+    trail(state, kind, x, y, z, speed, dt) {
+      if (!kind || speed < 1.5) return;
+      const rate = fx.lowQuality ? 14 : 30;
+      state.acc = (state.acc ?? 0) + dt * rate * Math.min(1.4, speed / 6);
+      state.hue = ((state.hue ?? 0) + dt * 0.9) % 1;
+      while (state.acc >= 1) {
+        state.acc -= 1;
+        const jx = (Math.random() - 0.5) * 0.12, jy = (Math.random() - 0.5) * 0.12, jz = (Math.random() - 0.5) * 0.12;
+        if (kind === 'drips') pushP(x + jx, y + jy, z + jz, jx, -0.4, jz, 0.5, 0.022 + Math.random() * 0.014, 0xbff4ff, 'drip', 9);
+        else if (kind === 'bubbles') pushP(x + jx, y + jy, z + jz, jx * 2, 0.5 + Math.random() * 0.4, jz * 2, 1 + Math.random() * 0.5, 0.03 + Math.random() * 0.03, 0xdff8ff, 'bubble', -0.3);
+        else if (kind === 'sparkle') fx.glint(x + jx, y + jy, z + jz, 1, 0xffffff, 0.25);
+        else if (kind === 'gold') fx.glint(x + jx, y + jy, z + jz, 1, Math.random() < 0.5 ? 0xffc93c : 0xffe7a0, 0.3);
+        else if (kind === 'rainbow') fx.glint(x + jx, y + jy, z + jz, 1, col.setHSL((state.hue + Math.random() * 0.08) % 1, 0.9, 0.62).getHex(), 0.28);
+        else if (kind === 'confetti') pushP(x + jx, y + jy, z + jz, jx * 6, 0.6 + Math.random(), jz * 6, 1.4 + Math.random(), 0.045, CONFETTI[(Math.random() * 5) | 0], 'confetti', 3);
+        else if (kind === 'ink') pushP(x + jx, y + jy, z + jz, jx, 0.1, jz, 0.9 + Math.random() * 0.4, 0.05 + Math.random() * 0.04, 0x2a2440, 'ink', 0);
+      }
+    },
+    /** The finish splash in a fish's style: plain | crown | fireworks | geyser | whale. */
+    finishSplash(kind, x, y, z) {
+      if (kind === 'crown') {
+        fx.crown(x, y, z, 1.05);
+        fx.glint(x, y + 0.4, z, 16, 0xffffff, 1.6);
+        fx.shock(x, y, z, 2.4, 0xffffff, 0.7);
+      } else if (kind === 'fireworks') {
+        fx.crown(x, y, z, 0.75);
+        for (let i = 0; i < 4; i++) {
+          const a = Math.random() * 6.28;
+          const c = [0xffc93c, 0xe4432d, 0x4cd3ec, 0xf4efe6][i];
+          setTimeout(() => fx.glint(x + Math.cos(a) * 1.2, y + 2.4 + Math.random(), z + Math.sin(a) * 1.2, 26, c, 2.2), 180 + i * 220);
+        }
+      } else if (kind === 'geyser') {
+        fx.crown(x, y, z, 0.9);
+        geyser.age = 0;
+        geyser.x = x;
+        geyser.y = y;
+        geyser.z = z;
+        geyser.h = 3.2;
+      } else if (kind === 'whale') {
+        fx.crown(x, y, z, 0.8);
+        geyser.age = 0;
+        geyser.x = x;
+        geyser.y = y;
+        geyser.z = z;
+        geyser.h = 4.6;
+        geyser.spout = true;
+      } else fx.crown(x, y, z, 0.75);
+    },
     /** A burst of drops. kind: 'splash' | 'sparkle' | 'sand' | 'dust' | 'confetti' | 'spray' */
     burst(x, y, z, n, kind = 'splash', power = 1, dir = null) {
       if (kind === 'sparkle') return fx.glint(x, y, z, Math.ceil(n * 0.6), 0xffffff, power);
@@ -408,6 +467,18 @@ export function createFx(scene) {
         sh.m.scale.setScalar(0.2 + e * sh.size);
         sh.m.material.opacity = 0.85 * (1 - k);
       }
+      if (geyser.age < 1.3) {
+        geyser.age += dt;
+        geyser.acc += dt * (fx.lowQuality ? 70 : 150);
+        const v = Math.sqrt(2 * 12 * geyser.h);
+        while (geyser.acc >= 1) {
+          geyser.acc -= 1;
+          const a = Math.random() * 6.28, r = Math.random() * 0.12;
+          const spread = geyser.spout ? 1.6 : 0.5;
+          pushP(geyser.x + Math.cos(a) * r, geyser.y, geyser.z + Math.sin(a) * r, Math.cos(a) * spread * Math.random(), v * (0.75 + Math.random() * 0.3) * (1 - geyser.age * 0.4), Math.sin(a) * spread * Math.random(), 0.9 + Math.random() * 0.5, 0.035 + Math.random() * 0.035, 0xeefaff, 'splash', 12);
+        }
+        if (geyser.age >= 1.3) geyser.spout = false;
+      }
       // particles
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
@@ -418,6 +489,10 @@ export function createFx(scene) {
           continue;
         }
         p.vy -= p.g * dt;
+        if (p.kind === 'bubble' || p.kind === 'ink') {
+          p.vx *= 1 - dt * 2;
+          p.vz *= 1 - dt * 2;
+        }
         if (p.kind === 'confetti') {
           p.vx *= 1 - dt * 1.5;
           p.vz *= 1 - dt * 1.5;
@@ -430,7 +505,7 @@ export function createFx(scene) {
       for (const p of P) {
         if (n >= P_N) break;
         const k = 1 - p.age / p.life;
-        const s = p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
+        const s = p.kind === 'ink' ? p.size * (1 + (1 - k) * 2.2) * Math.min(1, k * 3) : p.kind === 'bubble' ? p.size * (0.7 + 0.3 * Math.sin(p.age * 9)) * Math.min(1, k * 4) : p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
         if (p.kind === 'confetti') m4.makeRotationFromEuler(tmpE.set(p.age * 7, p.age * 5, 0)).scale(tmpS.set(s, s * 0.15, s * 0.7));
         else m4.makeScale(s, s, s);
         m4.setPosition(p.x, p.y, p.z);
@@ -506,6 +581,7 @@ export function createFx(scene) {
         c.jets.visible = c.foam.visible = false;
       }
       fx.hideArc();
+      geyser.age = 9;
     },
   };
   return fx;

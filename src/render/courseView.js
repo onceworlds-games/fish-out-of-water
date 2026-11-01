@@ -22,6 +22,8 @@ export function buildCourseView(course, camera = null) {
   // ---------------------------------------------------------------- puddles and sprays, running water, belts
   const waters = [];
   for (const z of course.builder.zones) {
+    if (z.kind === 'updraft' && z.look) waters.push(makeSteam(root, z));
+    if (z.kind === 'drain') waters.push(makeDrain(root, z));
     if (!z.rate || z.look === 'spray-hidden' || z.look === 'tub') continue;
     if (z.kind === 'puddle') waters.push(makePuddle(root, z));
     else waters.push(makeSpray(root, z));
@@ -189,6 +191,160 @@ function makeJets(root, d) {
         mesh.setMatrixAt(i, m);
       }
       mesh.instanceMatrix.needsUpdate = true;
+    },
+  };
+}
+
+// ---------------------------------------------------------------- steam over a pot or out of a vent, drains in the floor
+
+let puffTex = null;
+function puffTexture() {
+  if (puffTex) return puffTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  // a soft lumpy puff: a few overlapping blobs
+  for (const [x, y, r, a] of [[32, 34, 26, 0.5], [24, 28, 16, 0.45], [40, 26, 15, 0.45], [33, 40, 18, 0.35]]) {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(255,255,255,${a})`);
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+  }
+  puffTex = new THREE.CanvasTexture(c);
+  return puffTex;
+}
+
+/** Steam rising in the column that lifts a fish: soft puffs that grow, drift and fade, and a shimmer at the base. */
+function makeSteam(root, z) {
+  const n = Math.round(26 + z.r * 22);
+  const h = z.y1 - z.y0;
+  const pos = new Float32Array(n * 3);
+  const life = new Float32Array(n);
+  const seed = new Float32Array(n);
+  for (let i = 0; i < n; i++) seed[i] = Math.random();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aLife', new THREE.BufferAttribute(life, 1));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  const warm = z.look === 'hood' ? 0.0 : 1.0;
+  const mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uMap: { value: puffTexture() }, uScale: { value: 380 }, uR: { value: z.r } },
+    vertexShader: `
+      attribute float aLife; attribute float aSeed; varying float vA; varying float vRot; uniform float uScale; uniform float uR;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float size = (0.35 + uR * 0.5) * (0.5 + aLife * 1.6) * (0.8 + aSeed * 0.4);
+        gl_PointSize = size * uScale / -mv.z;
+        vA = smoothstep(0.0, 0.15, aLife) * (1.0 - smoothstep(0.55, 1.0, aLife));
+        vRot = aSeed * 6.28 + aLife * 1.5;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform sampler2D uMap; varying float vA; varying float vRot;
+      void main() {
+        vec2 p = gl_PointCoord - 0.5;
+        float c = cos(vRot), s = sin(vRot);
+        p = vec2(c * p.x - s * p.y, s * p.x + c * p.y) + 0.5;
+        vec4 t = texture2D(uMap, p);
+        gl_FragColor = vec4(vec3(0.97, 0.97 + ${warm.toFixed(1)} * 0.01, 1.0), t.a * vA * 0.55);
+      }`,
+  });
+  const pts = new THREE.Points(g, mat);
+  pts.frustumCulled = false;
+  pts.renderOrder = 3;
+  root.add(pts);
+  const [cx, , cz] = z.c;
+  return {
+    update(t) {
+      for (let i = 0; i < n; i++) {
+        const k = ((t * (0.32 + seed[i] * 0.12) + seed[i] * 7.3) % 1 + 1) % 1;
+        const a = seed[i] * 40 + t * (0.4 + seed[i]);
+        const rr = z.r * (0.25 + 0.6 * k) * (0.5 + 0.5 * Math.sin(seed[i] * 13));
+        pos[i * 3] = cx + Math.cos(a) * rr;
+        pos[i * 3 + 1] = z.y0 + 0.1 + k * h;
+        pos[i * 3 + 2] = cz + Math.sin(a) * rr;
+        life[i] = k;
+      }
+      g.attributes.position.needsUpdate = true;
+      g.attributes.aLife.needsUpdate = true;
+    },
+  };
+}
+
+let grateTex = null;
+function grateTexture() {
+  if (grateTex) return grateTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.translate(64, 64);
+  // the rim, the dark hole, the bars
+  g.fillStyle = '#5d646a';
+  g.beginPath();
+  g.arc(0, 0, 62, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#0c1116';
+  g.beginPath();
+  g.arc(0, 0, 52, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#8a9298';
+  g.lineWidth = 7;
+  for (let x = -42; x <= 42; x += 14) {
+    const hh = Math.sqrt(Math.max(0, 52 * 52 - x * x));
+    g.beginPath();
+    g.moveTo(x, -hh);
+    g.lineTo(x, hh);
+    g.stroke();
+  }
+  g.strokeStyle = '#3a4046';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(0, 0, 57, 0, Math.PI * 2);
+  g.stroke();
+  grateTex = new THREE.CanvasTexture(c);
+  grateTex.colorSpace = THREE.SRGBColorSpace;
+  return grateTex;
+}
+
+/** A drain: a steel grate in the floor with water swirling into it. */
+function makeDrain(root, z) {
+  const grp = new THREE.Group();
+  const grate = new THREE.Mesh(new THREE.CircleGeometry(z.r, 32), new THREE.MeshStandardMaterial({ map: grateTexture(), roughness: 0.4, metalness: 0.7, transparent: true, polygonOffset: true, polygonOffsetFactor: -3 }));
+  grate.rotation.x = -Math.PI / 2;
+  grate.receiveShadow = true;
+  grp.add(grate);
+  // the swirl: a ring of water drawn round and down into it
+  const swirl = new THREE.Mesh(new THREE.RingGeometry(z.r * 0.95, z.r * 1.9, 40, 1), M.swirl ?? (M.swirl = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uT: { value: 0 } },
+    vertexShader: `varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      varying vec2 vP; uniform float uT;
+      void main() {
+        float r = length(vP); float a = atan(vP.y, vP.x);
+        float rr = clamp((r - 0.42) / 0.5, 0.0, 1.0);
+        float s = sin(a * 3.0 + r * 14.0 + uT * 5.0) * 0.5 + 0.5;
+        float edge = smoothstep(1.0, 0.6, rr) * smoothstep(0.0, 0.15, rr);
+        vec3 c = mix(vec3(0.25, 0.6, 0.72), vec3(0.85, 0.97, 1.0), smoothstep(0.6, 0.95, s));
+        gl_FragColor = vec4(c, edge * (0.35 + 0.35 * s));
+      }`,
+  })));
+  // the swirl's shader works in a ring of radius ~0.45..0.9: scale it to the drain
+  swirl.geometry.scale(0.45 / z.r, 0.45 / z.r, 1);
+  swirl.scale.setScalar(z.r / 0.45);
+  swirl.rotation.x = -Math.PI / 2;
+  swirl.position.y = 0.004;
+  swirl.renderOrder = 2;
+  grp.add(swirl);
+  grp.position.set(z.c[0], z.y0 + 0.3 + 0.012, z.c[2]);
+  root.add(grp);
+  return {
+    update(t) {
+      swirl.material.uniforms.uT.value = t;
     },
   };
 }

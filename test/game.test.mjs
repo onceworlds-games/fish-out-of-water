@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { CUPS, cupCourses, medalFor, nextMedal, MEDALS } from '../src/sim/race.js';
 import { COURSE_IDS, getCourse } from '../src/sim/courses/index.js';
 import { encodeGhost, decodeGhost, ghostAt } from '../src/progress.js';
-import { readPresence, stubRoom, createCup } from '../src/net.js';
+import { readPresence, stubRoom, createCup, lookToWire, lookFromWire, BOT_STYLE } from '../src/net.js';
+import { HATS, TRAILS, SPLASHES } from '../src/cosmetics.js';
 import { runBot } from '../src/sim/run.js';
 
 test('cups run their courses in order; the Grand Tour shuffles all of them by seed', () => {
@@ -58,6 +59,22 @@ test('presence from another page is read defensively', () => {
   assert.equal(p.r, '');
   assert.equal(p.n, 4);
   assert.equal(p.f, 2);
+});
+
+test('a look goes over the wire as three numbers and comes back; a bad one reads as plain', () => {
+  const look = { hat: 'propeller', trail: 'confetti', splash: 'geyser' };
+  const wire = lookToWire(look);
+  const p = readPresence({ x: 0, y: 0, z: 0, ...wire, k: 4 });
+  assert.deepEqual(lookFromWire(p), look);
+  assert.equal(p.k, 4);
+  const bad = readPresence({ x: 0, y: 0, z: 0, w: 999, v: -1, q: 1.5e9, k: 7 });
+  assert.deepEqual(lookFromWire(bad), { hat: 'none', trail: 'drips', splash: 'plain' });
+  assert.equal(bad.k, 0);
+  assert.deepEqual(lookToWire({ hat: '<x>' }), { w: 0, v: 0, q: 0 });
+  // every bot wears real things
+  for (const s of Object.values(BOT_STYLE)) {
+    assert.ok(HATS[s.look.hat] && TRAILS[s.look.trail] && SPLASHES[s.look.splash], JSON.stringify(s.look));
+  }
 });
 
 test('the host only takes a finish for this race, on the clock', async () => {

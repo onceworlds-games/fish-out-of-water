@@ -5,6 +5,15 @@ import { createMatch, createHost, t } from '@onceworlds/sdk/match';
 import { createBots } from '@onceworlds/sdk/bots';
 import { POINTS, RACE } from './sim/config.js';
 import { cupCourses } from './sim/race.js';
+import { HATS, TRAILS, SPLASHES, COLOURWAY_COUNT } from './cosmetics.js';
+
+const HAT_IDS = Object.keys(HATS);
+const TRAIL_IDS = Object.keys(TRAILS);
+const SPLASH_IDS = Object.keys(SPLASHES);
+
+/** A look as three small numbers for the presence (and back). */
+export const lookToWire = (look) => ({ w: Math.max(0, HAT_IDS.indexOf(look?.hat)), v: Math.max(0, TRAIL_IDS.indexOf(look?.trail)), q: Math.max(0, SPLASH_IDS.indexOf(look?.splash)) });
+export const lookFromWire = (p) => ({ hat: HAT_IDS[p?.w] ?? 'none', trail: TRAIL_IDS[p?.v] ?? 'drips', splash: SPLASH_IDS[p?.q] ?? 'plain' });
 
 const ow = typeof window !== 'undefined' ? window.onceworlds : null;
 
@@ -21,16 +30,16 @@ export const JOIN = {
 
 export const BOT_NAMES = ['Sal', 'Pearl', 'Kipper', 'Bones', 'Captain Gill', 'Marisol', 'Nico', 'Lulu', 'Bream', 'Dot'];
 export const BOT_STYLE = {
-  Sal: { personality: 'hothead', fish: 'mackerel', cw: 1 },
-  Pearl: { personality: 'careful', fish: 'goldfish', cw: 1 },
-  Kipper: { personality: 'showoff', fish: 'mackerel', cw: 2 },
-  Bones: { personality: 'wobbly', fish: 'eel', cw: 1 },
-  'Captain Gill': { personality: 'steady', fish: 'flatfish', cw: 1 },
-  Marisol: { personality: 'steady', fish: 'goldfish', cw: 2 },
-  Nico: { personality: 'steady', fish: 'puffer', cw: 1 },
-  Lulu: { personality: 'careful', fish: 'puffer', cw: 2 },
-  Bream: { personality: 'hothead', fish: 'flatfish', cw: 2 },
-  Dot: { personality: 'showoff', fish: 'eel', cw: 2 },
+  Sal: { personality: 'hothead', fish: 'mackerel', cw: 1, look: { hat: 'beanie', trail: 'bubbles', splash: 'crown' } },
+  Pearl: { personality: 'careful', fish: 'goldfish', cw: 1, look: { hat: 'straw', trail: 'sparkle', splash: 'plain' } },
+  Kipper: { personality: 'showoff', fish: 'mackerel', cw: 2, look: { hat: 'party', trail: 'confetti', splash: 'fireworks' } },
+  Bones: { personality: 'wobbly', fish: 'eel', cw: 1, look: { hat: 'viking', trail: 'ink', splash: 'crown' } },
+  'Captain Gill': { personality: 'steady', fish: 'flatfish', cw: 1, look: { hat: 'captain', trail: 'drips', splash: 'geyser' } },
+  Marisol: { personality: 'steady', fish: 'goldfish', cw: 2, look: { hat: 'lemon', trail: 'rainbow', splash: 'crown' } },
+  Nico: { personality: 'steady', fish: 'puffer', cw: 1, look: { hat: 'sailor', trail: 'bubbles', splash: 'plain' } },
+  Lulu: { personality: 'careful', fish: 'puffer', cw: 2, look: { hat: 'bucket', trail: 'sparkle', splash: 'crown' } },
+  Bream: { personality: 'hothead', fish: 'flatfish', cw: 2, look: { hat: 'propeller', trail: 'confetti', splash: 'fireworks' } },
+  Dot: { personality: 'showoff', fish: 'eel', cw: 2, look: { hat: 'tophat', trail: 'ink', splash: 'plain' } },
 };
 
 export async function joinRoom() {
@@ -58,7 +67,10 @@ export function readPresence(p) {
     s: num(p.s, 0, 7) ? Math.round(p.s) : 0,
     p: num(p.p, 0, 1e5) ? p.p / 10 : 0,
     f: num(p.f, 0, 4) ? Math.round(p.f) : 0,
-    k: num(p.k, 0, 2) ? Math.round(p.k) : 0,
+    k: num(p.k, 0, COLOURWAY_COUNT - 1) ? Math.round(p.k) : 0,
+    w: num(p.w, 0, HAT_IDS.length - 1) ? Math.round(p.w) : 0,
+    v: num(p.v, 0, TRAIL_IDS.length - 1) ? Math.round(p.v) : 0,
+    q: num(p.q, 0, SPLASH_IDS.length - 1) ? Math.round(p.q) : 0,
     r: typeof p.r === 'string' && p.r.length <= 80 ? p.r : '',
     n: num(p.n, 0, 1e7) ? Math.round(p.n) : 0,
     l: num(p.l, 0, 1e7) ? Math.round(p.l) : 0,

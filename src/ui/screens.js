@@ -3,6 +3,29 @@
 
 import { h, tag, keyCap, medalDisc, pin } from './dom.js';
 import { fmtTime } from '../sim/race.js';
+import { buildLocker } from './locker.js';
+
+/** The Catch on the Quay: the level and its bar, the streak, today's three goals. */
+function catchCard(c) {
+  return h(
+    'div',
+    { class: 'catch-card' },
+    h(
+      'div',
+      { class: 'cc-level' },
+      h('span', { class: 'lv' }, h('small', {}, 'Level'), String(c.level)),
+      h('span', { class: 'bar' }, h('span', { class: 'fill', style: `width:${((c.into / c.need) * 100).toFixed(1)}%` })),
+      c.streak ? h('span', { class: 'streak', title: 'Days in a row with a goal done' }, String(c.streak)) : null,
+    ),
+    c.next ? h('div', { class: 'cc-next' }, `Level ${c.next.level}: ${c.next.text}`) : null,
+    h(
+      'div',
+      { class: 'cc-goals' },
+      h('div', { class: 'gh' }, 'Today'),
+      ...c.goals.map((g) => h('div', { class: `goal ${g.done ? 'done' : ''}` }, h('span', { class: 'box' }), h('span', { class: 'gt' }, g.text), h('span', { class: 'gn' }, g.need > 1 ? `${Math.min(g.have, g.need)}/${g.need}` : ''))),
+    ),
+  );
+}
 
 export function createScreens(root) {
   const layer = h('div', { class: 'screen' });
@@ -51,8 +74,9 @@ export function createScreens(root) {
         { class: 'quay-left' },
         tag('Time Trials', { onclick: o.onTrials, angle: -2 }),
         tag(['Daily Catch', h('small', {}, o.dailyName)], { kind: 'spray', onclick: o.onDaily }),
-        tag(['Fish', h('small', {}, o.fishName)], { kind: 'wash', onclick: o.onFish }),
+        tag(['Locker', h('small', {}, o.fishName), o.lockerNew ? h('i', { class: 'new-dot', 'aria-label': 'new' }) : null], { kind: 'wash', onclick: o.onFish }),
       );
+      if (o.catch) left.append(catchCard(o.catch));
       const cup = h('div', { class: 'cup' });
       const seats = h('div', { class: 'seats' });
       const hint = h('div', { class: 'hint-lobby float' }, o.hint ?? '');
@@ -116,6 +140,15 @@ export function createScreens(root) {
           h('div', { class: 'row-tags' }, tag(['Play', keyCap('Space')], { kind: 'red', onclick: onPlay, angle: -2 }), tag(['Back', keyCap('Esc')], { kind: 'wash', onclick: onBack })),
         ),
       );
+    },
+
+    /** The locker (fish, colours, hats, trails, splashes): see locker.js. */
+    locker(o) {
+      const old = layer.querySelector('.lk-grid');
+      const scroll = current === 'fish' && old ? old.scrollTop : 0;
+      set('fish', buildLocker(o));
+      const grid = layer.querySelector('.lk-grid');
+      if (grid && o.keepScroll) grid.scrollTop = scroll;
     },
 
     /** The fish picker: five fish, three colours each; locked ones say how to earn them. */

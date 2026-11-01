@@ -17,7 +17,7 @@ import { createAudio } from './audio.js';
 import { createHud } from './ui/hud.js';
 import { createScreens } from './ui/screens.js';
 import { createProgress, award, submitTime, ghostAt } from './progress.js';
-import { joinRoom, createCup, readPresence, BOT_STYLE } from './net.js';
+import { joinRoom, createCup, readPresence, BOT_STYLE, lookToWire, lookFromWire } from './net.js';
 import { getCourse, COURSE_IDS } from './sim/courses/index.js';
 import { createHazards } from './sim/hazards.js';
 import { createBrain, createWanderer } from './sim/bot.js';
@@ -32,6 +32,9 @@ import { hashString } from './sim/rng.js';
 import { loadFonts } from './fonts.js';
 import { createFeedback } from './feedback.js';
 import { runCard } from './ui/results.js';
+import { createThumbs } from './render/thumbs.js';
+import { HATS, TRAILS, SPLASHES, COLOURWAY_LEVELS } from './cosmetics.js';
+import { nextReward } from './catch.js';
 
 const ow = typeof window !== 'undefined' ? window.onceworlds ?? null : null;
 const params = new URLSearchParams(location.search);
@@ -40,6 +43,7 @@ const AUTOPLAY = !PROD && params.has('autoplay') && params.get('autoplay') !== '
 const AUTOPLAY_TO = params.get('autoplay-to');
 // autoplay only: ?trial=<course> runs a time trial on it instead of joining a race (footage of the solo flow)
 const AUTOPLAY_TRIAL = AUTOPLAY ? params.get('trial') : null;
+const AUTOPLAY_OPEN = AUTOPLAY ? params.get('open') : null; // 'quay' (stay in the lobby) or 'locker' (&tab=)
 const POSTER = params.get('poster');
 const NO_HUD = params.get('hud') === '0';
 
@@ -82,6 +86,7 @@ async function boot() {
   const screens = createScreens(uiRoot);
   const progress = createProgress();
   const feedback = createFeedback({ hud, fx, audio, cam });
+  const thumbs = createThumbs(stage.renderer, scene);
   fx.camera = camera;
   if (NO_HUD) uiRoot.style.display = 'none';
 
@@ -224,6 +229,8 @@ async function boot() {
   };
 
   await Promise.all([progress.load(), loadFonts()]);
+  // a preview of a later save (for checking the locker and the quay)
+  if (AUTOPLAY && Number(params.get('xp')) > 0) progress.data.xp = Math.floor(Number(params.get('xp')));
 
   // ---------------------------------------------------------------- actors
   function clearActors() {
@@ -239,7 +246,7 @@ async function boot() {
   function makeMe(seatIndex = 0, pos, yaw) {
     const d = progress.data;
     const name = G.room?.me?.name ?? 'You';
-    const a = createActor(ctx, { id: G.room?.me?.id ?? 'me', name, seat: seatIndex, fish: d.fish, cw: d.cw, kind: 'me' });
+    const a = createActor(ctx, { id: G.room?.me?.id ?? 'me', name, seat: seatIndex, fish: d.fish, cw: d.cw, kind: 'me', look: d.look });
     giveBody(a, pos, yaw);
     input.state.yaw = yaw;
     syncFromBody(a);
@@ -308,9 +315,9 @@ async function boot() {
     G.hazards = null;
     showPodium(false);
     const box = [-7, -4.5, 7.5, 5.5];
-    const picks = [['mackerel', 0], ['goldfish', 0], ['puffer', 1], ['flatfish', 0], ['eel', 2], ['mackerel', 1]];
-    picks.forEach(([fish, cw], i) => {
-      const a = createActor(ctx, { id: `w${i}`, fish, cw, kind: 'wander', seat: i + 1 });
+    const picks = [['mackerel', 0, 'sailor'], ['goldfish', 0, 'straw'], ['puffer', 1, 'none'], ['flatfish', 0, 'captain'], ['eel', 2, 'beanie'], ['mackerel', 1, 'none']];
+    picks.forEach(([fish, cw, hat], i) => {
+      const a = createActor(ctx, { id: `w${i}`, fish, cw, kind: 'wander', seat: i + 1, look: { hat, trail: 'drips', splash: 'plain' } });
       const s = course.slots[i];
       giveBody(a, s, (i * 1.7) % 6.28);
       a.brain = createWanderer(course.world, box, 11 + i * 7);
@@ -355,6 +362,7 @@ async function boot() {
       makeMe(seatIndexInLobby(), s, 0);
     }
     if (G.me) G.me.visible = true;
+    if (G.mode === 'fish') progress.markSeen();
     G.mode = 'quay';
     G.paused = false;
     showPodium(false);
@@ -410,6 +418,8 @@ async function boot() {
       onFish: () => toFish(),
       dailyName: `${getCourse(daily.course).short ?? getCourse(daily.course).name}`,
       fishName: fish?.name ?? 'Mackerel',
+      lockerNew: progress.level().level > progress.data.seen,
+      catch: catchInfo(),
       hint,
     };
   }
@@ -460,27 +470,82 @@ async function boot() {
     hideLobby(true);
     setControls(false);
     G.camMode = 'closeup';
+    G.lockerTab = G.lockerTab ?? 'fish';
+    G.lockerSeen = progress.data.seen;
+    G.hopT = 0.6;
+    G.hopYaw = input.state.yaw;
     drawFish();
     setFlow('fish');
   }
-  function drawFish() {
+  /** The Catch for the Quay: level, streak, the next reward, today's goals. */
+  function catchInfo() {
+    const lv = progress.level();
+    const nx = nextReward(lv.level);
+    return {
+      ...lv,
+      streak: progress.streak().n,
+      next: nx ? { level: nx.level, text: nx.rewards.map((r) => r.name).join(', ') } : null,
+      goals: progress.goals(),
+    };
+  }
+  function drawFish(keepScroll = false) {
     const d = progress.data;
-    screens.fish({
+    const seen = G.lockerSeen ?? d.seen;
+    const lv = progress.level();
+    const items = {};
+    const newTabs = {};
+    for (const [slot, table] of [['hat', HATS], ['trail', TRAILS], ['splash', SPLASHES]]) {
+      items[slot] = Object.entries(table)
+        .map(([id, it]) => ({ id, name: it.name, owned: progress.owned(slot, id), worn: d.look[slot] === id, howTo: progress.howTo(slot, id), isNew: progress.owned(slot, id) && (it.level ?? 0) > seen }))
+        // what you have first, then by how soon you get it
+        .sort((a, b) => (a.owned === b.owned ? (table[a.id].level ?? (table[a.id].goal ? 99 : 0)) - (table[b.id].level ?? (table[b.id].goal ? 99 : 0)) : a.owned ? -1 : 1));
+      if (items[slot].some((x) => x.isNew)) newTabs[slot] = true;
+    }
+    const colours = COLOURWAYS[d.fish].map((c, i) => ({ back: c[0], belly: c[1], owned: progress.cwOwned(i), howTo: `Level ${COLOURWAY_LEVELS[i]}`, isNew: progress.cwOwned(i) && COLOURWAY_LEVELS[i] > seen }));
+    if (colours.some((c) => c.isNew)) newTabs.fish = true;
+    screens.locker({
+      tab: G.lockerTab,
+      level: lv,
+      streak: progress.streak().n,
       fish: FISH.map((f) => ({ id: f.id, name: f.name, unlocked: progress.unlocked(f.id), lockText: progress.unlockText(f.id) })),
       chosen: d.fish,
       cw: d.cw,
-      colours: COLOURWAYS[d.fish].map((c) => c[0]),
-      onPick: (id) => {
-        progress.setFish(id, 0);
-        swapMyFish();
+      colours,
+      items,
+      newTabs,
+      thumbs,
+      keepScroll,
+      onTab: (id) => {
+        G.lockerTab = id;
         drawFish();
         audio.click();
+      },
+      onFish: (id) => {
+        if (id === d.fish) return;
+        progress.setFish(id, 0);
+        swapMyFish();
+        drawFish(true);
+        audio.click();
+        G.hopT = 0.25;
       },
       onColour: (i) => {
         progress.setFish(d.fish, i);
         swapMyFish();
         drawFish();
         audio.click();
+      },
+      onWear: (slot, id) => {
+        progress.wear(slot, id);
+        if (slot === 'hat') swapMyFish();
+        else if (G.me) G.me.look = { ...progress.data.look };
+        drawFish(true);
+        audio.click();
+        // show it off: a hop for a hat or a trail, the splash itself
+        if (slot === 'splash' && G.me) {
+          const a = G.me;
+          fx.finishSplash(id, a.rs.x + Math.sin(G.t * 0.35) * 0.35, a.rs.y - 0.1, a.rs.z + Math.cos(G.t * 0.35) * 0.35);
+          audio.land('splash', 9);
+        } else G.hopT = 0.05;
       },
       onBack: () => toQuay(),
     });
@@ -722,7 +787,7 @@ async function boot() {
         continue;
       }
       const style = s.bot ? BOT_STYLE[s.name] ?? { personality: 'steady', fish: FISH_IDS[s.index % 5], cw: s.index % 3 } : null;
-      const a = createActor(ctx, { id: s.id, name: s.name, seat: s.index, fish: style ? style.fish : 'mackerel', cw: style ? style.cw : 0, kind: s.bot ? 'bot' : 'remote' });
+      const a = createActor(ctx, { id: s.id, name: s.name, seat: s.index, fish: style ? style.fish : 'mackerel', cw: style ? style.cw : 0, kind: s.bot ? 'bot' : 'remote', look: style?.look });
       a.skill = s.skill;
       a.style = style;
       a.slot = slot;
@@ -840,7 +905,9 @@ async function boot() {
       const isMe = !!s?.me;
       const fish = isMe ? progress.data.fish : style?.fish ?? 'mackerel';
       const cw = isMe ? progress.data.cw : style?.cw ?? 0;
-      const a = createActor(ctx, { id: `pod${i}`, name: st.name, seat: s?.index ?? i, fish, cw, kind: isMe ? 'podme' : 'podium' });
+      const remote = !isMe && !s?.bot ? readPresence(room?.players?.get?.(st.id)?.presence) : null;
+      const look = isMe ? progress.data.look : style?.look ?? (remote ? lookFromWire(remote) : null);
+      const a = createActor(ctx, { id: `pod${i}`, name: st.name, seat: s?.index ?? i, fish, cw, kind: isMe ? 'podme' : 'podium', look });
       const p = course.podium[i];
       giveBody(a, [p[0], p[1] + 0.02, p[2]], Math.PI);
       a.brain = { t: 0.4 + i * 0.5, step(b, dt) {
@@ -897,6 +964,7 @@ async function boot() {
         p: Math.round(Math.max(0, a.prog) * 10),
         f: Math.max(0, FISH_IDS.indexOf(a.fish)),
         k: a.cw,
+        ...lookToWire(a.look),
         r: tagName,
         n: a.n,
         l: a.l,
@@ -921,6 +989,9 @@ async function boot() {
         p.s = last.s;
         p.f = last.f;
         p.k = last.k;
+        p.w = last.w;
+        p.v = last.v;
+        p.q = last.q;
         p.n = last.n;
         p.l = last.l;
         p.g = last.g;
@@ -936,18 +1007,22 @@ async function boot() {
       }
       seen.add(id);
       const fish = FISH_IDS[p.f] ?? 'mackerel';
-      if (a && (a.fish !== fish || a.cw !== p.k) && a.kind === 'remote') {
+      const look = lookFromWire(p);
+      const lookKey = `${look.hat}/${look.trail}/${look.splash}`;
+      if (a && (a.fish !== fish || a.cw !== p.k || a.lookKey !== lookKey) && a.kind === 'remote') {
         const keep = { name: a.name, seat: a.seatIndex };
         a.dispose();
         G.actors.delete(id);
         a = null;
-        a = createActor(ctx, { id, name: keep.name, seat: keep.seat, fish, cw: p.k, kind: 'remote' });
+        a = createActor(ctx, { id, name: keep.name, seat: keep.seat, fish, cw: p.k, kind: 'remote', look });
+        a.lookKey = lookKey;
         G.actors.set(id, a);
       }
       if (!a) {
         const player = room.players?.get?.(id);
         const idx = inMatch ? seatOf(id)?.index ?? 0 : (room.online ?? []).map((q) => q.id).sort().indexOf(id);
-        a = createActor(ctx, { id, name: player?.name ?? '', seat: Math.max(0, idx), fish, cw: p.k, kind: 'remote' });
+        a = createActor(ctx, { id, name: player?.name ?? '', seat: Math.max(0, idx), fish, cw: p.k, kind: 'remote', look });
+        a.lookKey = lookKey;
         G.actors.set(id, a);
       }
       a.visible = true;
@@ -1029,6 +1104,16 @@ async function boot() {
     return { hold, yaw: input.state.yaw };
   };
   const brainInput = (a, dt, t) => a.brain.step(a.body, dt, t, G.hazards);
+  // in the locker your fish hops on the spot now and then (back and forth), to show off its hat and its trail
+  const lockerInput = (a, dt) => {
+    G.hopT = (G.hopT ?? 1) - dt;
+    const yaw = (G.hopYaw ?? 0) + (G.hopFlip ? Math.PI : 0);
+    if (G.hopT > 0 || !a.body.ground) return { hold: false, yaw };
+    if (G.hopT > -0.2) return { hold: true, yaw };
+    G.hopT = 2.6;
+    G.hopFlip = !G.hopFlip;
+    return { hold: false, yaw };
+  };
   const onEvent = (a, e) => {
     eventFx(ctx, a, e, nearOf(a));
     if (a.kind !== 'me') return;
@@ -1172,8 +1257,14 @@ async function boot() {
     const a = G.me;
     if (!a) return orbitCam(dt);
     const yaw = G.t * 0.35;
-    camP.set(a.rs.x + Math.sin(yaw) * 1.6, a.rs.y + 0.75, a.rs.z + Math.cos(yaw) * 1.6);
-    camL.set(a.rs.x, a.rs.y + 0.15, a.rs.z);
+    // the locker sits on the left (or along the bottom on a tall screen): pan so the fish turns beside it
+    const wide = innerWidth > innerHeight * 1.05;
+    const side = wide ? -Math.min(0.62, 0.3 + (440 / innerWidth) * 0.55) : 0;
+    const down = wide ? 0 : -0.42;
+    const rx = Math.cos(yaw) * side, rz = -Math.sin(yaw) * side;
+    G.cuY = G.cuY === undefined ? a.rs.y : G.cuY + (a.rs.y - G.cuY) * Math.min(1, dt * 2.5);
+    camP.set(a.rs.x + Math.sin(yaw) * 1.5 + rx, G.cuY + 0.52 + down, a.rs.z + Math.cos(yaw) * 1.5 + rz);
+    camL.set(a.rs.x + rx, G.cuY + 0.16 + down, a.rs.z + rz);
     cam.place(dt, camP, camL, 4);
   }
   function finishCam(dt) {
@@ -1256,7 +1347,7 @@ async function boot() {
     const playing = G.mode === 'quay';
     input.state.enabled = playing;
     if (a?.body) {
-      simulate(a, a.simT + dt, myInput, env(), onEvent, 30);
+      simulate(a, a.simT + dt, G.mode === 'fish' ? lockerInput : myInput, env(), onEvent, 30);
       // a fish in the sea pops back onto the quay
       if (a.body.state === 'done') {
         respawn(a.body, G.course.slots[(hashString(a.id) % 7) + 1] ?? [0, 0.2, 0]);
@@ -1284,7 +1375,12 @@ async function boot() {
       screens.quayUpdate(quayInfo());
       updateNameTags();
       setFlow(match.phase === 'countdown' ? 'countdown' : 'lobby');
-      if (AUTOPLAY && !G.readySent && G.t > 2) {
+      if (AUTOPLAY_OPEN === 'locker' && !G.openedLocker && G.t > 1.5) {
+        G.openedLocker = true;
+        G.lockerTab = params.get('tab') ?? 'hat';
+        toFish();
+      }
+      if (AUTOPLAY && !AUTOPLAY_OPEN && !G.readySent && G.t > 2) {
         G.readySent = true;
         try {
           if (room.isHost && room.kind !== 'public' && room.kind !== 'solo') match.start();

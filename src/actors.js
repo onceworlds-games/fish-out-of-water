@@ -11,11 +11,13 @@ const WET_SURF = new Set(['wet', 'water', 'ice', 'wetsand']);
 
 /**
  * ctx: { scene, audio, fx, cam, listener: () => {x,y,z} } (sounds fade with distance from the listener).
- * o: { id, name, seat (index), fish, cw, kind: 'me' | 'bot' | 'remote' | 'ghost' | 'wander', ghostColor }
+ * o: { id, name, seat (index), fish, cw, kind: 'me' | 'bot' | 'remote' | 'ghost' | 'wander', ghostColor, look: { hat, trail,
+ * splash } }
  */
 export function createActor(ctx, o) {
   const seat = SEAT_COLOURS[(o.seat ?? 0) % SEAT_COLOURS.length];
-  const view = createFishView(o.fish, o.cw ?? 0, { ghost: o.kind === 'ghost', ghostColor: o.ghostColor, pin: seat.hex, tag: o.kind !== 'ghost' });
+  const look = o.kind === 'ghost' ? {} : o.look ?? {};
+  const view = createFishView(o.fish, o.cw ?? 0, { ghost: o.kind === 'ghost', ghostColor: o.ghostColor, pin: seat.hex, tag: o.kind !== 'ghost', hat: look.hat && look.hat !== 'none' ? look.hat : null });
   ctx.scene.add(view.group);
   const a = {
     id: o.id,
@@ -25,6 +27,8 @@ export function createActor(ctx, o) {
     fish: o.fish,
     cw: o.cw ?? 0,
     kind: o.kind,
+    look,
+    trailState: {},
     view,
     body: null,
     brain: null,
@@ -46,6 +50,14 @@ export function createActor(ctx, o) {
       view.dispose();
     },
   };
+  // the trail rides on the view's own frame update (wherever the page draws this fish)
+  if (look.trail && o.kind !== 'ghost') {
+    const draw = view.update;
+    view.update = (dt, rs) => {
+      draw(dt, rs);
+      if (rs === a.rs) emitTrail(ctx, a, dt);
+    };
+  }
   return a;
 }
 
@@ -196,9 +208,9 @@ export function eventFx(ctx, a, e, near = 1) {
       if (loud) audio.finish();
       break;
     case 'splashdown':
-      // where it goes in: a crown of water and the spray
+      // where it goes in: a crown of water and the spray (in the fish's own finish style)
       fx.burst(e.x, e.y, e.z, 56, 'splash', 2.4);
-      fx.crown(e.x, e.y, e.z, 0.75);
+      fx.finishSplash(a.look?.splash ?? 'plain', e.x, e.y, e.z);
       if (mine) cam.addTrauma(0.2);
       break;
     case 'grab':
@@ -210,6 +222,13 @@ export function eventFx(ctx, a, e, near = 1) {
       if (loud) audio.gull(0.12);
       break;
   }
+}
+
+/** The fish's trail while it flies (every frame, after its render state is set). */
+export function emitTrail(ctx, a, dt) {
+  const kind = a.look?.trail;
+  if (!kind || a.rs.ground || a.kind === 'ghost' || a.visible === false || a.rs.state === 'done') return;
+  ctx.fx.trail(a.trailState, kind, a.rs.x, a.rs.y, a.rs.z, Math.hypot(a.rs.vx, a.rs.vy, a.rs.vz), dt);
 }
 
 const SOUND_OF = { tile: 'slap', wet: 'wet', stone: 'slap', wood: 'thud', steel: 'plink', ice: 'ice', sand: 'sand', wetsand: 'sand', gravel: 'gravel', grass: 'grass', hot: 'sizzle', plush: 'plush', rail: 'plink', bounce: 'boing', net: 'net', water: 'splash', wall: 'thud' };

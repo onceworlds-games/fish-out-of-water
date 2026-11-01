@@ -1557,3 +1557,474 @@ button.tag:focus-visible {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ the locker: cards down the left, the fish beside them */
+
+.locker {
+  position: absolute;
+  left: var(--left);
+  top: calc(var(--top) + 4px);
+  bottom: var(--bottom);
+  width: min(430px, calc(100vw - var(--left) - var(--right)));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.locker::before {
+  content: '';
+  position: absolute;
+  inset: -40px -60px -40px -40px;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(8, 40, 78, 0.5), rgba(8, 40, 78, 0.28) 70%, rgba(8, 40, 78, 0));
+  pointer-events: none;
+}
+
+.lk-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lk-head h2 {
+  margin: 0;
+  font-family: var(--slab);
+  font-weight: 400;
+  font-size: 40px;
+  color: var(--wash);
+  -webkit-text-stroke: 7px var(--slate);
+  paint-order: stroke fill;
+  transform: rotate(-2deg);
+}
+
+.lk-level,
+.cc-level {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 8px;
+  background: var(--wash);
+  border: 3px solid var(--slate);
+  border-radius: 10px;
+  box-shadow: 0 4px 0 rgba(26, 29, 34, 0.3);
+}
+
+.lk-level .lv,
+.cc-level .lv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--slab);
+  font-size: 26px;
+  line-height: 0.95;
+  color: var(--red);
+}
+
+.lk-level .lv small,
+.cc-level .lv small {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--slate);
+}
+
+.lk-level .bar,
+.cc-level .bar {
+  position: relative;
+  height: 18px;
+  border: 3px solid var(--slate);
+  border-radius: 10px;
+  background: rgba(26, 29, 34, 0.12);
+  overflow: hidden;
+}
+
+.lk-level .fill,
+.cc-level .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg, #7fe6f6, var(--spray) 55%, #2aa7c4);
+}
+
+.lk-level .bt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.lk-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.lk-tab {
+  position: relative;
+  flex: 1;
+  padding: 7px 4px 6px;
+  font-family: var(--slab);
+  font-size: 17px;
+  color: var(--slate);
+  background: #d9d2c4;
+  border: 3px solid var(--slate);
+  border-radius: 9px 9px 4px 4px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(26, 29, 34, 0.3);
+  transition: transform 0.08s;
+}
+
+.lk-tab:hover {
+  transform: translateY(-2px);
+}
+
+.lk-tab.on {
+  background: var(--lemon);
+  transform: translateY(-3px) rotate(-1.5deg);
+}
+
+.lk-tab .dot,
+.new-dot {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2.5px solid var(--slate);
+  animation: dotpulse 1.4s ease-in-out infinite;
+}
+
+.new-dot {
+  position: relative;
+  right: auto;
+  top: -0.5em;
+  display: inline-block;
+}
+
+@keyframes dotpulse {
+  50% { transform: scale(1.25); }
+}
+
+.lk-grid {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 10px;
+  padding: 6px 6px 10px 2px;
+  scrollbar-width: thin;
+}
+
+.lk-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px 7px;
+  background: var(--wash);
+  color: var(--slate);
+  border: 3px solid var(--slate);
+  border-radius: 10px;
+  box-shadow: 0 4px 0 rgba(26, 29, 34, 0.3);
+  font-family: var(--slab);
+  font-size: 16px;
+  line-height: 1.05;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.lk-card:nth-child(odd) {
+  transform: rotate(-0.8deg);
+}
+
+.lk-card:nth-child(even) {
+  transform: rotate(0.9deg);
+}
+
+.lk-card.owned:hover {
+  transform: translateY(-3px) rotate(-1.5deg);
+}
+
+.lk-card.owned:active {
+  transform: scale(0.96);
+}
+
+.lk-card.worn {
+  background: var(--lemon);
+  box-shadow: 0 0 0 3px var(--red), 0 5px 0 rgba(26, 29, 34, 0.35);
+}
+
+.lk-card.worn::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--red) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23f4efe6' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px no-repeat;
+  border: 2.5px solid var(--slate);
+}
+
+.lk-card.locked {
+  background: #cfc8ba;
+  color: #595650;
+  cursor: not-allowed;
+}
+
+.lk-card.locked .pic {
+  filter: grayscale(1) brightness(0.55) contrast(0.8);
+  opacity: 0.55;
+}
+
+.lk-card .pic {
+  width: 76px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+}
+
+.lk-fish .lk-card .pic {
+  width: 112px;
+  height: 58px;
+}
+
+@media (max-height: 760px) {
+  .lk-card {
+    font-size: 15px;
+    padding: 4px 5px 5px;
+  }
+  .lk-card .pic {
+    height: 50px;
+  }
+  .lk-grid {
+    gap: 8px;
+  }
+}
+
+.lk-card .pic img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 0 rgba(26, 29, 34, 0.25));
+}
+
+.lk-card .ic-svg {
+  display: grid;
+  place-items: center;
+}
+
+.lk-card .ic-none {
+  font-size: 30px;
+  color: rgba(26, 29, 34, 0.35);
+}
+
+.lk-card .how {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.lk-card .lock {
+  position: absolute;
+  left: 7px;
+  top: 6px;
+}
+
+.lk-card .new-tag {
+  position: absolute;
+  left: -6px;
+  top: -9px;
+  padding: 1px 6px;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  background: var(--red);
+  color: var(--wash);
+  border: 2.5px solid var(--slate);
+  border-radius: 6px;
+  transform: rotate(-8deg);
+  animation: dotpulse 1.4s ease-in-out infinite;
+}
+
+.lk-sub {
+  font-family: var(--slab);
+  font-size: 18px;
+  color: var(--wash);
+  -webkit-text-stroke: 5px var(--slate);
+  paint-order: stroke fill;
+}
+
+.lk-colours {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lk-colours button {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 3.5px solid var(--slate);
+  background: linear-gradient(180deg, var(--a) 0 52%, var(--b) 52%);
+  box-shadow: 0 4px 0 rgba(26, 29, 34, 0.3);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.lk-colours button.on {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px var(--lemon), 0 0 0 7px var(--slate);
+}
+
+.lk-colours button.locked {
+  cursor: not-allowed;
+  filter: grayscale(0.85) brightness(0.7);
+}
+
+.lk-colours button small {
+  position: absolute;
+  inset: auto -8px -10px;
+  padding: 0 3px;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 12px;
+  background: var(--slate);
+  color: var(--wash);
+  border-radius: 5px;
+}
+
+.lk-colours button.new::after {
+  content: 'New';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-6deg);
+  padding: 0 4px;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  background: var(--red);
+  color: var(--wash);
+  border: 2px solid var(--slate);
+  border-radius: 5px;
+}
+
+.lk-actions {
+  justify-content: flex-start;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+@media (max-aspect-ratio: 105/100) {
+  .locker {
+    top: auto;
+    left: var(--left);
+    right: var(--right);
+    width: auto;
+    max-height: 56vh;
+  }
+  .locker::before {
+    inset: -50px -40px -40px;
+    background: linear-gradient(0deg, rgba(8, 40, 78, 0.55), rgba(8, 40, 78, 0.3) 75%, rgba(8, 40, 78, 0));
+  }
+  .lk-head h2 {
+    font-size: 30px;
+  }
+  .lk-grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  }
+  .lk-card .pic {
+    height: 52px;
+  }
+}
+
+/* ------------------------------------------------------------ the Catch on the Quay */
+
+.catch-card {
+  margin-top: 6px;
+  width: 270px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  background: var(--wash);
+  border: 3px solid var(--slate);
+  border-radius: 10px;
+  box-shadow: 0 5px 0 rgba(26, 29, 34, 0.3);
+  transform: rotate(-1deg);
+  pointer-events: none;
+}
+
+.catch-card .cc-level {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+}
+
+.cc-next {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--sea);
+  line-height: 1.1;
+}
+
+.cc-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 5px;
+  border-top: 2px dashed rgba(26, 29, 34, 0.35);
+}
+
+.cc-goals .gh {
+  font-family: var(--slab);
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.cc-goals .goal {
+  font-size: 15px;
+  grid-template-columns: 18px 1fr auto;
+  line-height: 1.1;
+}
+
+.cc-goals .goal .box {
+  width: 15px;
+  height: 15px;
+  border-width: 2.5px;
+}
+
+.cc-goals .goal.done .box::after {
+  left: 2px;
+  top: -4px;
+  width: 5px;
+  height: 10px;
+  border-width: 0 3px 3px 0;
+}
+
+@media (max-height: 560px), (max-width: 620px) {
+  .catch-card .cc-goals,
+  .catch-card .cc-next {
+    display: none;
+  }
+  .catch-card {
+    width: 190px;
+  }
+}

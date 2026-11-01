@@ -156,6 +156,14 @@ export function createProgress() {
       if (!it) return '';
       return it.goal ? GOALS[it.goal] : `Level ${it.level ?? 1}`;
     },
+    /** The locker has been looked at: what this level gave is no longer new. */
+    markSeen() {
+      const l = api.level().level;
+      if (data.seen !== l) {
+        data.seen = l;
+        api.save();
+      }
+    },
     wear(slot, id) {
       if (!api.owned(slot, id)) return;
       data.look[slot] = id;
