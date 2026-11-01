@@ -40,7 +40,7 @@ ambient occlusion / roughness / metalness.
 
 | File | HDRI | Author | Source |
 | --- | --- | --- | --- |
-| harbour.hdr | Simon's Town Harbour (1k) | Greg Zaal, Rico Cilliers | https://polyhaven.com/a/simons_town_harbour |
+| sky.hdr | Kloofendal 48d Partly Cloudy (Pure Sky) (1k) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky |
 
 ## Fonts
 

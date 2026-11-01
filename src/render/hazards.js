@@ -752,7 +752,82 @@ function makeSprinkler(hz) {
   };
 }
 
-const MAKERS = { cat: makeCat, feet: makeFeet, chef: makeChef, gull: makeGull, boules: makeBoules, sprinkler: makeSprinkler };
+// ---------------------------------------------------------------- the big scale's pan (a pendulum you can ride)
+
+function makePendulum(hz) {
+  const group = new THREE.Group();
+  const brass = new THREE.MeshStandardMaterial({ color: 0xd9b45a, roughness: 0.28, metalness: 0.9, envMapIntensity: 1.5 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.35, metalness: 0.85, envMapIntensity: 1.2 });
+  const [w, , d] = hz.size;
+  // the pan: a shallow brass dish, a rolled rim; fish scales are round, the collider square: the dish covers it
+  const R = Math.hypot(w, d) / 2 * 0.92;
+  const pan = new THREE.Group();
+  group.add(pan);
+  const dish = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 0.82, 0.12, 32), brass);
+  dish.castShadow = dish.receiveShadow = true;
+  pan.add(dish);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.03, 8, 32), brass);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.06;
+  pan.add(rim);
+  // chains from the rim up to a ring, and the ring to the hook on the rod
+  const hookH = 1.05;
+  const link = new THREE.TorusGeometry(0.03, 0.009, 4, 8);
+  const linkMesh = new THREE.InstancedMesh(link, steel, 4 * 22);
+  linkMesh.castShadow = true;
+  let n = 0;
+  const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+    const from = new THREE.Vector3(Math.cos(a) * R * 0.96, 0.06, Math.sin(a) * R * 0.96);
+    const to = new THREE.Vector3(0, hookH, 0);
+    const dir = to.clone().sub(from);
+    const len = dir.length();
+    dir.normalize();
+    for (let i = 0; i < 22; i++) {
+      const p = from.clone().addScaledVector(dir, (len * (i + 0.5)) / 22);
+      q.setFromUnitVectors(UP, dir);
+      if (i % 2) q.multiply(new THREE.Quaternion().setFromAxisAngle(UP, Math.PI / 2));
+      m4.compose(p, q, new THREE.Vector3(1, 1.6, 1));
+      linkMesh.setMatrixAt(n++, m4);
+    }
+  }
+  pan.add(linkMesh);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 6, 16), steel);
+  ring.position.y = hookH;
+  pan.add(ring);
+  // the rod from the pivot to the ring, and the dial's needle on the gantry
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 8), steel);
+  rod.castShadow = true;
+  group.add(rod);
+  const needle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.015), new THREE.MeshStandardMaterial({ color: 0xc8402c, roughness: 0.4 }));
+  needle.geometry.translate(0, 0.18, 0);
+  needle.position.set(hz.pivot[0], hz.pivot[1] + 0.95 + 0.18, hz.pivot[2] - 0.13);
+  group.add(needle);
+  const hook = new THREE.Vector3();
+  const piv = new THREE.Vector3(...hz.pivot);
+  let wob = 0, wobV = 0;
+  return {
+    group,
+    update(s, t, dt) {
+      pan.position.set(s.x, s.y + 0.06, s.z);
+      hook.set(s.x, s.y + 0.06 + hookH, s.z);
+      const mid = hook.clone().add(piv).multiplyScalar(0.5);
+      rod.position.copy(mid);
+      const dir = piv.clone().sub(hook);
+      rod.scale.set(1, dir.length(), 1);
+      rod.quaternion.setFromUnitVectors(UP, dir.normalize());
+      // the needle reads the swing's pull (heavier at the bottom of the swing), on a damped spring
+      const pull = 0.6 + 0.9 * Math.cos(s.angle) ** 8 - 0.3;
+      wobV += ((pull - wob) * 40 - wobV * 6) * Math.min(dt, 0.05);
+      wob += wobV * Math.min(dt, 0.05);
+      needle.rotation.z = -1.9 + wob * 2.2;
+    },
+  };
+}
+
+const MAKERS = { cat: makeCat, feet: makeFeet, chef: makeChef, gull: makeGull, boules: makeBoules, sprinkler: makeSprinkler, pendulum: makePendulum };
 export function registerHazardView(kind, make) {
   MAKERS[kind] = make;
 }

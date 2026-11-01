@@ -1,4 +1,4 @@
-// The renderer, the light, the sky, the harbour environment and the post stack. Quality follows the platform's Graphics
+// The renderer, the light, the sky, the environment light and the post stack. Quality follows the platform's Graphics
 // setting: low draws straight to the screen; medium adds bloom, the grade and SMAA; high adds ambient occlusion and MSAA.
 
 import * as THREE from 'three';
@@ -13,7 +13,7 @@ import { SUN } from '../sim/config.js';
 export const SUN_DIR = new THREE.Vector3(...SUN);
 
 const SKY = {
-  noon: { top: 0x2f7fd8, mid: 0x7db9ec, horizon: 0xdcecf2, sun: 0xfff0d2, fog: 0xcfe2ea, sunI: 3.1, hemiI: 0.55, envI: 0.75, exposure: 1.0 },
+  noon: { top: 0x2f7fd8, mid: 0x7db9ec, horizon: 0xdcecf2, sun: 0xfff0d2, fog: 0xcfe2ea, sunI: 3.5, hemiI: 0.7, envI: 0.75, exposure: 1.0 },
   kitchen: { top: 0x6aa8e0, mid: 0xa9d0ef, horizon: 0xf2ede2, sun: 0xffe4bf, fog: 0xe9dfcf, sunI: 2.4, hemiI: 0.75, envI: 0.65, exposure: 1.02 },
 };
 
@@ -65,7 +65,7 @@ export function createStage(canvas, opts = {}) {
 
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.04, 900);
 
-  const hemi = new THREE.HemisphereLight(0xcfe6ff, 0xb0805a, SKY.noon.hemiI);
+  const hemi = new THREE.HemisphereLight(0xd8e6f6, 0xb0805a, SKY.noon.hemiI);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(SKY.noon.sun, SKY.noon.sunI);
   sun.castShadow = true;
@@ -81,7 +81,7 @@ export function createStage(canvas, opts = {}) {
   const sky = makeSky();
   scene.add(sky);
 
-  // Reflections: the sky dome alone at first, then the harbour HDRI once it has loaded.
+  // Reflections: the sky dome alone at first, then the photographed sky once it has loaded.
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
   envScene.add(makeSky(true));
@@ -94,16 +94,29 @@ export function createStage(canvas, opts = {}) {
   scene.environmentRotation = new THREE.Euler(0, 0, 0);
   const envReady = new HDRLoader()
     .setDataType(THREE.HalfFloatType)
-    .loadAsync(opts.envUrl ?? './env/harbour.hdr')
+    .loadAsync(opts.envUrl ?? './env/sky.hdr')
     .then((hdr) => {
-      hdr.mapping = THREE.EquirectangularReflectionMapping;
-      const t = pmrem.fromEquirectangular(hdr).texture;
+      // a photographed open sky over a sunlit stone ground of our own (so walls in the shade still catch warm bounce),
+      // turned so its sun is where ours is
+      const hs = new THREE.Scene();
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), new THREE.MeshBasicMaterial({ map: hdr, color: new THREE.Color(1, 0.94, 0.86), side: THREE.BackSide, toneMapped: false }));
+      dome.rotation.y = -1.44;
+      hs.add(dome);
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(95, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.52, 0.42), toneMapped: false }));
+      floor.position.y = -1.2;
+      hs.add(floor);
+      // and a ring of sunlit houses round the horizon: a street's shade is lit by the walls across it, not the haze
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(92, 92, 26, 32, 1, true).translate(0, 11.8, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 0.42, 0.33), side: THREE.BackSide, toneMapped: false }));
+      hs.add(ring);
+      const t = pmrem.fromScene(hs, 0.01).texture;
       hdr.dispose();
+      for (const m of [dome, floor, ring]) {
+        m.geometry.dispose();
+        m.material.dispose();
+      }
       envTex?.dispose();
       envTex = t;
       scene.environment = t;
-      // turn the HDRI's sun toward ours
-      scene.environmentRotation.set(0, -2.3, 0);
     })
     .catch(() => {});
 

@@ -395,7 +395,9 @@ const rippleGeo = new THREE.RingGeometry(0.94, 1.0, 40).rotateX(-Math.PI / 2);
 
 function makePuddle(root, z) {
   const g = new THREE.Group();
-  g.position.set(z.c[0], z.c[1] + 0.012, z.c[2]);
+  // a fountain's basin is full nearly to the rim (a fish lying in it is under the water); its bowl a little less
+  const lift = z.look === 'basin' ? 0.24 : z.look === 'bowlwater' ? 0.08 : 0.012;
+  g.position.set(z.c[0], z.c[1] + lift, z.c[2]);
   const disc = new THREE.Mesh(discGeo, M.puddle());
   disc.scale.setScalar(z.r * 1.02);
   disc.receiveShadow = true;

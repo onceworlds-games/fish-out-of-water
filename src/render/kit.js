@@ -7,6 +7,7 @@ import { tiledBox } from './batch.js';
 
 import { G, rng } from './geo.js';
 import { drawHouse, drawStep, drawRunnel, drawFountain, drawCafeTable, drawChair, drawParasol, drawLedge, drawLamp, drawSail } from './town.js';
+import { HARBOUR_BOX_LOOKS, HARBOUR_DECOR, catchFish } from './harbour.js';
 export { G };
 
 /** Instanced small things (ice cubes, lemons, shells): collect transforms, build at the end. */
@@ -27,9 +28,9 @@ export function createScatter() {
       for (const set of sets.values()) {
         const mesh = new THREE.InstancedMesh(set.geo, set.material, set.list.length);
         set.list.forEach((it, i) => {
-          e.set(it.r[0], it.r[1], it.r[2]);
+          e.set(it.r[0], it.r[1], it.r[2], it.r[3] ?? 'XYZ');
           q.setFromEuler(e);
-          m.compose(v.set(...it.p), q, sc.set(...it.s));
+          m.compose(v.set(it.p[0], it.p[1], it.p[2]), q, sc.set(...it.s));
           mesh.setMatrixAt(i, m);
         });
         mesh.castShadow = true;
@@ -88,19 +89,25 @@ function crateBody(batch, w, h, d, t, wood = M.crate(), dark = M.crateDark()) {
     for (const sz of [-1, 1]) batch.add(dark, G.box, inFrame(t, [sx * (w / 2 - 0.02), 0, sz * (d / 2 - 0.02)], [0, 0, 0], [0.05, h, 0.05]));
 }
 
+/** Crushed ice heaped on a surface: many small rounded lumps, half sunk, a few bigger chunks, glinting. */
 function iceTop(scatter, w, d, t, y, density = 22, seed = 1) {
   const r = rng(seed + Math.round(t.p[0] * 31 + t.p[2] * 17));
-  const n = Math.min(400, Math.round(w * d * density));
+  const n = Math.min(900, Math.round(w * d * density * 3.2));
   const m = inFrame(t, [0, 0, 0]);
   const p = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
-    p.set((r() - 0.5) * (w - 0.08), y + r() * 0.03, (r() - 0.5) * (d - 0.08)).applyMatrix4(m);
-    const s = 0.035 + r() * 0.035;
-    scatter.add('ice', G.box, M.ice(), [p.x, p.y, p.z], [r() * 3, r() * 3, r() * 3], [s, s * 0.8, s]);
+    const big = r() < 0.08;
+    const s = big ? 0.05 + r() * 0.04 : 0.018 + r() * 0.03;
+    // heaped a little higher in the middle
+    const u = (r() - 0.5) * (w - 0.06), v = (r() - 0.5) * (d - 0.06);
+    const mound = (1 - (2 * u / w) ** 2) * (1 - (2 * v / d) ** 2) * 0.035;
+    p.set(u, y + mound - s * 0.3, v).applyMatrix4(m);
+    scatter.add(big ? 'iceChunk' : 'iceLump', G.ico, big ? M.iceChunk() : M.iceLump(), [p.x, p.y, p.z], [r() * 3, r() * 3, r() * 3], [s, s * (0.6 + r() * 0.4), s * (0.8 + r() * 0.4)]);
   }
 }
 
 const BOX_LOOKS = {
+  ...HARBOUR_BOX_LOOKS,
   house(batch, sc, w, h, d, t, col) {
     drawHouse(batch, sc, col);
   },
@@ -364,7 +371,7 @@ const BOX_LOOKS = {
     batch.add(M.gravel(), tiledBox(w, h, d, 2.0), inFrame(t, [0, 0, 0]));
     for (const sz of [-1, 1]) batch.add(M.white(), G.box, inFrame(t, [0, h / 2 + 0.01, sz * (d / 2 - 0.05)], [0, 0, 0], [w, 0.03, 0.1]));
   },
-  step(batch, sc, w, h, d, t) {
+  parkstep(batch, sc, w, h, d, t) {
     batch.add(M.quay(), tiledBox(w, h, d, 1.25), inFrame(t, [0, 0, 0]));
     batch.add(M.quayside(), G.box, inFrame(t, [0, h / 2 - 0.04, d / 2 - 0.06], [0, 0, 0], [w, 0.09, 0.14]));
   },
@@ -528,13 +535,13 @@ const CYL_LOOKS = {
       batch.add(M.blue(), G.box, { p: [cx, y - col.hh + 0.47, cz], s: [0.42, 0.04, 0.42] });
     }
   },
-  basin(batch, sc, col) {
+  oldbasin(batch, sc, col) {
     const [x, y, z] = col.c;
     batch.add(M.quayside(), G.cyl, { p: col.c, s: [col.r, col.hh * 2, col.r] });
     const rim = new THREE.TorusGeometry(col.r - 0.08, 0.14, 8, 40).rotateX(Math.PI / 2);
     batch.add(M.white(), rim, { p: [x, y + col.hh + 0.04, z] });
   },
-  column(batch, sc, col) {
+  oldcolumn(batch, sc, col) {
     const [x, y, z] = col.c;
     batch.add(M.white(), G.cyl, { p: col.c, s: [col.r, col.hh * 2, col.r] });
     batch.add(M.white(), G.cyl, { p: [x, y + col.hh, z], s: [col.r * 2.6, 0.12, col.r * 2.6] });
@@ -693,6 +700,7 @@ export function drawDecor(batch, sc, d, extras) {
 }
 
 const DECOR = {
+  ...HARBOUR_DECOR,
   fountain(batch, sc, d, at) {
     drawFountain(batch, sc, d, at);
   },
@@ -734,9 +742,16 @@ const DECOR = {
       const across = (r() - 0.5) * (d.depth - 0.4);
       const p = d.alongX ? [at[0] + along, at[1] + 0.03, at[2] + across] : [at[0] + across, at[1] + 0.03, at[2] + along];
       const kind = r();
-      if (kind < 0.35) sc.add('lemon', G.sphere, M.lemon(), p, [r() * 3, r() * 3, 0], [0.055, 0.045, 0.045]);
-      else if (kind < 0.7) sc.add('shell', G.lowSphere, M.shell(), p, [0, r() * 3, 0.3], [0.05, 0.022, 0.032]);
-      else if (kind < 0.85) sc.add('leaf', G.lowSphere, M.leaf(), p, [0, r() * 3, 0], [0.09, 0.03, 0.06]);
+      if (d.goods === 'flowers') {
+        const fm = [M.flowerRed(), M.flowerPink(), M.flowerWhite(), M.flowerPurple(), M.lemon()][Math.floor(r() * 5)];
+        sc.add(`fl:${fm.uuid}`, G.ico, fm, [p[0], p[1] + 0.06, p[2]], [r() * 3, r() * 3, 0], [0.06, 0.05, 0.06]);
+        if (r() < 0.5) sc.add('leafblob', G.ico, M.foliage(), [p[0], p[1] + 0.02, p[2]], [r() * 3, r() * 3, 0], [0.08, 0.05, 0.08]);
+      } else if (kind < 0.55) {
+        const { geo, mat } = catchFish();
+        sc.add('catch', geo, mat, [p[0], p[1] + 0.02, p[2]], [Math.PI / 2 + (r() - 0.5) * 0.25, r() * Math.PI * 2, 0, 'YXZ'], [1, 1, 1]);
+        i++;
+      } else if (kind < 0.72) sc.add('lemon', G.sphere, M.lemon(), p, [r() * 3, r() * 3, 0], [0.055, 0.045, 0.045]);
+      else if (kind < 0.9) sc.add('shell', G.lowSphere, M.shell(), p, [0, r() * 3, 0.3], [0.05, 0.022, 0.032]);
       else sc.add('coral', G.lowSphere, M.coral(), p, [0, r() * 3, 0], [0.07, 0.05, 0.07]);
     }
   },

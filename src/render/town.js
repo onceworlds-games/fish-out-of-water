@@ -122,7 +122,7 @@ function front(batch, sc, F, H, r, o) {
   // plinth, pilasters at the ends, string courses, the cornice
   fb(batch, F, M.stone(), L / 2, 0.3, 0.04, L + 0.02, 0.8, 0.1);
   for (const u of [0.17, L - 0.17]) fb(batch, F, trim, u, (top + 0.7) / 2, 0.035, 0.34, top - 0.7, 0.07);
-  for (let f = 0; f <= floors; f++) {
+  for (let f = H.kind === 'hall' ? 1 : 0; f <= floors; f++) {
     const v = gf + f * fh;
     if (v > top - 0.6) break;
     fb(batch, F, trim, L / 2, v - 0.05, 0.04, L, 0.11, 0.08);
@@ -353,7 +353,7 @@ function shedFront(batch, sc, F, r, door) {
   batch.add(signMat(['ICE', 'FISH BOXES', 'COLD STORE', 'NETS'][Math.floor(r() * 4)], '#f3d27a', '#22303a'), g, F.basis.clone().multiply(tmpM));
 }
 
-function pottedPlant(batch, sc, p, r, size = 1) {
+export function pottedPlant(batch, sc, p, r, size = 1) {
   const s = (0.18 + r() * 0.12) * size;
   batch.add(M.potClay(), G.cyl, { p: [p.x, p.y + s * 0.6, p.z], s: [s, s * 1.2, s] });
   const kind = r();

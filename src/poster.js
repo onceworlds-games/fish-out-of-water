@@ -35,7 +35,7 @@ export async function runPoster(name, params) {
     document.body.dataset.ready = '1';
     return;
   }
-  const stage = createStage(canvas, { quality: 'high', poster: true });
+  const stage = createStage(canvas, { quality: params.get('q') ?? 'high', poster: true });
   stage.resize(W, H, 1);
   let make = SCENES[name] ?? SCENES.cover;
   const m = /^test-c-([a-z]+)-(\d+)$/.exec(name);
@@ -59,7 +59,8 @@ export async function runPoster(name, params) {
     make = SCENES['test-start'];
   }
   await make(stage, W, H, params);
-  await Promise.race([Promise.all([stage.envReady, texturesReady()]), new Promise((r) => setTimeout(r, 6000))]);
+  const late = await Promise.race([Promise.all([stage.envReady, texturesReady()]).then(() => false), new Promise((r) => setTimeout(() => r(true), 60000))]);
+  if (late) document.body.dataset.late = '1';
   stage.render();
   await new Promise((r) => requestAnimationFrame(r));
   stage.render();

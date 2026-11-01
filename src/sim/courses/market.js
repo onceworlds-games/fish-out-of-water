@@ -63,8 +63,8 @@ export function market() {
 
   // ---------------------------------------------------------------- the steps (z 18 → 30): the channel's the quick way
   b.drops([[0, 3.85, 18.6], [0, 2.05, 29.8]], 1.3, 0.24);
-  b.decor('pots', [-3.6, 2, 19], { z1: 29.5, side: 1, seed: 3 });
-  b.decor('pots', [3.6, 2, 19], { z1: 29.5, side: -1, seed: 4 });
+  b.decor('pots', [-3.6, 2, 19], { z1: 29.5, side: 1, seed: 3, steps: [18, 30, 4, 2, 5] });
+  b.decor('pots', [3.6, 2, 19], { z1: 29.5, side: -1, seed: 4, steps: [18, 30, 4, 2, 5] });
 
   // ---------------------------------------------------------------- the fountain square (z 30 → 62)
   b.fountain(0, 2, 46, 1.75);

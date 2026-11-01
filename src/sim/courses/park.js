@@ -14,7 +14,7 @@ export function park() {
   b.rampZ(0, 40, 6, 50, 4, 80, 'grass', 'grass', 0.5);
   b.slab(-40, 50, 40, 104, 4, 'grass', 'grass', 5);
   b.slab(-XW, 56, XW, 86, 4.02, 'gravel', 'gravel', 0.1);
-  for (let i = 0; i < 10; i++) b.slab(-40, 104 + i, 40, 105 + i, 4 - 0.25 * (i + 1), 'stone', 'step', 5 - 0.25 * (i + 1));
+  for (let i = 0; i < 10; i++) b.slab(-40, 104 + i, 40, 105 + i, 4 - 0.25 * (i + 1), 'stone', 'parkstep', 5 - 0.25 * (i + 1));
   b.slab(-40, 114, 40, 172, 1.5, 'grass', 'grass', 2.5);
   b.rampZ(0, 172, 1.5, 180, 0.6, 80, 'stone', 'quay', 0.5);
   b.slab(-40, 180, 40, ZE, 0.6, 'stone', 'quay', 1.6);
@@ -65,8 +65,8 @@ export function park() {
   b.puddle(-1.6, 4.02, 82.2, 0.6, { look: 'can' });
   b.decor('bench', [-9.5, 4, 90], { yaw: Math.PI / 2 });
   b.decor('bench', [9.5, 4, 92], { yaw: -Math.PI / 2 });
-  b.cyl([0, 4, 96], 2.3, 0.5, { surf: 'stone', look: 'basin' });
-  b.cyl([0, 4.5, 96], 0.32, 1.4, { surf: 'stone', look: 'column' });
+  b.cyl([0, 4, 96], 2.3, 0.5, { surf: 'stone', look: 'oldbasin' });
+  b.cyl([0, 4.5, 96], 0.32, 1.4, { surf: 'stone', look: 'oldcolumn' });
   b.puddle(0, 4.5, 96, 2.15, { look: 'fountain' });
   b.decor('fountainjet', [0, 5.9, 96], {});
 
