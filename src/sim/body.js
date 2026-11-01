@@ -25,6 +25,7 @@ export function createBody(fishId = 'mackerel', pos = [0, 0.2, 0], yaw = 0) {
     airT: 0,
     touchT: -9, // when it last landed from a real flight
     touchV: [0, 0], // horizontal speed coming in at that landing
+    touchSurf: null, // ... and what it landed on
     holding: false,
     holdT: 0,
     queued: null, // a release in the air: { charge, at }
@@ -111,9 +112,11 @@ function flop(b, yaw, charge, slap, perfect = false) {
   const vel = slap ? b.touchV : [b.vx, b.vz];
   const wall = !b.ground && b.wall ? b.wall : null;
   launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, slap ? slapPower(b.slapChain, perfect) : 1, wall, vtmp);
-  b.vx = vtmp[0];
-  b.vy = vtmp[1];
-  b.vz = vtmp[2];
+  const springy = slap && !!SURFACES[b.touchSurf]?.minUp;
+  const along = springy ? SLAP.springy.along : 1;
+  b.vx = vtmp[0] * along;
+  b.vy = vtmp[1] * (springy ? SLAP.springy.up : 1);
+  b.vz = vtmp[2] * along;
   b.yaw = yaw;
   b.ground = false;
   b.contactT = -1;
@@ -126,7 +129,7 @@ function flop(b, yaw, charge, slap, perfect = false) {
   b.slapChain = slap ? b.slapChain + 1 : 0;
   if (b.slapChain > b.bestChain) b.bestChain = b.slapChain;
   if (slap && perfect) b.perfects++;
-  b.events.push({ type: 'flop', charge, slap, perfect: !!(slap && perfect), chain: b.slapChain, wall: !!wall });
+  b.events.push({ type: 'flop', charge, slap, perfect: !!(slap && perfect), chain: b.slapChain, wall: !!wall, springy });
 }
 
 export function respawn(b, at = b.refill) {
@@ -319,6 +322,7 @@ export function stepBody(b, input, env, dt = STEP) {
                 b.touchT = b.t;
                 b.touchV[0] = b.vx;
                 b.touchV[1] = b.vz;
+                b.touchSurf = col.surf;
               }
               if (s.sticky) b.stick = s.sticky;
               b.events.push({ type: 'land', surf: col.surf, speed: impact, x: b.x, y: b.y - r, z: b.z, air: wasAir, bounce: out > 0 });
@@ -526,6 +530,11 @@ export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
   const wall = from ? from.wall ?? null : !b.ground && b.wall ? b.wall : null;
   const power = slap ? slapPower(from.chain ?? 0, !!from.perfect) : 1;
   const v = launchVelocity(fish, yaw, charge, vel, slap ? SLAP.carry : FLOP.carry, power, wall, [0, 0, 0]);
+  if (slap && SURFACES[from.surf]?.minUp) {
+    v[0] *= SLAP.springy.along;
+    v[1] *= SLAP.springy.up;
+    v[2] *= SLAP.springy.along;
+  }
   const x = from ? from.x : b.x, y = from ? from.y : b.y, z = from ? from.z : b.z;
   return trace(fish, world, x, y, z, v[0], v[1], v[2], twist, opts);
 }

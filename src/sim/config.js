@@ -23,6 +23,7 @@ export const SLAP = {
   minAir: 0.25, // only after a real flight
   power: 1.08,
   carry: 0.35, // share of the incoming speed a slap keeps
+  springy: { up: 1.2, along: 1.4 }, // a slap on something springy (a parasol, an awning) boosts: higher and further
 };
 
 // Flow: every slap in a row adds power (and a perfect one, released right on the touchdown, a little more).
@@ -83,6 +84,9 @@ export const SURFACES = {
   net: { friction: 30, keep: 0, rest: 0, drain: 1.0, sticky: 0.6, sound: 'net' },
   water: { friction: 2.0, keep: 0.6, rest: 0.1, drain: 0, sound: 'splash' },
   rail: { friction: 0.25, keep: 0.92, rest: 0.05, drain: 1.0, sound: 'plink' },
+  gutter: { friction: 0.45, keep: 0.92, rest: 0.05, drain: -1.5, sound: 'wet' }, // a running-water channel: slide and drink
+  belt: { friction: 6, keep: 0.5, rest: 0.15, drain: 0.3, sound: 'plink' }, // a wet conveyor
+  canvas: { friction: 8, keep: 0.4, rest: 0.4, drain: 1.0, sound: 'plush' },
   wall: { friction: 6, keep: 0.45, rest: 0.25, drain: 1.0, sound: 'thud' },
 };
 

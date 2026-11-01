@@ -301,6 +301,16 @@ const SCENES = {
     else if (cam === 'top') shoot(stage, [0, 2.4, -0.6], [0, 0, 0.1], 50);
     else shoot(stage, [0, 0.85, -1.9], [0, 0.05, 0.3], 55);
   },
+  // a free camera anywhere: ?poster=lab-view&c=market&cam=x,y,z&look=x,y,z&fov=55&t=4&n=0
+  async 'lab-view'(stage, W, H, params) {
+    const num = (k, d) => (params.get(k) ? params.get(k).split(',').map(Number) : d);
+    const r = stageRace(stage, params.get('c') ?? 'market', Number(params.get('t') ?? 4), { n: Number(params.get('n') ?? 0) });
+    const cam = num('cam', [0, 6, -3]);
+    const look = num('look', [0, 4, 6]);
+    shoot(stage, cam, look, Number(params.get('fov') ?? 55));
+    const sun = num('sun', null);
+    if (sun) stage.focus(...sun);
+  },
   async 'test-quay'(stage) {
     const r = stageRace(stage, 'quay', 3, { n: 5, wander: [-7, -4.5, 7.5, 5.5] });
     chase(stage, r.fish[0], 0);
@@ -335,7 +345,7 @@ const SCENES = {
 function chase(stage, f, yaw) {
   // the game's chase camera at rest (camera.js with CHASE in main.js)
   const c = f.b.holding ? chargeOf(f.b.holdT, f.b.fish) : 0;
-  const dist = 2.6 + c * 0.7, up = 1.45 + c * 0.55, ahead = 1 + c * 1.9;
+  const dist = 1.8 + c * 0.9, up = 0.8 + c * 0.7, ahead = 1 + c * 2.6;
   const dx = Math.sin(yaw), dz = Math.cos(yaw);
   shoot(stage, [f.b.x - dx * dist, f.b.y + up, f.b.z - dz * dist], [f.b.x + dx * ahead, f.b.y + 0.15 + c * 0.1, f.b.z + dz * ahead]);
 }

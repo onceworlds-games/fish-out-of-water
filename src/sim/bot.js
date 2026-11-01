@@ -2,7 +2,7 @@
 // player sees, then holds the button like a person would (late, a little off). Skill 0 is clumsy, 1 is sharp.
 // It also drives the gold ghost and the trailer's autoplay. Pure: node tests race bots through whole courses.
 
-import { predictArc, canFlop, respawn } from './body.js';
+import { predictArc, predictFall, canFlop, respawn } from './body.js';
 import { FLOP, SLAP, WATER, SURFACES } from './config.js';
 import { polyLengths, project, pointAt } from './build.js';
 import { createRng, clamp, lerp } from './rng.js';
@@ -15,7 +15,7 @@ export const PERSONALITIES = {
   wobbly: { reach: 0.95, water: 1.1, chain: 0.6, aim: 2.2, shortcut: 0.6 },
 };
 
-const CANDIDATES = [6.6, 6.0, 5.4, 4.8, 4.2, 3.6, 3.0, 2.4, 1.8, 1.2, 0.8];
+const CANDIDATES = [13.5, 12.5, 11.5, 10.5, 9.6, 8.8, 8.0, 7.3, 6.6, 6.0, 5.4, 4.8, 4.2, 3.6, 3.0, 2.4, 1.8, 1.2, 0.8];
 
 export function createBrain(course, opts = {}) {
   const skill = clamp(opts.skill ?? 0.5, 0, 1);
@@ -56,9 +56,11 @@ export function createBrain(course, opts = {}) {
     pending: null,
     drinking: 0,
     respawns: 0,
+    fallTried: false,
     /** One step: returns { hold, yaw } for stepBody. t: race seconds (for hazards). */
     step(b, dt, t, hazards) {
       brain.airT = b.ground ? 0 : brain.airT + dt;
+      if (b.ground) brain.fallTried = false;
       if (b.state !== 'ok') {
         // dried out or carried off: it comes back somewhere else, so progress starts over from there
         brain.mode = 'wait';
@@ -103,8 +105,11 @@ export function createBrain(course, opts = {}) {
       if (b.flops !== brain.flops) {
         brain.flops = b.flops;
         brain.mode = 'air';
-        brain.target = brain.pending;
+        // where it will really come down (a launch off a slide or a slope goes further than planned): chain from there
+        const fall = predictFall(b, world, opts.twist, { dt: 1 / 60, maxT: 3 });
+        brain.target = fall.surf ? fall : brain.pending;
         brain.pending = null;
+        brain.fallTried = true;
         planChain(b, t, hazards);
       }
       if (brain.mode === 'charge') {
@@ -124,6 +129,18 @@ export function createBrain(course, opts = {}) {
         brain.wait = 0.2;
         return out(false);
       }
+      if (brain.mode === 'air' || (brain.mode === 'wait' && !b.ground)) {
+        // thrown up without a plan (a bounce off a parasol, a fall off an edge): see where it comes down and slap there
+        if (!brain.chain && !brain.fallTried && !b.ground && brain.airT > 0.06) {
+          brain.fallTried = true;
+          const fall = predictFall(b, world, opts.twist, { dt: 1 / 40, maxT: 3 });
+          if (fall.surf && fall.t > 0.45) {
+            brain.mode = 'air';
+            brain.target = fall;
+            planChain(b, t, hazards);
+          }
+        }
+      }
       if (brain.mode === 'air') {
         const c = brain.chain;
         if (c) {
@@ -141,7 +158,7 @@ export function createBrain(course, opts = {}) {
           if (c.done && c.age > c.startAt + c.holdFor + 0.6) brain.chain = null;
           return out(false);
         }
-        if (b.ground && Math.hypot(b.vx, b.vz) < 2.5) {
+        if (b.ground && Math.hypot(b.vx - b.gv[0], b.vz - b.gv[1]) < 2.5) {
           brain.mode = 'wait';
           brain.wait = react * (0.7 + rng.next() * 0.8);
         }
@@ -156,7 +173,8 @@ export function createBrain(course, opts = {}) {
       }
       brain.drinking = 0;
       brain.wantWater = false;
-      if (Math.hypot(b.vx, b.vz) > 1.6) return out(false);
+      // (on a belt or a moving thing, what counts is the speed over it)
+      if (Math.hypot(b.vx - b.gv[0], b.vz - b.gv[1]) > 1.6) return out(false);
       brain.wait -= dt;
       if (brain.wait > 0) return out(false);
       plan(b, t, hazards);
@@ -187,11 +205,11 @@ export function createBrain(course, opts = {}) {
   }
 
   /** Find a charge that lands near (tx, ty, tz) from the body (or from `from`); null when none does. */
-  function solve(b, tx, ty, tz, t, hazards, from = null) {
+  function solve(b, tx, ty, tz, t, hazards, from = null, maxC = 1) {
     const ox = from ? from.x : b.x, oz = from ? from.z : b.z;
     const yaw = Math.atan2(tx - ox, tz - oz);
     const want = Math.hypot(tx - ox, tz - oz);
-    let lo = 0, hi = 1, best = null;
+    let lo = 0, hi = maxC, best = null;
     for (let i = 0; i < 8; i++) {
       const c = (lo + hi) / 2;
       const land = predictArc(b, world, yaw, c, opts.twist, { dt: 1 / 40, from, maxT: 2.5 });
@@ -207,14 +225,14 @@ export function createBrain(course, opts = {}) {
     if (!best) return null;
     const land = best.land;
     const err = Math.hypot(land.x - tx, land.z - tz);
-    if (err > 0.7 || land.y < ty - 0.3) return null;
+    if (err > 0.7 || land.y < ty - 0.3 || !land.ground) return null;
     if (land.surf === 'net' && rng.next() < skill) return null;
     if (land.surf === 'hot' && b.m < 60 && rng.next() < skill) return null;
     if (hazards && rng.next() < hazardSense && hazards.danger(land.x, land.z, t + land.t)) return null;
     return best;
   }
 
-  function choose(b, t, hazards, from = null) {
+  function choose(b, t, hazards, from = null, maxC = 1) {
     const fx = from ? from.x : b.x, fz = from ? from.z : b.z;
     // water first when running low
     // on a surface that dries you faster, think of water sooner
@@ -227,21 +245,23 @@ export function createBrain(course, opts = {}) {
         const d = Math.hypot(z.c[0] - fx, z.c[2] - fz);
         brain.wantWater = true;
         if (d < 6.2) {
-          const sol = solve(b, z.c[0], z.c[1], z.c[2], t, hazards, from);
+          const sol = solve(b, z.c[0], z.c[1], z.c[2], t, hazards, from, maxC);
           if (sol) return sol;
         }
         // head toward it in hops
         const k = Math.min(1, (5.2 * pers.reach) / Math.max(0.1, d));
-        const sol = solve(b, fx + (z.c[0] - fx) * k, z.c[1], fz + (z.c[2] - fz) * k, t, hazards, from);
+        const sol = solve(b, fx + (z.c[0] - fx) * k, z.c[1], fz + (z.c[2] - fz) * k, t, hazards, from, maxC);
         if (sol) return sol;
       }
     }
     const pr = from ? project(route, lens, from.x, from.z, brain.seg) : { s: brain.s };
-    const maxReach = 6.6 * pers.reach * lerp(0.82, 1, skill);
+    // a boost off something springy goes further
+    const springy = from && from.slap && SURFACES[from.surf]?.minUp;
+    const maxReach = 9 * pers.reach * lerp(0.62, 1, skill) * (springy ? 1.5 : 1);
     for (const d of CANDIDATES) {
       if (d > maxReach) continue;
       pointAt(route, lens, Math.min(total, pr.s + d), pt);
-      const sol = solve(b, pt[0], pt[1], pt[2], t, hazards, from);
+      const sol = solve(b, pt[0], pt[1], pt[2], t, hazards, from, maxC);
       if (sol) return sol;
     }
     return null;
@@ -277,9 +297,12 @@ export function createBrain(course, opts = {}) {
     if (rng.next() > chainSkill * 0.9) return;
     if (b.m < waterAt + 10) return;
     const land = brain.target;
-    if (!land || land.t < 0.55) return;
-    const from = { x: land.x, y: land.y, z: land.z, vel: [land.vx, land.vz], slap: true };
-    const sol = choose(b, t + land.t, hazards, from);
+    if (!land || land.t < FLOP.minHold + 0.12) return;
+    // the hold has to fit in the flight: a short hop can only set up a short slap
+    const full = holdFor(b, 1);
+    const maxC = clamp((land.t - 0.04 - FLOP.minHold) / (full - FLOP.minHold), 0, 1);
+    const from = { x: land.x, y: land.y, z: land.z, vel: [land.vx, land.vz], slap: true, chain: b.slapChain, surf: land.surf };
+    const sol = choose(b, t + land.t, hazards, from, maxC);
     if (!sol) return;
     const c = clamp(sol.c + rng.gauss() * sCharge, 0, 1);
     const hold = holdFor(b, c);

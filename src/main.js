@@ -1134,6 +1134,7 @@ async function boot() {
   // ---------------------------------------------------------------- the frame
   let lastNow = performance.now();
   const sunAt = new THREE.Vector3();
+  const sunAhead = new THREE.Vector3();
   function frame(now) {
     requestAnimationFrame(frame);
     let dt = Math.min(0.1, (now - lastNow) / 1000);
@@ -1149,7 +1150,13 @@ async function boot() {
     hud.update(dt);
     // the sun's shadow box follows what the camera is looking at (your fish, in a race)
     stage.camera.getWorldDirection(sunAt).multiplyScalar(5).add(stage.camera.position);
-    if (G.camMode === 'chase' && G.me?.rs) sunAt.set(G.me.rs.x, G.me.rs.y, G.me.rs.z);
+    if (G.camMode === 'chase' && G.me?.rs) {
+      // centred a little ahead of the fish, where it will land next
+      stage.camera.getWorldDirection(sunAhead);
+      sunAhead.y = 0;
+      sunAhead.normalize().multiplyScalar(6);
+      sunAt.set(G.me.rs.x + sunAhead.x, G.me.rs.y, G.me.rs.z + sunAhead.z);
+    }
     stage.focus(sunAt.x, Math.min(sunAt.y, 6), sunAt.z);
     stage.fovKick = cam.fovKick;
     stage.fit();

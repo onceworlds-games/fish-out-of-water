@@ -6,10 +6,11 @@ import { EffectComposer, RenderPass, EffectPass, BloomEffect, ToneMappingEffect,
 import { N8AOPostPass } from 'n8ao';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { setAnisotropy } from './materials.js';
+import { SUN } from '../sim/config.js';
 
 // Toward the sun: high in the south-east, ahead and to the right of a fish heading for the sea (+z), so shadows fall
-// back and to the left and the shade under an awning sits just behind it.
-export const SUN_DIR = new THREE.Vector3(0.42, 0.78, 0.47).normalize();
+// back and to the left. The game's shade is these very shadows (the sim looks along the same line).
+export const SUN_DIR = new THREE.Vector3(...SUN);
 
 const SKY = {
   noon: { top: 0x2f7fd8, mid: 0x7db9ec, horizon: 0xdcecf2, sun: 0xfff0d2, fog: 0xcfe2ea, sunI: 3.1, hemiI: 0.55, envI: 0.75, exposure: 1.0 },
@@ -179,7 +180,8 @@ export function createStage(canvas, opts = {}) {
     },
     setQuality(q, pixelRatio) {
       stage.quality = q;
-      const size = q === 'high' ? 2048 : q === 'medium' ? 1024 : 0;
+      // shade is gameplay, so even the lowest setting keeps a (small) shadow map
+      const size = q === 'high' ? 2048 : q === 'medium' ? 1536 : 768;
       renderer.shadowMap.enabled = size > 0;
       sun.castShadow = size > 0;
       if (size && sun.shadow.mapSize.x !== size) {
@@ -187,7 +189,7 @@ export function createStage(canvas, opts = {}) {
         sun.shadow.map?.dispose();
         sun.shadow.map = null;
       }
-      const span = q === 'high' ? 14 : 12;
+      const span = q === 'high' ? 17 : q === 'medium' ? 15 : 11;
       sc.left = -span;
       sc.right = span;
       sc.top = span;

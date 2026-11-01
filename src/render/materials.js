@@ -18,7 +18,7 @@ const files = new Map();
 const pending = [];
 const BASE = './tex/';
 // mean linear luminance of each colour map (for painted finishes)
-const LUM = { bluewood: 0.122, cobbles: 0.268, denim: 0.156, gingham: 0.264, grass: 0.241, gravel: 0.261, hessian: 0.201, kfloor: 0.072, ktiles: 0.578, linen: 0.404, planks: 0.058, plaster: 0.168, plate: 0.03, quaystone: 0.206, roof: 0.119, sand: 0.179, sandstone: 0.085, shutter: 0.087, stucco: 0.664, tablewood: 0.036, terracotta2: 0.049, terracotta: 0.027, terry: 0.068, wetsand: 0.122, wornplanks: 0.123 };
+const LUM = { concrete: 0.25, rustmetal: 0.12, mshutter: 0.2, mosaic: 0.2, bplaster: 0.3, rplaster: 0.25, bluewood: 0.122, cobbles: 0.268, denim: 0.156, gingham: 0.264, grass: 0.241, gravel: 0.261, hessian: 0.201, kfloor: 0.072, ktiles: 0.578, linen: 0.404, planks: 0.058, plaster: 0.168, plate: 0.03, quaystone: 0.206, roof: 0.119, sand: 0.179, sandstone: 0.085, shutter: 0.087, stucco: 0.664, tablewood: 0.036, terracotta2: 0.049, terracotta: 0.027, terry: 0.068, wetsand: 0.122, wornplanks: 0.123 };
 const HAS_ARM = new Set(['bluewood', 'cobbles', 'grass', 'gravel', 'kfloor', 'ktiles', 'planks', 'plaster', 'plate', 'quaystone', 'roof', 'sand', 'sandstone', 'shutter', 'stucco', 'tablewood', 'terracotta2', 'terracotta', 'wetsand', 'wornplanks']);
 
 function file(name, srgb) {
@@ -50,11 +50,15 @@ export function texturesReady() {
   return Promise.all(pending);
 }
 
+// Each merged piece carries two numbers in its uv: the ground height under it (grime starts there) and a paint index
+// (one material paints every house in its own colour).
 const WORLD_VERT_PARS = /* glsl */ `
 varying vec3 vWPos;
 varying vec3 vWNrm;
+varying vec2 vPiece;
 `;
 const WORLD_VERT = /* glsl */ `
+vPiece = uv;
 #ifdef USE_INSTANCING
   vWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
   vWNrm = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
@@ -66,6 +70,10 @@ const WORLD_VERT = /* glsl */ `
 const WORLD_FRAG_PARS = /* glsl */ `
 varying vec3 vWPos;
 varying vec3 vWNrm;
+varying vec2 vPiece;
+uniform vec3 uPal[8];
+uniform float uUsePal;
+uniform float uGroundUv;
 uniform float uSize;
 uniform float uRot;
 uniform float uMacro;
@@ -101,8 +109,9 @@ ${WORLD_UV}
 // slow drift in colour over metres, so a repeat never reads as a grid
 float wDrift = wNoise(vWPos.xz * 0.23 + vWPos.y * 0.31) * 0.65 + wNoise(vWPos.xz * 1.1) * 0.35;
 diffuseColor.rgb *= 1.0 + (wDrift - 0.5) * uMacro;
-// grime: darker toward the foot of anything upright
-float wGr = (1.0 - smoothstep(0.0, uGrimeH, vWPos.y)) * (1.0 - wAn.y);
+if (uUsePal > 0.5) diffuseColor.rgb *= uPal[int(mod(vPiece.y + 0.5, 8.0))];
+// grime: darker toward the foot of anything upright (from the ground under the piece)
+float wGr = (1.0 - smoothstep(0.0, uGrimeH, vWPos.y - vPiece.x * uGroundUv)) * (1.0 - wAn.y);
 diffuseColor.rgb *= 1.0 - wGr * uGrime;
 diffuseColor.rgb *= 1.0 - uWet * 0.32;
 `;
@@ -144,6 +153,9 @@ function world(name, opts = {}) {
     uWet: { value: opts.wet ?? 0 },
     uPaint: { value: opts.paint ?? 0 },
     uLum: { value: LUM[name] ?? 0.2 },
+    uPal: { value: Array.from({ length: 8 }, (_, i) => new THREE.Color(opts.pal?.[i % opts.pal.length] ?? 0xffffff)) },
+    uUsePal: { value: opts.pal ? 1 : 0 },
+    uGroundUv: { value: 1 },
   };
   m.userData.world = u;
   m.onBeforeCompile = (shader) => {
@@ -228,6 +240,24 @@ const TEX = {
         }
       }),
     ),
+  // sailcloth: a plain weave with a hem
+  canvas: (hex) =>
+    ctex(`canvas:${hex}`, () =>
+      canvasTex(128, 128, (g, w, h) => {
+        g.fillStyle = hex;
+        g.fillRect(0, 0, w, h);
+        g.globalAlpha = 0.06;
+        for (let i = 0; i < w; i += 2) {
+          g.fillStyle = i % 4 ? '#000' : '#fff';
+          g.fillRect(i, 0, 1, h);
+          g.fillRect(0, i, w, 1);
+        }
+        g.globalAlpha = 0.18;
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, w, 4);
+        g.fillRect(0, 0, 4, h);
+      }),
+    ),
   grate: () =>
     ctex('grate', () =>
       canvasTex(64, 64, (g, w) => {
@@ -261,6 +291,21 @@ export const M = {
   grass: W('grass', 'grass', { size: 2.2, color: 0x9fd46a, paint: 0.85, macro: 0.28 }),
   gravel: W('gravel', 'gravel', { size: 1.6, normal: 1.1 }),
   kfloor: W('kfloor', 'kfloor', { size: 1.2, normal: 0.8, rough: 0.55, env: 1.1 }),
+  // the town: one plaster paints every house its own colour (the paint index in each piece), stone, shutters and doors
+  house: W('house', 'plaster', { size: 2.4, color: 0xffffff, paint: 0.72, macro: 0.14, grime: 0.42, grimeH: 1.6, pal: [0xf3e3c3, 0xeec27a, 0xe9a184, 0xbfd6e0, 0xc9d3a8, 0xf6d98a, 0xf0b9a0, 0xf8f1e4] }),
+  houseOld: W('houseOld', 'rplaster', { size: 2.6, color: 0xffffff, paint: 0.55, macro: 0.12, grime: 0.4, grimeH: 1.6, pal: [0xf3d8c0, 0xe8b490, 0xf0dcc0, 0xdcc6a8] }),
+  trim: W('trim', 'stucco', { size: 1.5, color: 0xfbf7ee, normal: 0.6, macro: 0.06, grime: 0.15, grimeH: 0.6 }),
+  stone: W('stone', 'quaystone', { size: 1.6, color: 0xf2e8d8, normal: 1.1, macro: 0.16, grime: 0.25, grimeH: 0.5 }),
+  steps: W('steps', 'sandstone', { size: 1.8, color: 0xf0e2cc, normal: 1.2, macro: 0.18 }),
+  cobbles: W('cobbles', 'cobbles', { size: 1.5, color: 0xf6ece0, normal: 1.25, wet: 0.55, env: 1.3, macro: 0.22 }),
+  flags: W('flags', 'terracotta2', { size: 2.2, color: 0xffffff, normal: 1.0, macro: 0.2 }),
+  concrete: W('concrete', 'concrete', { size: 3, color: 0xd8d4cc, normal: 1.1, wet: 0.35, env: 1.15, macro: 0.25, grime: 0.2 }),
+  mosaic: W('mosaic', 'mosaic', { size: 2.4, normal: 0.9, macro: 0.15 }),
+  rust: W('rust', 'rustmetal', { size: 1.6, color: 0xffffff, normal: 1.1, metal: 0.3, rough: 0.8, macro: 0.2, grime: 0.3, grimeH: 1.2 }),
+  rollshutter: W('rollshutter', 'mshutter', { size: 1.4, color: 0xffffff, paint: 0.5, normal: 1, pal: [0x8aa6b8, 0x6f8f6a, 0xb86a4a, 0xa0a4a8] }),
+  shutterPal: W('shutterPal', 'shutter', { size: 1, color: 0xffffff, paint: 0.85, macro: 0.1, pal: [0x2f8a6a, 0x2a6fa8, 0x3d9a9a, 0x6a4a32, 0x7a8f99, 0x2c5f4a, 0x8a3a2a, 0x3a7ab8] }),
+  doorPal: W('doorPal', 'bluewood', { size: 1.2, color: 0xffffff, paint: 0.8, normal: 0.8, macro: 0.1, pal: [0x1f4f3f, 0x6e2222, 0x1d3f6e, 0x2a6a6e, 0x5a3a24, 0xb8862a, 0x3f2a4a, 0x22303a] }),
+  potClay: W('potClay', 'terracotta', { size: 0.6, color: 0xc8653a, paint: 0.7, normal: 0.6 }),
   // walls and paint
   white: W('white', 'stucco', { size: 2, color: 0xfaf4ea, normal: 0.7, macro: 0.08, grime: 0.28, grimeH: 0.8 }),
   plaster: W('plaster', 'plaster', { size: 2.2, color: 0xfbf3e2, paint: 0.7, grime: 0.3, grimeH: 0.9 }),
@@ -296,10 +341,24 @@ export const M = {
   burlap: W('burlap', 'hessian', { size: 0.6, color: 0xfff0d8, normal: 1.2 }),
   awningRed: plainStd('awningRed', () => ({ map: TEX.stripes('#f4efe6', '#e4432d'), roughness: 0.85, side: THREE.DoubleSide })),
   awningBlue: plainStd('awningBlue', () => ({ map: TEX.stripes('#f4efe6', '#0b5cad'), roughness: 0.85, side: THREE.DoubleSide })),
+  awningLemon: plainStd('awningLemon', () => ({ map: TEX.stripes('#f4efe6', '#f2b51e'), roughness: 0.85, side: THREE.DoubleSide })),
+  awningGreen: plainStd('awningGreen', () => ({ map: TEX.stripes('#f4efe6', '#2f8a6a'), roughness: 0.85, side: THREE.DoubleSide })),
+  sailCream: plainStd('sailCream', () => ({ map: TEX.canvas('#efe4cc'), roughness: 0.9, side: THREE.DoubleSide })),
+  sailBlue: plainStd('sailBlue', () => ({ map: TEX.canvas('#3f7fb8'), roughness: 0.9, side: THREE.DoubleSide })),
   fabric: (hex) => mat(`fabric${hex}`, () => world('linen', { size: 0.5, color: hex, paint: 0.6, normal: 0.8 })),
   // food, plants, things
   ice: plainStd('ice', () => ({ map: TEX.ice(), color: 0xa9cddc, roughness: 0.12, emissive: 0x1d5a78, emissiveIntensity: 0.1, envMapIntensity: 1.3 })),
   window: plainStd('window', { color: 0x1c2733, roughness: 0.06, metalness: 0.3, envMapIntensity: 1.7 }),
+  glass: plainStd('glass', { color: 0x223040, roughness: 0.04, metalness: 0.5, envMapIntensity: 2.2 }),
+  dark: plainStd('dark', { color: 0x14100c, roughness: 0.95 }),
+  wroughtIron: plainStd('wroughtIron', { color: 0x23262a, roughness: 0.55, metalness: 0.6, envMapIntensity: 0.8 }),
+  pipe: plainStd('pipe', { color: 0x8a8d90, roughness: 0.5, metalness: 0.4 }),
+  flowerRed: plainStd('flowerRed', { color: 0xe0302a, roughness: 0.65 }),
+  flowerPink: plainStd('flowerPink', { color: 0xe85a9a, roughness: 0.65 }),
+  flowerWhite: plainStd('flowerWhite', { color: 0xf8f4ee, roughness: 0.7 }),
+  flowerPurple: plainStd('flowerPurple', { color: 0xb04ad8, roughness: 0.7 }),
+  foliage: plainStd('foliage', { color: 0x3f7a35, roughness: 0.75 }),
+  foliageLight: plainStd('foliageLight', { color: 0x6aa43f, roughness: 0.75 }),
   lemon: plainStd('lemon', { color: 0xffc93c, roughness: 0.42, emissive: 0x3a2a00, emissiveIntensity: 0.12 }),
   leaf: plainStd('leaf', { color: 0x4f8a3c, roughness: 0.7 }),
   pink: plainStd('pink', { color: 0xe0559a, roughness: 0.7 }),

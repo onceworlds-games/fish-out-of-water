@@ -2,32 +2,12 @@
 // many copies (ice cubes, lemons) go to instanced meshes.
 
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { M } from './materials.js';
 import { tiledBox } from './batch.js';
 
-const G = {
-  box: new THREE.BoxGeometry(1, 1, 1),
-  rbox: new RoundedBoxGeometry(1, 1, 1, 2, 0.08),
-  sphere: new THREE.SphereGeometry(1, 14, 10),
-  lowSphere: new THREE.SphereGeometry(1, 8, 6),
-  cyl: new THREE.CylinderGeometry(1, 1, 1, 14),
-  cyl8: new THREE.CylinderGeometry(1, 1, 1, 8),
-  cone: new THREE.ConeGeometry(1, 1, 10),
-  torus: new THREE.TorusGeometry(1, 0.08, 6, 20),
-};
+import { G, rng } from './geo.js';
+import { drawHouse, drawStep, drawRunnel, drawFountain, drawCafeTable, drawChair, drawParasol, drawLedge, drawLamp, drawSail } from './town.js';
 export { G };
-
-function rng(seed) {
-  let a = (seed * 2654435761) >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** Instanced small things (ice cubes, lemons, shells): collect transforms, build at the end. */
 export function createScatter() {
@@ -121,6 +101,34 @@ function iceTop(scatter, w, d, t, y, density = 22, seed = 1) {
 }
 
 const BOX_LOOKS = {
+  house(batch, sc, w, h, d, t, col) {
+    drawHouse(batch, sc, col);
+  },
+  step(batch, sc, w, h, d, t) {
+    drawStep(batch, w, h, d, t);
+  },
+  runnel(batch, sc, w, h, d, t) {
+    drawRunnel(batch, w, h, d, t);
+  },
+  curb(batch, sc, w, h, d, t) {
+    batch.add(M.stone(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
+  },
+  rim() {},
+  cobbles(batch, sc, w, h, d, t) {
+    batch.add(M.cobbles(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
+  },
+  flags(batch, sc, w, h, d, t) {
+    batch.add(M.flags(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
+  },
+  concrete(batch, sc, w, h, d, t) {
+    batch.add(M.concrete(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
+  },
+  chair(batch, sc, w, h, d, t) {
+    drawChair(batch, w, h, d, t);
+  },
+  ledge(batch, sc, w, h, d, t) {
+    drawLedge(batch, w, h, d, t);
+  },
   plain(batch, sc, w, h, d, t) {
     batch.add(M.white(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
   },
@@ -451,6 +459,21 @@ function valance(batch, mat, t, w, d) {
 }
 
 const CYL_LOOKS = {
+  cafetable(batch, sc, col) {
+    drawCafeTable(batch, col);
+  },
+  parasol(batch, sc, col) {
+    drawParasol(batch, col, col.tint);
+  },
+  lamppost(batch, sc, col) {
+    drawLamp(batch, col);
+  },
+  column() {},
+  bowl() {},
+  trunk(batch, sc, col) {
+    const [x, y, z] = col.c;
+    batch.add(M.bark(), G.cyl8, { p: [x, y, z], s: [col.r, col.hh * 2, col.r * 0.9] });
+  },
   plain(batch, sc, col) {
     batch.add(M.white(), G.cyl, { p: col.c, s: [col.r, col.hh * 2, col.r] });
   },
@@ -493,7 +516,7 @@ const CYL_LOOKS = {
     const r = rng(Math.round(x * 13 + z * 7));
     for (let i = 0; i < 6; i++) batch.add(M.hedge(), G.lowSphere, { p: [x + (r() - 0.5) * 2, base + col.hh * 2 + 0.6 + r() * 1.4, z + (r() - 0.5) * 2], s: [1.2 + r() * 0.6, 1.0 + r() * 0.4, 1.2 + r() * 0.6] });
   },
-  cafetable(batch, sc, col) {
+  oldcafetable(batch, sc, col) {
     const [x, y, z] = col.c;
     batch.add(M.white(), G.cyl, { p: [x, y + col.hh - 0.02, z], s: [col.r, 0.04, col.r] });
     batch.add(M.iron(), G.cyl8, { p: [x, y, z], s: [0.04, col.hh * 2, 0.04] });
@@ -670,6 +693,12 @@ export function drawDecor(batch, sc, d, extras) {
 }
 
 const DECOR = {
+  fountain(batch, sc, d, at) {
+    drawFountain(batch, sc, d, at);
+  },
+  sail(batch, sc, d, at) {
+    drawSail(batch, d, at);
+  },
   houses(batch, sc, d, at) {
     houses(batch, sc, [at[0], at[2]], [at[0], d.z1], d.side, d.seed, d.base ?? 0, d.tall ?? 1);
   },

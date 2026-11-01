@@ -34,6 +34,17 @@ export function courseBuilder(id) {
     slab(x0, z0, x1, z1, top, surf, look, depth = 1, opts = {}) {
       return b.box([(x0 + x1) / 2, top - depth / 2, (z0 + z1) / 2], [Math.abs(x1 - x0), depth, Math.abs(z1 - z0)], { surf, look, ...opts });
     },
+    /** A ramp from (x0, y0, z) to (x1, y1, z) along x, `w` deep, `t` thick. */
+    rampX(z, x0, y0, x1, y1, w, surf, look, t = 0.2) {
+      // a z-ramp turned a quarter: yaw π/2 maps the box's z onto x
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      const pitch = -Math.atan2(y1 - y0, Math.abs(x1 - x0));
+      const yaw = x1 >= x0 ? Math.PI / 2 : -Math.PI / 2;
+      const cy = (y0 + y1) / 2, cx = (x0 + x1) / 2;
+      const nY = Math.cos(pitch), nH = Math.sin(pitch);
+      const dir = Math.sign(x1 - x0) || 1;
+      return b.box([cx - (t / 2) * nH * dir, cy - (t / 2) * nY, z], [w, t, len], { surf, look, pitch, yaw });
+    },
     /** A ramp from (x, y0, z0) to (x, y1, z1) along z, `w` wide, `t` thick. */
     rampZ(x, z0, y0, z1, y1, w, surf, look, t = 0.2) {
       const len = Math.hypot(z1 - z0, y1 - y0);
@@ -41,7 +52,7 @@ export function courseBuilder(id) {
       const cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
       // centre the box below the surface line by half its thickness
       const nY = Math.cos(pitch), nZ = Math.sin(pitch);
-      return b.box([x, cy - (t / 2) * nY, cz + (t / 2) * nZ], [w, t, len], { surf, look, pitch });
+      return b.box([x, cy - (t / 2) * nY, cz - (t / 2) * nZ], [w, t, len], { surf, look, pitch });
     },
     cyl(c, r, h, opts = {}) {
       const col = cyl([c[0], c[1] + h / 2, c[2]], r, h / 2, opts);
@@ -167,6 +178,88 @@ export function courseBuilder(id) {
       const top = b.cyl([x, y + h, z], r, 0.08, { surf: 'bounce', look: opts.look ?? 'umbrella', tint: opts.tint ?? 'red' });
       return top;
     },
+    // ------------------------------------------------------------ the town
+
+    /** A house block (solid: it casts shade and stops the camera), x0..x1, z0..z1, from y0 up `h`. `face`: the sides on
+     *  the street ('x+', 'x-', 'z+', 'z-'), drawn with windows and doors; `kind`: house | shop | hall | shed. */
+    house(x0, z0, x1, z1, y0, h, opts = {}) {
+      const col = b.box([(x0 + x1) / 2, y0 + h / 2, (z0 + z1) / 2], [x1 - x0, h, z1 - z0], { surf: 'wall', look: opts.look ?? 'house' });
+      col.house = { x0, x1, z0, z1, y0, h, face: [].concat(opts.face ?? 'x+'), kind: opts.kind ?? 'house', seed: opts.seed ?? Math.round(x0 * 13 + z0 * 7), paint: opts.paint ?? null, roof: opts.roof ?? 'tiles', ground: opts.ground ?? y0, sign: opts.sign ?? null };
+      return col;
+    },
+    /** A row of houses along a street edge at x (the street on the `side` they face: +1 → faces +x), z0..z1, `depth` deep,
+     *  standing on the ground height base(z). Widths and heights vary by seed. */
+    row(x, z0, z1, side, opts = {}) {
+      const r = mulberrySmall(opts.seed ?? Math.round(x * 31 + z0 * 7));
+      const depth = opts.depth ?? 6;
+      const base = typeof opts.base === 'function' ? opts.base : () => opts.base ?? 0;
+      const hs = opts.heights ?? [7.5, 11];
+      let z = z0;
+      const out = [];
+      while (z < z1 - 0.5) {
+        let w = (opts.widths?.[0] ?? 4) + r() * ((opts.widths?.[1] ?? 6.5) - (opts.widths?.[0] ?? 4));
+        if (z1 - (z + w) < 2.5) w = z1 - z;
+        const y0 = base(z + w / 2);
+        const h = hs[0] + r() * (hs[1] - hs[0]) + (opts.top ?? 0) - y0 * (opts.level ? 1 : 0);
+        const x0 = side > 0 ? x - depth : x, x1 = side > 0 ? x : x + depth;
+        const face = [side > 0 ? 'x+' : 'x-'];
+        if (opts.endFace && z + w >= z1 - 0.01) face.push(opts.endFace);
+        if (opts.startFace && z <= z0 + 0.01) face.push(opts.startFace);
+        out.push(b.house(x0, z, x1, z + w, opts.under ?? y0, h + (y0 - (opts.under ?? y0)), { face, seed: Math.floor(r() * 1e6), kind: opts.kind, ground: y0 }));
+        z += w;
+      }
+      return out;
+    },
+    /** Stone steps down along +z from the level yTop (before z0) to yBot (after z1), x0..x1, `n` steps between. */
+    steps(x0, x1, z0, z1, yTop, yBot, n, opts = {}) {
+      const dz = (z1 - z0) / n, dy = (yTop - yBot) / (n + 1);
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const top = yTop - (i + 1) * dy;
+        out.push(b.slab(x0, z0 + i * dz, x1, z0 + (i + 1) * dz, top, opts.surf ?? 'stone', opts.look ?? 'step', top - yBot + 1));
+      }
+      return out;
+    },
+    /** A running-water channel down a slope (slide in it, drink as you go), with stone curbs either side. */
+    runnel(x, w, z0, y0, z1, y1) {
+      const ch = b.rampZ(x, z0, y0, z1, y1, w, 'gutter', 'runnel', 0.35);
+      for (const s of [-1, 1]) b.rampZ(x + s * (w / 2 + 0.08), z0, y0 + 0.1, z1, y1 + 0.1, 0.16, 'stone', 'curb', 0.5);
+      return ch;
+    },
+    /** A town fountain: a basin you can fall into (water), a rim to land on, a column with a bowl of water on top. */
+    fountain(x, y, z, r = 1.7, opts = {}) {
+      const n = 12, rimH = opts.rim ?? 0.45, t = 0.26;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const len = 2 * Math.PI * (r - t / 2) / n + 0.12;
+        b.box([x + Math.sin(a) * (r - t / 2), y + rimH / 2, z + Math.cos(a) * (r - t / 2)], [len, rimH, t], { surf: 'stone', look: 'rim', yaw: a + Math.PI / 2 });
+      }
+      b.box([x, y + 0.05, z], [r * 1.5, 0.1, r * 1.5], { surf: 'stone', look: null });
+      b.puddle(x, y + 0.08, z, r - t, { look: 'basin' });
+      b.cyl([x, y, z], 0.26, 1.35, { surf: 'stone', look: 'column' });
+      b.cyl([x, y + 1.35, z], 0.8, 0.14, { surf: 'stone', look: 'bowl' });
+      b.puddle(x, y + 1.49, z, 0.68, { look: 'bowlwater' });
+      b.decor('fountain', [x, y, z], { r, rim: rimH });
+    },
+    /** A café table with two chairs and a parasol over it. */
+    cafe(x, y, z, opts = {}) {
+      b.cyl([x, y, z], 0.38, 0.74, { surf: 'wood', look: 'cafetable' });
+      const yaw = opts.yaw ?? 0;
+      for (const s of [-1, 1]) b.box([x + Math.cos(yaw) * s * 0.75, y + 0.23, z - Math.sin(yaw) * s * 0.75], [0.42, 0.46, 0.42], { surf: 'wood', look: 'chair', yaw: yaw + (s > 0 ? Math.PI / 2 : -Math.PI / 2) });
+      return b.parasol(x, y, z, { h: opts.h ?? 2.15, r: opts.r ?? 1.2, tint: opts.tint ?? 'red', look: 'parasol' });
+    },
+    /** A flower-box ledge along a house front (a long plank on brackets): a high line. */
+    ledge(x0, z0, x1, z1, y, opts = {}) {
+      return b.box([(x0 + x1) / 2, y - 0.06, (z0 + z1) / 2], [Math.abs(x1 - x0), 0.12, Math.abs(z1 - z0)], { surf: opts.surf ?? 'wood', look: 'ledge', tint: opts.tint });
+    },
+    /** A shade sail strung high over the street: it only blocks the sun. */
+    sail(x0, z0, x1, z1, y, tint = 'cream') {
+      b.casterBox([(x0 + x1) / 2, y, (z0 + z1) / 2], [Math.abs(x1 - x0), 0.05, Math.abs(z1 - z0)]);
+      b.decor('sail', [(x0 + x1) / 2, y, (z0 + z1) / 2], { w: Math.abs(x1 - x0), d: Math.abs(z1 - z0), tint });
+    },
+    lamp(x, y, z) {
+      return b.cyl([x, y, z], 0.07, 3.6, { surf: 'steel', look: 'lamppost' });
+    },
     decor(look, at, opts = {}) {
       const d = { look, at, ...opts };
       decor.push(d);
@@ -194,23 +287,22 @@ export function courseBuilder(id) {
     bollard(x, y, z) {
       return b.cyl([x, y, z], 0.18, 0.55, { surf: 'stone', look: 'bollard' });
     },
-    /** A market stall: a counter (front faces +x or -x), an ice tray on top, an awning above. */
+    /** A market stall: a counter (front faces +x or -x), an ice tray on top, an awning above (bouncy, and its shadow
+     *  is shade). side: +1 = the stall is on the right of the aisle (front faces -x), -1 = on the left (front faces +x). */
     stall(x, z, len, side, opts = {}) {
-      // side: +1 = the stall is on the right of the aisle (front faces -x), -1 = on the left (front faces +x)
       const depth = opts.depth ?? 1.3;
       const h = opts.h ?? 0.9;
-      const cx = x;
-      b.box([cx, h / 2, z], [depth, h, len], { surf: 'wood', look: 'counter', tint: opts.tint });
-      if (opts.ice !== false) b.box([cx, h + 0.05, z], [depth - 0.15, 0.1, len - 0.2], { surf: 'ice', look: 'ice' });
-      b.decor('stallgoods', [cx, h + 0.1, z], { len, depth, side, seed: Math.round(z * 7 + x) });
+      const y0 = opts.base ?? 0;
+      b.box([x, y0 + h / 2, z], [depth, h, len], { surf: 'wood', look: 'counter', tint: opts.tint });
+      if (opts.ice !== false) b.box([x, y0 + h + 0.05, z], [depth - 0.15, 0.1, len - 0.2], { surf: 'ice', look: 'ice' });
+      b.decor('stallgoods', [x, y0 + h + 0.1, z], { len, depth, side, seed: Math.round(z * 7 + x), goods: opts.goods ?? 'fish' });
       if (opts.awning !== false) {
-        const ah = opts.awningH ?? 2.5;
-        const aw = depth + 1.2;
-        const ax = cx - side * 0.5;
-        const col = b.box([ax, ah, z], [aw, 0.08, len + 0.2], { surf: opts.bouncy ? 'bounce' : 'bounce', look: 'awning', pitch: 0, yaw: 0, tint: opts.awning ?? 'red' });
+        const ah = y0 + (opts.awningH ?? 2.5);
+        const aw = depth + 1.0;
+        const ax = x - side * 0.45;
+        const col = b.box([ax, ah, z], [aw, 0.08, len + 0.2], { surf: 'bounce', look: 'awning', tint: opts.awning ?? 'red' });
         col.slope = side * 0.22;
-        b.decor('awningposts', [ax, ah, z], { len, aw, side });
-        b.shade([ax - aw / 2, -1, z - len / 2], [ax + aw / 2, ah - 0.1, z + len / 2]);
+        b.decor('awningposts', [ax, ah, z], { len, aw, side, base: y0 });
       }
     },
     /** A row of whitewashed houses as a backdrop along a line (decor only; the course has walls of its own). */
@@ -219,6 +311,17 @@ export function courseBuilder(id) {
     },
   };
   return b;
+}
+
+function mulberrySmall(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /** Length along a polyline of [x, y, z] points, cumulative per point. */

@@ -28,10 +28,10 @@ export function cupCourses(cup, seed = 0) {
 // Medal times (seconds) per course: from the bot sims (see test/balance.test.mjs), rounded to a half second.
 // gold ≈ a sharp bot's median × 1.06, silver ≈ a middling bot's, bronze ≈ a clumsy bot's × 1.1.
 export const MEDALS = {
-  market: { gold: 50, silver: 64, bronze: 92 },
-  kitchen: { gold: 46, silver: 58, bronze: 84 },
-  beach: { gold: 72, silver: 105, bronze: 160 },
-  park: { gold: 68, silver: 92, bronze: 145 },
+  market: { gold: 21, silver: 38, bronze: 65 },
+  kitchen: { gold: 26, silver: 40, bronze: 80 },
+  beach: { gold: 50, silver: 85, bronze: 160 },
+  park: { gold: 42, silver: 75, bronze: 130 },
 };
 
 export const MEDAL_NAMES = ['gold', 'silver', 'bronze'];

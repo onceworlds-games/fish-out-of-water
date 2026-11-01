@@ -19,13 +19,22 @@ export function buildCourseView(course, camera = null) {
   root.add(batch.build('solids'));
   scatter.build(root);
 
-  // ---------------------------------------------------------------- puddles and sprays
+  // ---------------------------------------------------------------- puddles and sprays, running water, belts
   const waters = [];
   for (const z of course.builder.zones) {
     if (!z.rate || z.look === 'spray-hidden' || z.look === 'tub') continue;
     if (z.kind === 'puddle') waters.push(makePuddle(root, z));
     else waters.push(makeSpray(root, z));
   }
+  for (const col of course.builder.colliders) {
+    if (col.look === 'runnel') waters.push(makeFlow(root, col));
+    if (col.belt && col.look === 'belt') waters.push(makeBelt(root, col));
+  }
+  for (const d of course.builder.decors) if (d.look === 'fountain') waters.push(makeJets(root, d));
+
+  // ---------------------------------------------------------------- drops and golden scales
+  const pickups = course.builder.items?.length ? makePickups(course.builder.items) : null;
+  if (pickups) root.add(pickups.group);
 
   // ---------------------------------------------------------------- price tags in the ice (the signature, in the world)
   if (extras.tags.length) root.add(makeTags(extras.tags));
@@ -54,8 +63,10 @@ export function buildCourseView(course, camera = null) {
     root,
     waters,
     sea,
+    pickups,
     update(t) {
       sea?.userData.update(t);
+      pickups?.update(t);
       for (const w of waters) w.update(t);
       gulls?.update(t);
       surf?.update(t);
@@ -101,6 +112,281 @@ function makeSurf(o) {
       }
     },
   };
+}
+
+// ---------------------------------------------------------------- running water, fountain jets, belts
+
+const flowMat = () =>
+  M.flow ??
+  (M.flow = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uT: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      varying vec2 vUv; uniform float uT;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5); }
+      float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+      void main() {
+        vec2 p = vec2(vUv.x * 3.0, vUv.y * 6.0 - uT * 3.2);
+        float w = n(p * vec2(2.0, 1.0)) * 0.6 + n(p * vec2(5.0, 2.5) + 3.1) * 0.4;
+        float streak = smoothstep(0.55, 0.85, w);
+        float edge = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
+        vec3 c = mix(vec3(0.16, 0.55, 0.68), vec3(0.85, 0.97, 1.0), streak);
+        gl_FragColor = vec4(c, (0.55 + 0.35 * streak) * edge);
+      }`,
+  }));
+
+/** A sheet of water running down a channel (a ramp collider), drawn just over its top. */
+function makeFlow(root, col) {
+  const w = col.h[0] * 2 - 0.02, len = col.h[2] * 2;
+  const g = new THREE.PlaneGeometry(w, len, 1, 1);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i), (uv.getY(i) * len) / 2);
+  g.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(g, flowMat());
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(col.pitch, col.yaw, 0, 'YXZ'));
+  mesh.quaternion.copy(q);
+  mesh.position.set(...col.c).add(new THREE.Vector3(0, col.h[1] + 0.015, 0).applyQuaternion(q));
+  mesh.renderOrder = 2;
+  root.add(mesh);
+  return { update(t) { mesh.material.uniforms.uT.value = t; } };
+}
+
+/** Water arcing from the fountain's finial into the bowl, and from the bowl's lip into the basin. */
+function makeJets(root, d) {
+  const [x, y, z] = d.at;
+  const n = 160;
+  const mesh = new THREE.InstancedMesh(G.sphere, new THREE.MeshStandardMaterial({ color: 0xd8f6ff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.8, emissive: 0x2a8fb0, emissiveIntensity: 0.25, envMapIntensity: 2 }), n);
+  mesh.frustumCulled = false;
+  root.add(mesh);
+  const m = new THREE.Matrix4();
+  return {
+    update(t) {
+      for (let i = 0; i < n; i++) {
+        const top = i < 40;
+        const k = ((t * (top ? 0.9 : 0.7) + i * 0.618) % 1 + 1) % 1;
+        const a = i * 2.39996;
+        let px, py, pz, s;
+        if (top) {
+          // up from the finial and over into the bowl
+          const r = 0.75 * k;
+          px = x + Math.cos(a) * r;
+          pz = z + Math.sin(a) * r;
+          py = y + 2.05 + 0.5 * k - 1.0 * k * k;
+          s = 0.03;
+        } else {
+          // over the bowl's lip and down into the basin
+          const r = 0.84 + 0.35 * k;
+          px = x + Math.cos(a) * r;
+          pz = z + Math.sin(a) * r;
+          py = y + 1.48 - 1.3 * k * k;
+          s = 0.022 + 0.01 * (1 - k);
+        }
+        m.makeScale(s, s * 2.2, s);
+        m.setPosition(px, py, pz);
+        mesh.setMatrixAt(i, m);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    },
+  };
+}
+
+/** A conveyor: the moving belt (its ribs slide along) on rollers in a steel frame. */
+function makeBelt(root, col) {
+  const w = col.h[0] * 2, len = col.h[2] * 2;
+  const tex = beltTexture();
+  const speed = Math.hypot(col.belt[0], col.belt[1]);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.1, envMapIntensity: 1.3 });
+  const g = new THREE.PlaneGeometry(w - 0.12, len, 1, 1);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i), (uv.getY(i) * len) / 0.6);
+  g.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.receiveShadow = true;
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(col.pitch, col.yaw, 0, 'YXZ'));
+  mesh.quaternion.copy(q);
+  mesh.position.set(...col.c).add(new THREE.Vector3(0, col.h[1] + 0.008, 0).applyQuaternion(q));
+  root.add(mesh);
+  return {
+    update(t) {
+      tex.offset.y = -((t * speed) / 0.6) % 1;
+    },
+  };
+}
+
+let beltTex = null;
+function beltTexture() {
+  if (beltTex) return beltTex.clone();
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2a3036';
+  g.fillRect(0, 0, 64, 128);
+  for (let y = 0; y < 128; y += 16) {
+    g.fillStyle = '#3e474f';
+    g.fillRect(0, y, 64, 9);
+    g.fillStyle = '#566069';
+    g.fillRect(0, y, 64, 2);
+  }
+  // wet streaks
+  g.globalAlpha = 0.15;
+  g.fillStyle = '#9fe3f5';
+  for (let i = 0; i < 12; i++) g.fillRect((i * 37) % 64, 0, 2, 128);
+  beltTex = new THREE.CanvasTexture(c);
+  beltTex.wrapS = beltTex.wrapT = THREE.RepeatWrapping;
+  beltTex.colorSpace = THREE.SRGBColorSpace;
+  return beltTex.clone();
+}
+
+// ---------------------------------------------------------------- drops and golden scales
+
+function dropGeometry() {
+  // a teardrop: round below, drawn to a point above
+  const pts = [];
+  for (let i = 0; i <= 14; i++) {
+    const a = (i / 14) * Math.PI;
+    const y = -Math.cos(a);
+    const r = Math.sin(a) * (y < 0 ? 1 : 1 - y * 0.82) * (1 - Math.max(0, y) * 0.1);
+    pts.push(new THREE.Vector2(Math.max(0.0001, r), y * (y > 0 ? 1.55 : 1)));
+  }
+  return new THREE.LatheGeometry(pts, 14);
+}
+
+function scaleGeometry() {
+  // a fish scale: a rounded shield, ridged, a little domed
+  const s = new THREE.Shape();
+  s.moveTo(0, -1);
+  s.bezierCurveTo(0.9, -0.75, 1.05, 0.25, 0.8, 0.75);
+  s.quadraticCurveTo(0, 1.25, -0.8, 0.75);
+  s.bezierCurveTo(-1.05, 0.25, -0.9, -0.75, 0, -1);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 3, curveSegments: 16 });
+  g.translate(0, 0, -0.06);
+  // ridges: push the front surface in rings
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const d = Math.hypot(x, y + 1);
+    const bump = Math.cos(d * 9) * 0.035 + (1 - Math.min(1, Math.hypot(x, y) / 1.1)) * 0.12;
+    p.setZ(i, z + Math.sign(z || 1) * bump);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function makePickups(items) {
+  const group = new THREE.Group();
+  const drops = items.map((it, i) => ({ it, i })).filter((d) => d.it.kind === 'drop');
+  const scales = items.map((it, i) => ({ it, i })).filter((d) => d.it.kind === 'scale');
+  const dropMat = new THREE.MeshStandardMaterial({ color: 0x6fd6f2, roughness: 0.04, metalness: 0.05, transparent: true, opacity: 0.88, emissive: 0x1890c0, emissiveIntensity: 0.55, envMapIntensity: 2.6 });
+  const dropMesh = new THREE.InstancedMesh(dropGeometry(), dropMat, Math.max(1, drops.length));
+  dropMesh.castShadow = true;
+  dropMesh.frustumCulled = false;
+  group.add(dropMesh);
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xffc93c, roughness: 0.22, metalness: 1, emissive: 0x7a4a00, emissiveIntensity: 0.6, envMapIntensity: 2.2 });
+  const ghostMat = new THREE.MeshStandardMaterial({ color: 0xbfe8ff, roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.38, emissive: 0x3a7fa8, emissiveIntensity: 0.4, depthWrite: false });
+  const sgeo = scaleGeometry();
+  const glowTex = glowTexture();
+  const scaleViews = scales.map(({ it, i }) => {
+    const g = new THREE.Group();
+    g.position.set(...it.p);
+    const mesh = new THREE.Mesh(sgeo, goldMat);
+    mesh.scale.setScalar(0.17);
+    mesh.castShadow = true;
+    g.add(mesh);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd36a, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.scale.setScalar(1.1);
+    g.add(glow);
+    group.add(g);
+    return { g, mesh, glow, i, n: it.n, taken: false, ghost: false };
+  });
+  const taken = new Uint8Array(items.length);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const v = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  let pop = []; // drops being taken: { k, t0 }
+  const api = {
+    group,
+    /** Hide pickup i (my fish took it). */
+    take(i, t) {
+      if (taken[i]) return;
+      taken[i] = 1;
+      const s = scaleViews.find((x) => x.i === i);
+      if (s) {
+        s.taken = true;
+        s.t0 = t;
+      } else pop.push({ i, t0: t });
+    },
+    /** Everything back (a new run). `kept`: scale numbers already in the collection (drawn as glass). */
+    reset(kept = []) {
+      taken.fill(0);
+      pop = [];
+      for (const s of scaleViews) {
+        s.taken = false;
+        s.g.visible = true;
+        s.ghost = kept.includes(s.n);
+        s.mesh.material = s.ghost ? ghostMat : goldMat;
+        s.glow.visible = !s.ghost;
+      }
+    },
+    update(t) {
+      drops.forEach((d, k) => {
+        const p = d.it.p;
+        let s = 0.085;
+        let y = p[1] + Math.sin(t * 2.4 + d.i * 0.7) * 0.035;
+        if (taken[d.i]) {
+          const pp = pop.find((x) => x.i === d.i);
+          const a = pp ? (t - pp.t0) / 0.18 : 1;
+          if (a >= 1) s = 0;
+          else {
+            s *= 1 + a * 0.8;
+            y += a * 0.25;
+          }
+        }
+        e.set(0, t * 1.6 + d.i, 0);
+        q.setFromEuler(e);
+        m.compose(v.set(p[0], y, p[2]), q, sc.set(s, s, s));
+        dropMesh.setMatrixAt(k, m);
+      });
+      dropMesh.instanceMatrix.needsUpdate = true;
+      for (const s of scaleViews) {
+        if (s.taken) {
+          const a = (t - s.t0) / 0.6;
+          s.g.visible = a < 1;
+          s.g.position.y = s.g.userData.y0 + a * 1.2;
+          s.mesh.rotation.y += 0.5;
+          s.g.scale.setScalar(1 + a * 0.6);
+          continue;
+        }
+        s.g.userData.y0 ??= s.g.position.y;
+        s.g.position.y = s.g.userData.y0 + Math.sin(t * 2 + s.n) * 0.06;
+        s.mesh.rotation.y = t * 2.2 + s.n;
+        s.glow.material.opacity = 0.55 + 0.25 * Math.sin(t * 5 + s.n);
+      }
+    },
+  };
+  api.reset();
+  return api;
+}
+
+let glowT = null;
+function glowTexture() {
+  if (glowT) return glowT;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.3, 'rgba(255,255,255,0.45)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 64, 64);
+  glowT = new THREE.CanvasTexture(c);
+  return glowT;
 }
 
 const rimGeo = new THREE.RingGeometry(0.9, 1.0, 40).rotateX(-Math.PI / 2);
