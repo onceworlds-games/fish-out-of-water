@@ -67,15 +67,10 @@ export async function runPoster(name, params) {
 
 // ---------------------------------------------------------------- a race, simulated and frozen
 
-/** Run `n` fish on a course for `t` seconds; returns the bodies and their views (settled over the last second). */
-function stageRace(stage, courseId, t, opts = {}) {
+/** The fish, brains and hazards of a staged race, without any drawing (so a scene can search for its moment first). */
+function simRace(courseId, opts = {}) {
   const course = getCourse(courseId);
-  const view = buildCourseView(course);
-  stage.scene.add(view.root);
   const hazards = createHazards(course, opts.seed ?? 3, {});
-  const hv = createHazardViews(course, hazards);
-  stage.scene.add(hv.root);
-  const fx = createFx(stage.scene);
   const fish = [];
   const n = opts.n ?? 8;
   for (let i = 0; i < n; i++) {
@@ -83,38 +78,77 @@ function stageRace(stage, courseId, t, opts = {}) {
     const slot = opts.slots?.[i] ?? course.slots[i % course.slots.length];
     const b = createBody(sp, slot, course.start.yaw);
     const brain = opts.wander ? createWanderer(course.world, opts.wander, 5 + i * 3) : createBrain(course, { skill: opts.skill?.[i] ?? 0.55 + (i % 4) * 0.12, personality: pers, seed: 100 + i * 17 + (opts.seed ?? 0), yaw: course.start.yaw });
-    const v = createFishView(sp, cw, { pin: SEAT_COLOURS[i].hex });
-    stage.scene.add(v.group);
-    fish.push({ b, brain, v, yaw: course.start.yaw, curl: 0 });
+    fish.push({ b, brain, sp, cw, yaw: course.start.yaw, curl: 0 });
   }
   const env = { world: course.world, hazards, twist: NO_TWIST, t: 0 };
-  let time = 0;
+  const race = {
+    course,
+    hazards,
+    fish,
+    time: 0,
+    step(onEvents) {
+      race.time += STEP;
+      env.t = race.time;
+      for (const f of fish) {
+        const inp = f.brain.step(f.b, STEP, race.time, hazards);
+        f.yaw = inp.yaw;
+        stepBody(f.b, inp, env);
+        onEvents?.(f);
+        f.b.events.length = 0;
+      }
+    },
+  };
+  return race;
+}
+
+/** The first race time in [t0, t1] where `pred(race)` holds (checked every 1/20 s), or t1. */
+function findMoment(courseId, opts, t0, t1, pred) {
+  const r = simRace(courseId, opts);
+  let next = t0;
+  while (r.time < t1) {
+    r.step();
+    if (r.time >= next) {
+      next += 0.05;
+      if (pred(r)) return r.time;
+    }
+  }
+  return t1;
+}
+
+/** Run `n` fish on a course for `t` seconds; returns the bodies and their views (settled over the last second). */
+function stageRace(stage, courseId, t, opts = {}) {
+  const r = simRace(courseId, opts);
+  const { course, hazards, fish } = r;
+  const view = buildCourseView(course);
+  stage.scene.add(view.root);
+  const hv = createHazardViews(course, hazards);
+  stage.scene.add(hv.root);
+  const fx = createFx(stage.scene);
+  fish.forEach((f, i) => {
+    f.v = createFishView(f.sp, f.cw, { pin: SEAT_COLOURS[i].hex });
+    stage.scene.add(f.v.group);
+  });
   const settleFrom = t - 1.2;
   let acc = 0;
-  while (time < t) {
-    time += STEP;
-    env.t = time;
-    for (const f of fish) {
-      const inp = f.brain.step(f.b, STEP, time, hazards);
-      f.yaw = inp.yaw;
-      stepBody(f.b, inp, env);
-      if (time > settleFrom) f.v.events(f.b.events);
-      f.b.events.length = 0;
-    }
-    if (time > settleFrom) {
+  const events = (f) => {
+    if (r.time > settleFrom) f.v.events(f.b.events);
+  };
+  while (r.time < t) {
+    r.step(events);
+    if (r.time > settleFrom) {
       acc += STEP;
       if (acc >= 1 / 60) {
         for (const f of fish) f.v.update(acc, stateOf(f));
-        hv.update(time, acc, null);
-        view.update(time);
+        hv.update(r.time, acc, null);
+        view.update(r.time);
         acc = 0;
       }
     }
   }
   for (const f of fish) f.v.update(1 / 60, stateOf(f));
-  hv.update(time, 1 / 60, null);
-  view.update(time);
-  return { course, view, hazards, hv, fx, fish, time };
+  hv.update(r.time, 1 / 60, null);
+  view.update(r.time);
+  return { course, view, hazards, hv, fx, fish, time: r.time };
 }
 
 function stateOf(f) {
@@ -161,13 +195,26 @@ const SCENES = {
     for (let i = 0; i < 6; i++) r.fx.update(1 / 60);
     wordmark(W, H, { size: Math.round(H * 0.15), top: '5%', left: '29%' });
   },
-  // A dramatic close-up: one fish at the top of a full flop over the market tiles.
+  // A gull flying off with a fish, straight at us, the surf behind; two fish on the wet sand look on.
   async action(stage) {
-    const r = stageRace(stage, 'market', 12.5, { seed: 9, n: 6 });
-    posed(stage, 'mackerel', 0, { x: 0.4, y: 1.45, z: 42.5, vx: 0.4, vy: 0.6, vz: 4.8, aim: 0.1, flop: true }, 14);
-    r.fx.burst(0.4, 1.3, 42.3, 26, 'splash', 0.9);
-    for (let i = 0; i < 5; i++) r.fx.update(1 / 60);
-    shoot(stage, [-0.9, 1.1, 41.0], [0.5, 1.45, 42.7], 46);
+    const gullOf = (r) => r.hazards.at(r.time)[r.hazards.list.findIndex((h) => h.id === 'gull3')];
+    const t = findMoment('beach', { seed: 5, n: 0 }, 9, 60, (r) => {
+      const g = gullOf(r);
+      return g.mode === 'carry' && g.pos[1] - g.at[1] > 1.7;
+    });
+    const r = stageRace(stage, 'beach', t, { seed: 5, n: 0 });
+    const g = gullOf(r);
+    const [gx, gy, gz] = g.pos;
+    const fy = g.at[1] + 0.16;
+    const dx = Math.sin(g.heading), dz = Math.cos(g.heading);
+    const side = g.heading + Math.PI / 2;
+    posed(stage, 'mackerel', 0, { x: gx, y: gy - 0.42, z: gz, vx: Math.sin(side) * 0.9, vy: 0.2, vz: Math.cos(side) * 0.9, aim: side, curl: 0.2, ground: false, wet: 0.7 }, 40);
+    // the camera sits low in front of the gull; two fish on the sand between
+    const cx = gx + dx * 3.4, cz = gz + dz * 3.4;
+    const px = dz, pz = -dx;
+    posed(stage, 'goldfish', 0, { x: cx - dx * 1.6 - px * 0.75, y: fy, z: cz - dz * 1.6 - pz * 0.75, aim: g.heading + 2.0, curl: 0.75, ground: true }, 30);
+    posed(stage, 'puffer', 1, { x: cx - dx * 2.0 + px * 0.9, y: fy + 0.45, z: cz - dz * 2.0 + pz * 0.9, vy: 1.5, aim: g.heading - 2.0, flop: true }, 10);
+    shoot(stage, [cx, fy + 0.5, cz], [gx, gy - 0.25, gz], 50);
   },
   // The splash home: off the end of the quay into the harbour.
   async win(stage) {
@@ -179,12 +226,27 @@ const SCENES = {
     for (let i = 0; i < 3; i++) r.fx.update(1 / 60);
     shoot(stage, [3.2, 2.0, 183.2], [6.8, 0.2, 191], 54);
   },
-  // Eight fish at once in the market crowd.
+  // Eight fish flopping down the kitchen line as the chef's pan goes up.
   async multi(stage) {
-    const r = stageRace(stage, 'market', 9.0, { seed: 6 });
-    const cx = r.fish.reduce((a, f) => a + f.b.x, 0) / r.fish.length;
-    const cz = r.fish.reduce((a, f) => a + f.b.z, 0) / r.fish.length;
-    shoot(stage, [cx + 3.2, 3.4, cz - 6.5], [cx - 0.4, 0.4, cz + 2.5], 54);
+    const chefOf = (r) => r.hazards.at(r.time)[r.hazards.list.findIndex((h) => h.kind === 'chef')];
+    const t = findMoment('kitchen', { seed: 6, n: 0 }, 8, 60, (r) => chefOf(r).tele > 0.88);
+    const r = stageRace(stage, 'kitchen', t, { seed: 6, n: 0 });
+    const c = chefOf(r);
+    const x = c.sx, z = c.sz, g = 0.16;
+    const cast = [
+      ['mackerel', 0, { x: x + 1.0, y: 1.1, z: z - 1.3, vy: 0.4, vz: 3, aim: 0.5, flop: true }],
+      ['goldfish', 0, { x: x - 0.9, y: g, z: z - 0.3, aim: -0.9, curl: 0.85, ground: true }],
+      ['puffer', 0, { x: x + 1.6, y: g, z: z - 2.6, aim: 0.8, curl: 0.4, ground: true }],
+      ['eel', 1, { x: x - 0.8, y: 1.3, z: z - 2.8, vy: 0.3, vx: -1.5, vz: 3.5, aim: -0.5, flop: true }],
+      ['flatfish', 0, { x: x + 0.3, y: g, z: z - 3.6, aim: 1.2, curl: 0.6, ground: true }],
+      ['mackerel', 1, { x: x - 1.9, y: 0.7, z: z - 3.4, vy: -0.3, vx: 1.5, vz: 3, aim: 0.3, flop: true }],
+      ['goldfish', 1, { x: x + 1.2, y: 0.55, z: z - 4.3, vy: 0.4, vx: -2, vz: 3, aim: -0.6, flop: true }],
+      ['puffer', 1, { x: x - 0.6, y: g, z: z - 4.6, aim: -1.0, curl: 0.2, ground: true }],
+    ];
+    for (const [sp, cw, st] of cast) posed(stage, sp, cw, st, st.flop ? 12 : 30);
+    r.fx.burst(x + 1.0, 0.3, z - 1.3, 8, 'splash', 0.6);
+    for (let k = 0; k < 4; k++) r.fx.update(1 / 60);
+    shoot(stage, [x + 1.4, 0.9, z - 6.6], [x, 1.7, z - 1.2], 60);
   },
   // One bold fish, mid-flop, against the harbour.
   async icon(stage) {

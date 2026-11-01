@@ -468,8 +468,14 @@ async function boot() {
   const goldGhosts = new Map();
   function goldTrack(courseId) {
     if (!goldGhosts.has(courseId)) {
-      const r = runBot(getCourse(courseId), { skill: 1, seed: 0, route: 'expert', track: true, personality: 'steady' });
-      goldGhosts.set(courseId, r.finished ? r.track : null);
+      // the quickest of a few clean runs, whichever line it takes
+      let best = null;
+      for (const route of ['expert', 'spine'])
+        for (const seed of [0, 1]) {
+          const r = runBot(getCourse(courseId), { skill: 1, seed, route, track: true, personality: 'steady' });
+          if (r.finished && (!best || r.time < best.time)) best = r;
+        }
+      goldGhosts.set(courseId, best ? best.track : null);
     }
     return goldGhosts.get(courseId);
   }
