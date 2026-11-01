@@ -1,0 +1,909 @@
+:root {
+  --sea: #0b5cad;
+  --deep: #083f78;
+  --wash: #f4efe6;
+  --slate: #1a1d22;
+  --red: #e4432d;
+  --lemon: #ffc93c;
+  --terra: #cb6b3f;
+  --spray: #4cd3ec;
+  --gold: #e8b931;
+  --silver: #c3c9cf;
+  --bronze: #c47a3d;
+  --slab: 'Alfa Slab One', Georgia, serif;
+  --cond: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --top: 12px;
+  --left: 12px;
+  --right: 12px;
+  --bottom: 12px;
+  --menu-w: 0px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #9fd2ee;
+  color: var(--slate);
+  font-family: var(--cond);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+#ui [data-ui],
+#ui button {
+  pointer-events: auto;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ the price tag: the game's one shape */
+
+.tag {
+  --c: var(--lemon);
+  --ink: var(--slate);
+  --hole: 13px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.18em 0.62em 0.12em calc(var(--hole) + 0.9em);
+  background: var(--c);
+  color: var(--ink);
+  font-family: var(--slab);
+  font-weight: 400;
+  line-height: 1.05;
+  border: 0;
+  border-radius: 0 6px 6px 0;
+  clip-path: polygon(16px 0, 100% 0, 100% 100%, 16px 100%, 0 50%);
+  -webkit-mask: radial-gradient(circle at var(--hole) 50%, transparent 4.5px, #000 5px);
+  mask: radial-gradient(circle at var(--hole) 50%, transparent 4.5px, #000 5px);
+  white-space: nowrap;
+  font-size: 22px;
+  cursor: default;
+}
+
+.tag-wrap {
+  display: inline-block;
+  filter: drop-shadow(0 3px 0 rgba(26, 29, 34, 0.28));
+  transform-origin: 13px 50%;
+}
+
+.swing {
+  animation: swing 3.4s ease-in-out infinite;
+}
+
+@keyframes swing {
+  0%,
+  100% {
+    transform: rotate(var(--r0, -2.5deg));
+  }
+  50% {
+    transform: rotate(var(--r1, 2deg));
+  }
+}
+
+.reduced .swing {
+  animation: none;
+}
+
+button.tag {
+  cursor: pointer;
+  font-size: 26px;
+  transition: transform 0.08s;
+}
+
+button.tag:hover {
+  transform: translateX(3px);
+}
+
+button.tag:active {
+  transform: translateX(3px) scale(0.97);
+}
+
+button.tag:focus-visible {
+  outline: none;
+}
+
+.tag-wrap:has(button:focus-visible) {
+  filter: drop-shadow(0 0 0 var(--slate)) drop-shadow(0 3px 0 rgba(26, 29, 34, 0.28));
+}
+
+.tag .key {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 0.55em;
+  padding: 0.05em 0.35em;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.8;
+}
+
+.tag.red {
+  --c: var(--red);
+  --ink: var(--wash);
+}
+
+.tag.slate {
+  --c: var(--slate);
+  --ink: var(--lemon);
+}
+
+.tag.wash {
+  --c: var(--wash);
+  --ink: var(--slate);
+}
+
+.tag.spray {
+  --c: var(--spray);
+  --ink: var(--slate);
+}
+
+.tag.sea {
+  --c: var(--sea);
+  --ink: var(--wash);
+}
+
+.tag small {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 0.62em;
+}
+
+/* chalk-ish words in the condensed face */
+.cond {
+  font-family: var(--cond);
+  font-weight: 800;
+}
+
+/* text floating in the world: white, dark outline, no box */
+.float {
+  font-family: var(--cond);
+  font-weight: 800;
+  color: var(--wash);
+  -webkit-text-stroke: 5px var(--slate);
+  paint-order: stroke fill;
+  letter-spacing: 0.01em;
+}
+
+/* ------------------------------------------------------------ medal discs */
+
+.medal {
+  --m: var(--gold);
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background: var(--m);
+  border: 0.12em solid var(--slate);
+  box-shadow: inset 0 0 0 0.1em rgba(255, 255, 255, 0.45);
+  vertical-align: -0.12em;
+  flex: none;
+}
+
+.medal.silver {
+  --m: var(--silver);
+}
+
+.medal.bronze {
+  --m: var(--bronze);
+}
+
+.medal.none {
+  --m: transparent;
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------ title */
+
+.title {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto auto 0.5fr;
+  justify-items: center;
+  padding: calc(var(--top) + 30px) 16px calc(var(--bottom) + 24px);
+}
+
+.wordmark {
+  align-self: end;
+  font-family: var(--slab);
+  color: var(--wash);
+  -webkit-text-stroke: 10px var(--slate);
+  paint-order: stroke fill;
+  text-align: center;
+  line-height: 0.88;
+  font-size: clamp(54px, 10.5vw, 138px);
+  transform: rotate(-3deg);
+  filter: drop-shadow(0 6px 0 rgba(26, 29, 34, 0.35));
+}
+
+.wordmark .row {
+  display: block;
+}
+
+.wordmark .small {
+  display: inline-block;
+  font-size: 0.42em;
+  color: var(--slate);
+  -webkit-text-stroke: 0;
+  background: var(--lemon);
+  padding: 0.12em 0.4em 0.05em;
+  margin: 0.08em 0 0.12em;
+  transform: rotate(4deg);
+  border-radius: 4px;
+}
+
+.title .play {
+  margin-top: clamp(18px, 4vh, 40px);
+}
+
+.title .play .tag {
+  font-size: clamp(34px, 5vw, 54px);
+}
+
+.tally {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  font-family: var(--slab);
+  font-size: 22px;
+  color: var(--wash);
+  -webkit-text-stroke: 4px var(--slate);
+  paint-order: stroke fill;
+  align-items: center;
+}
+
+.tally span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------ the quay (lobby) */
+
+.quay-left {
+  position: absolute;
+  left: var(--left);
+  top: calc(var(--top) + 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.quay-left .tag-wrap:nth-child(2) {
+  margin-left: 14px;
+  --r0: 2deg;
+  --r1: -2.5deg;
+}
+
+.quay-left .tag-wrap:nth-child(3) {
+  margin-left: 4px;
+  --r0: -1deg;
+  --r1: 3deg;
+}
+
+.quay-left .tag {
+  font-size: 23px;
+}
+
+.cup {
+  position: absolute;
+  left: 50%;
+  top: var(--top);
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.cup .tag {
+  font-size: 24px;
+}
+
+.cup .tag small {
+  margin-left: 0.3em;
+}
+
+.seats {
+  position: absolute;
+  right: var(--right);
+  top: calc(var(--top) + 6px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.seats .tag {
+  font-size: 18px;
+  font-family: var(--cond);
+  font-weight: 800;
+  min-width: 128px;
+  justify-content: space-between;
+}
+
+.seats .tag .tick {
+  font-family: var(--slab);
+  color: var(--sea);
+}
+
+.seats .more {
+  font-size: 16px;
+}
+
+.pin {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.hint-lobby {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom) + 84px);
+  transform: translateX(-50%);
+  font-size: 24px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the fish picker, trials, daily: tags on the ice */
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: calc(var(--top) + 54px) 16px calc(var(--bottom) + 16px);
+}
+
+.sheet h2 {
+  margin: 0 0 4px;
+  font-family: var(--slab);
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 52px);
+  color: var(--wash);
+  -webkit-text-stroke: 7px var(--slate);
+  paint-order: stroke fill;
+  transform: rotate(-2deg);
+}
+
+.board {
+  display: grid;
+  gap: 10px 22px;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  justify-content: center;
+}
+
+.board .tag {
+  font-size: 22px;
+  min-width: 250px;
+  justify-content: space-between;
+}
+
+.board .tag .what {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.board .tag .what small {
+  opacity: 0.85;
+}
+
+.board .tag.locked {
+  --c: #c9c2b4;
+  --ink: #595650;
+  cursor: not-allowed;
+}
+
+.fishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  justify-content: center;
+  max-width: 900px;
+}
+
+.fishes .tag {
+  font-size: 22px;
+}
+
+.fishes .tag.on {
+  --c: var(--red);
+  --ink: var(--wash);
+}
+
+.fishes .tag.locked {
+  --c: #c9c2b4;
+  --ink: #595650;
+}
+
+.colours {
+  display: flex;
+  gap: 12px;
+}
+
+.colours button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid var(--wash);
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(26, 29, 34, 0.3);
+}
+
+.colours button.on {
+  border-color: var(--slate);
+  transform: scale(1.12);
+}
+
+.row-tags {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.big-line {
+  font-size: 26px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------ the race HUD */
+
+.hud {
+  position: absolute;
+  inset: 0;
+}
+
+.hud-top {
+  position: absolute;
+  left: 50%;
+  top: var(--top);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-timer .tag {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  min-width: 132px;
+}
+
+.hud-timer .split {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 0.6em;
+}
+
+.hud-right {
+  position: absolute;
+  right: var(--right);
+  top: var(--top);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.hud-place .tag {
+  font-size: 46px;
+  padding-right: 0.5em;
+}
+
+.hud-place .tag sup {
+  font-size: 0.45em;
+  margin-left: 0.04em;
+  vertical-align: 0.9em;
+}
+
+.hud-lastcall .tag,
+.hud-medal .tag {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-line {
+  width: min(56vw, 560px);
+  height: 34px;
+  overflow: visible;
+}
+
+.gauge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom) + 10px);
+  transform: translateX(-50%);
+  width: 170px;
+  height: 64px;
+  overflow: visible;
+}
+
+.gauge.low .vial-water {
+  fill: var(--red);
+}
+
+.gauge.low {
+  animation: shiver 0.28s linear infinite;
+}
+
+.reduced .gauge.low {
+  animation: none;
+}
+
+@keyframes shiver {
+  0%,
+  100% {
+    transform: translateX(-50%);
+  }
+  25% {
+    transform: translateX(calc(-50% - 1.5px)) rotate(-1deg);
+  }
+  75% {
+    transform: translateX(calc(-50% + 1.5px)) rotate(1deg);
+  }
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom) + 96px);
+  transform: translateX(-50%);
+  font-size: 26px;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 0.4s;
+}
+
+.callout {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.callout .tag {
+  font-size: clamp(48px, 9vw, 104px);
+  padding-left: calc(13px + 0.5em);
+}
+
+.callout.pop .tag-wrap {
+  animation: pop 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.3) rotate(-12deg);
+  }
+  100% {
+    transform: scale(1) rotate(-3deg);
+  }
+}
+
+.course-card {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.course-card .tag {
+  font-size: clamp(30px, 5vw, 50px);
+}
+
+.course-card .float {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.nametags {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.nametag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 50%;
+  will-change: transform;
+}
+
+.nametag .tag {
+  --hole: 9px;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 0.1em 0.5em 0.06em calc(9px + 0.8em);
+  -webkit-mask: radial-gradient(circle at 9px 50%, transparent 3px, #000 3.5px);
+  mask: radial-gradient(circle at 9px 50%, transparent 3px, #000 3.5px);
+  clip-path: polygon(11px 0, 100% 0, 100% 100%, 11px 100%, 0 50%);
+}
+
+.nametag.me .tag {
+  --c: var(--lemon);
+}
+
+.nametag.gone {
+  opacity: 0.45;
+}
+
+.watching {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom) + 90px);
+  transform: translateX(-50%);
+}
+
+.watching .tag {
+  font-size: 20px;
+}
+
+.watching button.tag {
+  font-size: 20px;
+}
+
+.trial-end {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -38%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.trial-end .time .tag {
+  font-size: clamp(38px, 6vw, 62px);
+}
+
+.trial-end .medal {
+  font-size: 1.1em;
+}
+
+.stamp {
+  font-family: var(--slab);
+  font-size: 30px;
+  color: var(--red);
+  border: 4px solid var(--red);
+  padding: 0.05em 0.4em;
+  border-radius: 6px;
+  transform: rotate(-8deg);
+  background: var(--wash);
+  animation: stamp 0.3s cubic-bezier(0.3, 1.8, 0.5, 1) both;
+}
+
+@keyframes stamp {
+  0% {
+    transform: scale(2.2) rotate(-14deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-8deg);
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------ race end and the cup results */
+
+.standings {
+  position: absolute;
+  right: var(--right);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.standings .tag {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 20px;
+  min-width: 260px;
+  gap: 0.6em;
+  justify-content: flex-start;
+}
+
+.standings .tag .pl {
+  font-family: var(--slab);
+  font-weight: 400;
+  width: 1.7em;
+}
+
+.standings .tag .nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 9em;
+}
+
+.standings .tag .tm {
+  font-variant-numeric: tabular-nums;
+}
+
+.standings .tag .pts {
+  font-family: var(--slab);
+  font-weight: 400;
+  min-width: 2.2em;
+  text-align: right;
+}
+
+.standings .row-in {
+  animation: slidein 0.35s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+@keyframes slidein {
+  0% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.results-head {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--top) + 6px);
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.results-head .tag {
+  font-size: clamp(28px, 4.4vw, 44px);
+}
+
+.results-foot {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom) + 80px);
+  transform: translateX(-50%);
+}
+
+/* ------------------------------------------------------------ pause and closed */
+
+.pause {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding-left: max(var(--left), 8vw);
+  background: rgba(11, 92, 173, 0.28);
+}
+
+.pause .tag-wrap:nth-child(2n) {
+  margin-left: 18px;
+}
+
+.closed {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(11, 92, 173, 0.35);
+}
+
+.closed .float {
+  font-size: 34px;
+  text-align: center;
+  padding: 0 16px;
+  white-space: normal;
+}
+
+/* ------------------------------------------------------------ phones */
+
+@media (max-width: 720px), (max-height: 460px) {
+  .tag {
+    font-size: 19px;
+  }
+  button.tag {
+    font-size: 21px;
+  }
+  .quay-left .tag {
+    font-size: 19px;
+  }
+  .cup .tag {
+    font-size: 18px;
+  }
+  .seats .tag {
+    font-size: 14px;
+    min-width: 96px;
+  }
+  .hud-timer .tag {
+    font-size: 22px;
+    min-width: 96px;
+  }
+  .hud-place .tag {
+    font-size: 32px;
+  }
+  .hud-lastcall .tag,
+  .hud-medal .tag {
+    font-size: 17px;
+  }
+  .hud-line {
+    width: min(46vw, 420px);
+    height: 28px;
+  }
+  .gauge {
+    width: 128px;
+    height: 48px;
+  }
+  .hint {
+    font-size: 21px;
+  }
+  .board .tag {
+    font-size: 17px;
+    min-width: 190px;
+  }
+  .standings .tag {
+    font-size: 15px;
+    min-width: 196px;
+  }
+  .fishes .tag {
+    font-size: 18px;
+  }
+  .nametag .tag {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .board {
+    grid-template-columns: minmax(0, auto);
+  }
+  .seats {
+    top: calc(var(--top) + 52px);
+  }
+}

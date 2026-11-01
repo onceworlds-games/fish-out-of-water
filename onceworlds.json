@@ -1,0 +1,29 @@
+{
+  "slug": "fish-out-of-water",
+  "name": "Fish Out of Water",
+  "description": "You're a fish on dry land. Flop back to the sea before you dry out.",
+  "dir": "dist",
+  "productionBranch": "main",
+  "genre": "Obby",
+  "icon": "store/icon.png",
+  "thumbnails": ["store/thumb-1.png", "store/thumb-2.png", "store/thumb-3.png", "store/thumb-4.png"],
+  "controls": [
+    { "keys": ["Space"], "action": "Hold to curl, let go to flop" },
+    { "keys": ["Mouse"], "action": "Aim" },
+    { "keys": ["A", "D"], "action": "Turn" },
+    { "keys": ["R"], "action": "Retry (hold in a race: back to the last puddle)" },
+    { "keys": ["Esc"], "action": "Pause a time trial" }
+  ],
+  "badges": [
+    { "id": "first-flop", "name": "First Flop", "description": "Flop for the first time." },
+    { "id": "splash", "name": "Splash", "description": "Reach the sea." },
+    { "id": "gold-fin", "name": "Gold Fin", "description": "Win a gold medal." },
+    { "id": "bone-dry", "name": "Bone Dry", "description": "Reach the sea with under 10% water." },
+    { "id": "gull-bait", "name": "Gull Bait", "description": "Get carried off by a gull." },
+    { "id": "ice-skater", "name": "Ice Skater", "description": "Slide 10 m in one go." },
+    { "id": "slap-happy", "name": "Slap Happy", "description": "Five landing slaps in a row." },
+    { "id": "whole-catch", "name": "Whole Catch", "description": "Finish every course." },
+    { "id": "golden-catch", "name": "Golden Catch", "description": "Gold on every course." },
+    { "id": "cup-champion", "name": "Fish Market Champion", "description": "Win a cup." }
+  ]
+}

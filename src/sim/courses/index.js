@@ -1,0 +1,29 @@
+// Every course, built on demand, with what the race needs around it: the world to collide with, the spine to measure
+// progress along, the start places.
+
+import { createWorld } from '../world.js';
+import { polyLengths, project } from '../build.js';
+import { quay } from './quay.js';
+import { market } from './market.js';
+
+const MAKERS = { quay, market };
+/** The race courses, in unlock order. */
+export const COURSE_IDS = ['market'];
+export const COURSE_NAMES = { quay: 'The Quay', market: 'The Fish Market' };
+
+const cache = new Map();
+
+export function getCourse(id) {
+  if (cache.has(id)) return cache.get(id);
+  const make = MAKERS[id] ?? MAKERS.market;
+  const c = make();
+  c.lens = polyLengths(c.spine);
+  c.length = c.lens[c.lens.length - 1];
+  if (c.expert) c.expertLens = polyLengths(c.expert);
+  c.world = createWorld({ colliders: c.builder.colliders, zones: c.builder.zones, bounds: c.bounds });
+  c.refills = c.builder.zones.filter((z) => z.rate);
+  /** Metres along the spine for a position (with a hint for speed). */
+  c.progress = (x, z, hint) => project(c.spine, c.lens, x, z, hint);
+  cache.set(id, c);
+  return c;
+}
