@@ -35,6 +35,13 @@ ambient occlusion / roughness / metalness.
 | denim | Denim Fabric | Rob Tuytel | https://polyhaven.com/a/denim_fabric |
 | linen | Rough Linen | colormass, Rico Cilliers | https://polyhaven.com/a/rough_linen |
 | terry | Terry Cloth | colormass, Rico Cilliers | https://polyhaven.com/a/terry_cloth |
+| concrete | Concrete Floor Worn 001 | Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/concrete_floor_worn_001 |
+| rustmetal | Rusty Painted Metal | Amal Kumar | https://polyhaven.com/a/rusty_painted_metal |
+| mshutter | Painted Metal Shutter | Dario Barresi, Rico Cilliers, Charlotte Baglioni | https://polyhaven.com/a/painted_metal_shutter |
+| mosaic | Old Mosaic Floor | Amal Kumar | https://polyhaven.com/a/old_mosaic_floor |
+| bplaster | Blue Plaster Weathered | Amal Kumar | https://polyhaven.com/a/blue_plaster_weathered |
+| rplaster | Red Plaster Weathered | Amal Kumar | https://polyhaven.com/a/red_plaster_weathered |
+| piazza | Floor Pattern 02 | Rob Tuytel | https://polyhaven.com/a/floor_pattern_02 |
 
 ## Sky and reflections (`public/env/`)
 
