@@ -104,7 +104,8 @@ export function createCup(room, hooks) {
     data: dataSchema,
     startRound(m) {
       const list = cupCourses(m.settings.cup ?? 'harbour', room.match.seed ?? 0);
-      const c = list[(m.round - 1) % list.length];
+      const first = hooks.firstCourse?.();
+      const c = first && m.round === 1 ? first : list[(m.round - 1) % list.length];
       return { c, fin: {}, first: 0, prog: {} };
     },
     onTick(m) {

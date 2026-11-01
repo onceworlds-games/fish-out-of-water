@@ -527,10 +527,17 @@ export function createFishView(spId, cwIndex, opts = {}) {
       group.visible = v;
     },
     dispose() {
-      f.mesh.geometry; // shared
-      f.mat.map?.dispose();
-      f.mat.dispose();
-      f.finMat.dispose();
+      // everything this fish made for itself (the body geometry, eyes and tag pieces are shared)
+      const shared = new Set([f.mesh.geometry, eyeGeo, tagGeo, eyeWhite, eyePupil, tagMat]);
+      group.traverse((o) => {
+        if (!o.isMesh) return;
+        if (!shared.has(o.geometry)) o.geometry.dispose();
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (shared.has(m)) continue;
+          m.map?.dispose();
+          m.dispose();
+        }
+      });
     },
   };
   return view;

@@ -23,6 +23,7 @@ import { createHazards } from './sim/hazards.js';
 import { createBrain, createWanderer } from './sim/bot.js';
 import { predictArc, chargeOf, canFlop, respawn } from './sim/body.js';
 import { pointAt } from './sim/build.js';
+import { box as boxCollider } from './sim/world.js';
 import { FISH, SEAT_COLOURS, WATER, RACE } from './sim/config.js';
 import { CUPS, cupCourses, nextMedal, fmtTime, dailyCatch, NO_TWIST, ordinal } from './sim/race.js';
 import { runBot } from './sim/run.js';
@@ -149,6 +150,17 @@ async function boot() {
   }
   podium.visible = false;
   scene.add(podium);
+  // its crates are solid only while it's shown
+  const podiumCols = quayDef.podium.map((p) => boxCollider([p[0], (p[1] - 0.15) / 2, p[2]], [0.65, (p[1] - 0.15) / 2, 0.55], { surf: 'wood' }));
+  function showPodium(on) {
+    podium.visible = on;
+    const dyn = quayDef.world.dynamic;
+    for (const c of podiumCols) {
+      const i = dyn.indexOf(c);
+      if (on && i < 0) dyn.push(c);
+      else if (!on && i >= 0) dyn.splice(i, 1);
+    }
+  }
 
   // the "this way" chevron
   const chevShape = new THREE.Shape();
@@ -227,7 +239,11 @@ async function boot() {
     return a;
   }
 
+  let controlsOn = null;
   function setControls(on) {
+    on = !!on;
+    if (on === controlsOn) return; // called every frame in a race: only tell the platform about a change
+    controlsOn = on;
     try {
       ow?.controls?.set?.(on ? { buttons: [{ id: 'flop', label: 'Flop', key: ' ' }] } : null);
     } catch {}
@@ -280,7 +296,7 @@ async function boot() {
     G.course = course;
     G.view = view;
     G.hazards = null;
-    podium.visible = false;
+    showPodium(false);
     const box = [-7, -4.5, 7.5, 5.5];
     const picks = [['mackerel', 0], ['goldfish', 0], ['puffer', 1], ['flatfish', 0], ['eel', 2], ['mackerel', 1]];
     picks.forEach(([fish, cw], i) => {
@@ -308,9 +324,14 @@ async function boot() {
       G.wantQuay = true;
       return;
     }
+    audio.setLow?.(false);
     if (match.phase !== 'lobby' && match.phase !== 'countdown') {
       enterMatch();
       return;
+    }
+    if (G.trial) {
+      clearHazards();
+      clearTrial();
     }
     clearWanderers();
     if (G.mode !== 'quay' && G.mode !== 'trials' && G.mode !== 'fish' && G.mode !== 'daily') {
@@ -326,7 +347,7 @@ async function boot() {
     if (G.me) G.me.visible = true;
     G.mode = 'quay';
     G.paused = false;
-    podium.visible = false;
+    showPodium(false);
     hud.show(false);
     setControls(true);
     input.setWantLock(false);
@@ -479,9 +500,15 @@ async function boot() {
     }
     return goldGhosts.get(courseId);
   }
+  /** Leave the current trial: its ghosts go with it. */
+  function clearTrial() {
+    for (const g of G.trial?.ghosts ?? []) g.actor?.dispose();
+    G.trial = null;
+  }
   async function startTrial(courseId, opts = {}) {
     audio.unlock();
     audio.click();
+    clearTrial();
     clearActors();
     clearWanderers();
     G.mode = 'trial';
@@ -490,7 +517,7 @@ async function boot() {
     hideLobby(true);
     setControls(true);
     input.setWantLock(true);
-    podium.visible = false;
+    showPodium(false);
     const daily = opts.daily ? dailyCatch() : null;
     const { course, view } = showCourse(courseId);
     G.course = course;
@@ -500,7 +527,7 @@ async function boot() {
     makeMe(0, [course.start.x, course.start.y, course.start.z], course.start.yaw);
     G.me.track = [];
     G.me.nextTrack = 0;
-    const trial = { course, daily, t: -1.6, done: false, ghosts: [], best: progress.data.best[courseId] ?? 0, lastBeat: 3 };
+    const trial = { course, daily, t: -1.6, done: false, ghosts: [], best: progress.data.best[courseId] ?? 0, lastBeat: 4 };
     G.trial = trial;
     if (!daily) {
       const gold = progress.data.medals[courseId] === 'gold' ? null : goldTrack(courseId);
@@ -517,13 +544,14 @@ async function boot() {
     audio.mood('race');
     setFlow('trial');
   }
-  function setHazards(course, seed) {
+  function setHazards(course, seed, gentle = false) {
     if (G.hview) {
       scene.remove(G.hview.root);
       G.hview.dispose();
       G.hview = null;
     }
-    G.hazards = createHazards(course, seed, {});
+    // a player's very first race: nothing strikes in the first metres
+    G.hazards = createHazards(course, seed, { gentle: gentle ? course.gentle : 0 });
     G.hview = createHazardViews(course, G.hazards);
     scene.add(G.hview.root);
   }
@@ -550,7 +578,7 @@ async function boot() {
         },
         onQuit: () => {
           clearHazards();
-          G.trial = null;
+          clearTrial();
           G.mode = 'boot';
           toQuay();
         },
@@ -594,7 +622,7 @@ async function boot() {
         next: nextId ? () => startTrial(nextId, {}) : null,
         back: () => {
           clearHazards();
-          G.trial = null;
+          clearTrial();
           G.mode = 'boot';
           toQuay();
         },
@@ -607,7 +635,7 @@ async function boot() {
   function enterMatch() {
     if (G.mode === 'trial') {
       clearHazards();
-      G.trial = null;
+      clearTrial();
     }
     clearWanderers();
     G.mode = 'match';
@@ -625,7 +653,7 @@ async function boot() {
     G.snaps.length = 0;
     hud.show(false);
     hud.clearExtra();
-    podium.visible = false;
+    showPodium(false);
     toQuay();
   }
   function seatOf(id) {
@@ -642,8 +670,8 @@ async function boot() {
     G.course = course;
     G.view = view;
     G.twist = NO_TWIST;
-    podium.visible = false;
-    setHazards(course, (match.room.match?.seed ?? 0) + match.round * 7919);
+    showPodium(false);
+    setHazards(course, (match.room.match?.seed ?? 0) + match.round * 7919, progress.data.races === 0 && match.round === 1);
     G.round = match.roundId;
     G.raceT = 0;
     G.wasHost = match.isHost;
@@ -757,7 +785,7 @@ async function boot() {
     const { course, view } = showCourse('quay');
     G.course = course;
     G.view = view;
-    podium.visible = true;
+    showPodium(true);
     const standings = match.results ?? match.standings ?? [];
     // the top three on the podium, flopping in place
     standings.slice(0, 3).forEach((st, i) => {
@@ -840,6 +868,18 @@ async function boot() {
         raw = room.presenceAt(id, { angles: ['h'], snap: 300 });
       } catch {}
       const p = readPresence(raw);
+      // counters and flags (state, fish, colourway, flop and landing counts, course tag) come from the latest update as
+      // they are: presenceAt blends numbers between two updates, which would pass a state of 0 → 3 through 1 and 2
+      const last = readPresence(room.players?.get?.(id)?.presence);
+      if (p && last) {
+        p.s = last.s;
+        p.f = last.f;
+        p.k = last.k;
+        p.n = last.n;
+        p.l = last.l;
+        p.g = last.g;
+        p.r = last.r;
+      }
       let a = G.actors.get(id);
       if (!p || p.r !== tagName) {
         if (a && !inMatch) {
@@ -1077,6 +1117,7 @@ async function boot() {
 
   // ---------------------------------------------------------------- the frame
   let lastNow = performance.now();
+  const sunAt = new THREE.Vector3();
   function frame(now) {
     requestAnimationFrame(frame);
     let dt = Math.min(0.1, (now - lastNow) / 1000);
@@ -1090,6 +1131,10 @@ async function boot() {
       console.error(err);
     }
     hud.update(dt);
+    // the sun's shadow box follows what the camera is looking at (your fish, in a race)
+    stage.camera.getWorldDirection(sunAt).multiplyScalar(5).add(stage.camera.position);
+    if (G.camMode === 'chase' && G.me?.rs) sunAt.set(G.me.rs.x, G.me.rs.y, G.me.rs.z);
+    stage.focus(sunAt.x, Math.min(sunAt.y, 6), sunAt.z);
     stage.render();
   }
 
@@ -1198,6 +1243,7 @@ async function boot() {
         if (a.body.state === 'done') trialFinished();
       }
       if (input.state.rHeld > 0.5 && !tr.done && tr.t > 0) {
+        input.state.rHeld = -10; // one restart per press
         startTrial(tr.course.id, { daily: !!tr.daily });
         return;
       }
@@ -1444,6 +1490,8 @@ async function boot() {
         return out;
       },
       myProgress: () => (G.me ? G.me.prog : 0),
+      // autoplay only (never in production): ?course=<id> runs that course first, for capturing footage
+      firstCourse: () => (AUTOPLAY && COURSE_IDS.includes(params.get('course')) ? params.get('course') : null),
       onResume() {},
     };
     cup = createCup(room, hooks);

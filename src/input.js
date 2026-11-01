@@ -26,7 +26,7 @@ export function createInput(canvas, opts = {}) {
   const isUi = (el) => !!el?.closest?.('[data-ui]');
 
   function keyName(e) {
-    return e.code || e.key;
+    return String(e.code || e.key || '');
   }
   window.addEventListener('keydown', (e) => {
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;

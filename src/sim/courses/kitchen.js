@@ -79,6 +79,7 @@ export function kitchen() {
   const tx = -4.6, tz = 108;
   b.box([tx, 0.25, tz], [2.0, 0.5, 3.2], { surf: 'steel', look: 'steel' });
   b.box([tx + 0.95, 0.42, tz], [0.1, 0.84, 3.2], { surf: 'steel', look: 'steel' });
+  b.box([tx - 0.95, 0.42, tz], [0.1, 0.84, 3.2], { surf: 'steel', look: 'steel' });
   b.box([tx, 0.42, tz - 1.55], [2.0, 0.84, 0.1], { surf: 'steel', look: 'steel' });
   b.box([tx, 0.42, tz + 1.55], [2.0, 0.84, 0.1], { surf: 'steel', look: 'steel' });
   b.puddle(tx - 0.05, 0.5, tz, 1.3, { look: 'tub' });

@@ -99,7 +99,7 @@ export function createFx(scene) {
   scene.add(group);
 
   // ---------------------------------------------------------------- the arc
-  const ARC_N = 48;
+  const ARC_N = 120; // 3 s of flight at a drop every 3 steps
   const dropGeo = new THREE.SphereGeometry(1, 10, 8);
   const arcMat = new THREE.MeshStandardMaterial({ color: 0xdff8ff, emissive: 0x4cd3ec, emissiveIntensity: 0.55, roughness: 0.1, transparent: true, opacity: 0.95 });
   const arc = new THREE.InstancedMesh(dropGeo, arcMat, ARC_N);

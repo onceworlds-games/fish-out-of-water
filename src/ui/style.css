@@ -350,6 +350,13 @@ button.tag:focus-visible {
   justify-content: space-between;
 }
 
+.seats .tag > span:not(.tick):not(.pin) {
+  max-width: 9.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .seats .tag .tick {
   font-family: var(--slab);
   color: var(--sea);

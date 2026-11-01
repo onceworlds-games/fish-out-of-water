@@ -78,9 +78,9 @@ springs, colliding with the same world, pinned to the core sphere: it curls when
 whips straight on release, flops and twitches on the ground. Other players' fish run the same chain behind their interpolated
 core, so they look floppy too.
 
-- **World colliders:** oriented boxes (yaw, plus pitch for ramps), vertical cylinders, spheres; a 4 m spatial hash. Moving ones
-  (feet, scrubbers, boules, the revolving door, the cargo net) are kinematic and push with their own velocity. Every collider has a
-  surface type.
+- **World colliders:** oriented boxes (yaw, plus pitch for ramps), vertical cylinders, spheres; a 4 m spatial hash. Every
+  collider has a surface type. Hazards (feet, the cat, the chef, gulls, boules, sprinklers) aren't colliders: each reaches in with
+  a knock, a grab or a nudge on the shared clock.
 - **Gravity** 16 m/s² (snappy, not floaty).
 - **Flop:** charge c = clamp((held − 0.15 s) / 0.95 s, 0, 1) (a tap is a hop, 1.1 s is full; holding longer stays full).
   Vertical speed 3.2 + 5.7c m/s (to 8.9), horizontal 2.0 + 3.4c m/s (to 5.4). On flat ground: hop 0.8 m long / 0.32 m high /
@@ -100,7 +100,8 @@ core, so they look floppy too.
 | Wood (crates, decks) | 7 | 40% | 0.3 | 1.0 | thud |
 | Steel (counters) | 3 | 60% | 0.2 | 0.9 | plink |
 | Ice | 0.6 | 90% | 0.15 | −2 (refills) | crack-clink |
-| Hot sand | 14 | 15% | 0.03 | 3.0 | crunch |
+| Hot sand | 14 | 15% | 0.03 | 2.5 | crunch |
+| Handrail (brass) | 0.25 | 92% | 0.05 | 1.0 | plink |
 | Wet sand | 9 | 25% | 0.05 | 0.4 | soft crunch |
 | Gravel | 10 | 25% | 0.1 | 1.5 | scatter |
 | Grass | 9 | 30% | 0.3 | 0.9 | swish |
@@ -110,58 +111,55 @@ core, so they look floppy too.
 | Net | 30 (stops) | 0% | 0, sticky 0.6 s | 1.0 | creak |
 
 **Moisture** (0-100, the clock): base drain 2.8 per second (36 s from full) × the surface's factor (in the air: the last surface's).
-Shade × 0.6. Hot sand dries you in 12 s, a stovetop in 7 s. Refills: puddle, bucket, tide pool, fountain, touch pool: +100/s
-(full in 1 s); sprinkler spray, beach shower, wave wash: +45/s; a scrubber's wet trail: +30/s; ice: +5.6/s. Under 35% the gauge
+Shade × 0.6. Hot sand dries you in 14 s, a stovetop in 7 s. Refills: puddle, bucket, tide pool, fountain, touch pool: +100/s
+(full in 1 s); a sprinkler's jet: +55/s; the beach shower: +45/s; ice: +5.6/s. Under 35% the gauge
 turns red with a crack, the fish dulls, gills flare; under 15% it gasps and the music speeds up 12%. **At 0: a 1 s gasp, then a
 splash back at the last refill point** (the start counts) with a full tank.
 
 ## Courses
 
-Six courses, each 150-220 m from start to water, built from data (pieces with a surface type, refills, hazards, decor) over one
-modular prop kit (bevelled crates, ice trays, stall counters, barrels, tiles, awnings, nets, rope coils, buckets) plus each
-course's own landmarks. Each course has a **spine** (a polyline of the main line, for progress and the safe bot route) and one or
-two **expert lines**. The sea (or the course's water) is visible from the start. Blue enamel street signs with a wave and an arrow
-point the way; a "This way" chevron appears only for a player facing away from the route for 2 s. Difficulty ramps within each
-course: generous puddles and no hazards early, hotter and busier near the end.
+Four courses, each 155-245 m from start to water, built from data (pieces with a surface type, refills, hazards, decor) over one
+modular prop kit (bevelled crates, ice trays, stall counters, barrels, tiles, awnings, buckets) plus each course's own landmarks.
+Each course has a **spine** (a polyline of the main line, for progress and the safe bot route) and an **expert line**. The sea is
+visible from the start or pointed to: the harbour window at the end of the Kitchen, the lighthouse at the end of every street,
+blue enamel signs with a wave and an arrow, gulls drifting over the water, the wave at the end of the HUD's fishing line, and a
+"This way" chevron for a player facing away from the route for 2 s. Puddles and no hazards early, busier near the end.
 
 | # | Course | Length | The water | Signature hazard | Refills | Shortcuts |
 |---|---|---|---|---|---|---|
-| 1 | **The Fish Market** | 190 m | the harbour off the quay | **the cat** on a barrel (swipe) and **shoppers' feet** | ice trays, mop bucket, puddles under the fish stalls, a dripping hose | bounce awning to awning over the cat aisle; crate stacks |
-| 2 | **The Kitchen** | 160 m | the sink, then the drain pipe out to the harbour | **the chef** with a pan (slams) and the hot stove | a colander of ice (start), a dripping tap, a mop bucket, the dish pit | the shelf over the stove; the steel pass (slide) |
-| 3 | **The Beach** | 210 m | the surf line | **gulls** that grab and drop you elsewhere; **hot sand** | tide pools, kids' buckets, the beach shower, a melting cool box, wet sand near the water | the boardwalk; the lifeguard tower ramp; the **lucky gull** that drops you 20 m ahead |
-| 4 | **The Park** | 220 m | the harbour wall at the bottom of the hill | **pétanque boules** rolling across lanes; rotating **sprinklers** (moving refills) | sprinkler arcs, the fountain halfway, a dog bowl | the steel handrail slide down the stone stairs; picnic tables |
-| 5 | **The Boat** | 150 m | the open stern gate | **the swell**: the deck rolls ±7° and pitches ±3° (you slide downhill); a swinging **cargo net**; **waves** washing the low side | the fish hold (start), wave washes every 12 s, a hose | the wheelhouse roof; rope coils (bouncy) |
-| 6 | **The Aquarium** | 200 m | the harbour steps | **floor scrubbers** (bump you, but their wet trail refills); the **revolving door** | the touch pool, the scrubbers' trails, the café's ice bucket, the promenade fountain | plush-toy shelves (bouncy); café tabletops |
+| 1 | **The Fish Market** | 193 m | the harbour off the quay | **the cat** on a barrel (swipe) and **shoppers' feet** | ice trays, mop bucket, puddles under the stalls, a dripping hose | bounce awning to awning over the cat aisle; crate stacks; the kiosk roof |
+| 2 | **The Kitchen** | 157 m | the big pot sink under the harbour window | **the chef** walking the line with his pan (slams) and the hot range | the ice pan (start), a dripping prep sink, the mop bucket, the dish tub, puddles | the shelf over the range (a spill on it); the steel pass (slide); the scullery drain strip |
+| 3 | **The Beach** | 231 m | the surf line | **gulls** that grab you and drop you back; **hot sand** | tide pools, kids' buckets, the beach shower, a melting cool box, wet sand near the water | the boardwalk; the lifeguard tower ramp; the **lucky gull** (lemon, slow, rare) that drops you 20 m ahead |
+| 4 | **The Park** | 245 m | the harbour wall at the bottom of the hill | **boules** rolling across four lanes; sweeping **sprinklers** (moving refills that nudge you) | sprinkler jets, the fountain, dog bowls, watering cans, puddles | the brass handrails down the grand stairs (a long slide); picnic tables; café parasols (bounce) |
 
-The Kitchen has no knives anywhere: you start in a colander of ice on the prep counter. Its finish is the sink; a short cut shows
-you shooting down the drain and out of a pipe in the harbour wall with a splash. On the Boat, physics runs in deck space with
-gravity tilted by the roll and pitch; the boat, sea and sky move around it, and the camera rolls with the deck by half.
+The Kitchen has no knives anywhere: you start in a pan of ice on the prep island and finish in the big pot sink. The Park starts
+on a picnic trestle's ice tray at the top of the hill: lawn, the boules pitch, the fountain, the grand stairs, the rose garden and
+the harbour front with its café.
 
 **Hazards are pure functions of the course and the race clock** (`raceTime`, plus phase offsets from `match.seed`): every page
-computes the same cat, chef, gull and door with no messages, and a host change can't desync them. Each is telegraphed:
-- Cat: swipes every 4.0 s; 0.9 s before, it crouches, ears back, and a red 120° arc (1.8 m) shows on the floor. Knock 6.5 m/s
-  away + 3.5 up.
-- Shoppers' feet: 4 shoppers walk loops at 1.1 m/s, a footfall every 0.55 s; a foot's shadow darkens 0.35 s before it lands
-  (0.22 m). Scuff 4 m/s along their walk + 2 up.
-- Chef: walks the line at 1.3 m/s and slams at 5 stations, one slam per 3.2 s; pan raised + red circle (1.6 m) 0.8 s ahead. Knock
-  6 m/s + 4 up and a BONG.
-- Gulls: 3 gulls; each dives every 7-9 s at a station on its loop; its shadow grows over 1.1 s (1.3 m circle). Caught: carried
-  1.6 s along the gull's path, dropped at its drop point (two drop you 15-25 m back, the lucky one 20 m ahead), immune for 3 s.
-- Boules: two players throw in turn every 2.6 s; 0.8 s wind-up; the boule rolls its lane at 5 m/s. Knock 5 m/s + 2 up.
-- Sprinklers: sweep a 30° arc of 4 m every 2.4 s: refill + a 1 m/s push.
-- Swell: roll period 6.4 s, pitch 9.1 s. Waves every 12 s: the bow dips and spray rises 1 s before; the wash refills and pushes
-  2.5 m/s for 1.2 s. Cargo net: a 4.8 s pendulum, ±50°, 0.7 m bag, knock 6 m/s.
-- Scrubbers: 2 on loops at 0.9 m/s (0.45 m), bump 3 m/s; their trail stays wet for 4 s.
-- Revolving door: 4 panels, one turn per 8 s, kinematic boxes that push.
+computes the same cat, chef, gulls and boules with no messages, and a host change can't desync them. Each is telegraphed:
+- Cat: swipes one side then the other every 2.1 s; 0.9 s before, a red arc shows on the floor on the side about to be swiped.
+  Knock 4.5 m/s away + 3.5 sideways + 3.5 up.
+- Shoppers' feet: 4 shoppers walk back and forth, a footfall every 0.55 s; a foot's shadow darkens 0.35 s before it lands
+  (0.42 m). Scuff 4 m/s along their walk + 2.2 up. The shoppers themselves are always in view, so their path is the warning.
+- Chef: walks between 5 stations on the line, one slam per 3.6 s; pan raised high + red circle (1.4 m) 0.85 s ahead, then BONG.
+  Knock 6 m/s away + 4 up.
+- Gulls: 3 on the beach, each dives every 7.4-8.8 s at its stations; the shadow and a red ring grow over 1.1 s (0.8 m). Caught:
+  carried 1.6 s and dropped 15-20 m back, then immune for 3 s. The lucky gull (lemon, bigger, every 15 s, off to the side) drops
+  you 20 m ahead and is never a danger.
+- Boules: four lanes, a throw every 2.6-3.2 s from alternate ends; red chevrons run along the lane for 0.8 s before (the way the
+  ball will come); a steel boule rolls the lane at 5 m/s. Knock 5 m/s along + 2.2 up.
+- Sprinklers: four, each sweeping a 80-90° arc of 4-5 m every 4.6-5.4 s, the swept grass darker: inside the jet you refill (+55/s)
+  and get nudged along it.
 
 ## Solo
 
 Everything solo starts from the Quay (the lobby), alongside the Ready strip. A lone player gets the whole game:
 
 - **Race with bots** (the main thing): Ready, and a cup against 7 bot fish starts at once.
-- **Time Trials:** the six courses, unlocked in order (finishing one opens the next), each with **bronze / silver / gold** times,
+- **Time Trials:** the four courses, unlocked in order (finishing one opens the next), each with **bronze / silver / gold** times,
   your **best ghost** (a clear glassy fish) and, until you have gold there, the **gold ghost** (the expert bot's run, simulated
-  live from a fixed seed), which shows the shortcuts. Timer with a split against your best (−0.8 / +1.2) and the next medal's
+  live: the quicker of a few clean runs), which shows the shortcuts. Timer with a split against your best (−0.8 / +1.2) and the next medal's
   target. Retry is one tap (or R on the finish tag). Pause on Esc and when the page hides.
 - **Daily Catch:** one course + one twist a day from the UTC date: **Windy** (a steady side wind, ±1.5 m/s², in the arc
   preview, flags and leaves show it), **Slippery** (all friction × 0.4, soap suds), **Heatwave** (drain × 1.5, heat shimmer).
@@ -173,9 +171,9 @@ Everything solo starts from the Quay (the lobby), alongside the Ready strip. A l
   - **Flatfish** (5 medals): slides more (friction × 0.6), lower arcs (height × 0.92, range × 1.04). Both eyes on top.
   - **Pufferfish** (9 medals): bouncier (restitution + 0.3), range × 0.95; puffs up round on every landing.
   - **Eel** (3 golds): a long 6-node whip, charges to full in 0.85 s, range × 0.92.
-  Each has 3 colourways. Medals count 1 per tier earned (bronze, silver, gold on a course = 3), 18 in all.
+  Each has 3 colourways. Medals count 1 per tier earned (bronze, silver, gold on a course = 3), 12 in all.
 
-How long it lasts: six courses × three medals is several hours for a player who chases golds (gold is tuned to the expert bot),
+How long it lasts: four courses × three medals is several hours for a player who chases golds (gold is tuned to the expert bot),
 then the daily and the boards.
 
 ## Multiplayer
@@ -183,8 +181,8 @@ then the daily and the boards.
 - **A public game.** `ow.rooms.join({ maxPlayers: 8, minPlayers: 1, lobby: 'bar', countdown: 0, settings })`, joined once as the
   page loads. Private servers come from the platform's menu.
 - **Settings** (the host picks them on our Cup tag; `room.setSetting`, `clearReady()` after a change):
-  `cup`: Harbour Cup (Market, Kitchen, Boat), Seaside Cup (Beach, Park, Aquarium), Grand Tour (3 of 6 from `match.seed`); default
-  Harbour. `races`: 1 or 3, default 3. (The spec's "host picks the course" becomes "host picks the cup".)
+  `cup`: Harbour Cup (Market, Kitchen, Beach), Seaside Cup (Beach, Park, Market), Grand Tour (all four, shuffled by `match.seed`,
+  three of them in a 3-race cup); default Harbour. `races`: 1 or 3, default 3. (The spec's "host picks the course" becomes "host picks the cup".)
 - **Lobby:** the Quay, playable for everyone (players see each other's fish flopping). The platform's Ready/Start strip at the
   bottom. Nothing starts until all are ready: a private server waits for the host's Start (`room.canStart`), a public one starts by
   itself once everyone is ready.
@@ -231,8 +229,8 @@ puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), 
 - Course unlocks in order; medals; fish unlocks (above); personal bests and ghosts per course.
 - **Saves** (`ow.save`): `profile` (fish, colourway, per-course best ms + medal, daily best for today's date, tips seen, the
   `firstRace` flag, counters for badges); `ghost-<course>` (your best run at 8 Hz, delta-coded int16, base64, about 10 KB each,
-  60 KB for all six: fits a guest's 128 KB).
-- **Leaderboards** (24 of the 25 allowed, lower is better, seconds to 0.1): `time-<course>` × 6, and `daily-<course>-<twist>` × 18
+  40 KB for all four: fits a guest's 128 KB).
+- **Leaderboards** (16 of the 25 allowed, lower is better, seconds to 0.1): `time-<course>` × 4, and `daily-<course>-<twist>` × 12
   (the daily picks one combo per day, so each board is that combo's all-time best).
 - **Badges** (10):
 
@@ -245,8 +243,8 @@ puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), 
 | `gull-bait` | Gull Bait | Get carried off by a gull. |
 | `ice-skater` | Ice Skater | Slide 10 m in one go. |
 | `slap-happy` | Slap Happy | Five landing slaps in a row. |
-| `whole-catch` | Whole Catch | Finish all six courses. |
-| `golden-catch` | Golden Catch | Gold on all six courses. |
+| `whole-catch` | Whole Catch | Finish every course. |
+| `golden-catch` | Golden Catch | Gold on every course. |
 | `cup-champion` | Fish Market Champion | Win a cup. |
 
 ## Balance and timing
@@ -256,28 +254,27 @@ puddles, sometimes dries out), **Pearl** (careful: shorter hops, every puddle), 
 | Flop charge | 0.15 s (hop) to 1.1 s (full) |
 | Flop reach (flat) | 0.8 m / 0.32 m high to 6.0 m / 2.47 m high |
 | Slap window | 0.12 s after touchdown (0.1 s buffered before); +12% power, keeps 35% incoming speed |
-| Water | 36 s base, 45 s wet tile, 12 s hot sand, 7 s stove; refill to full in 1 s |
+| Water | 36 s base, 45 s wet tile, 14 s hot sand, 7 s stove; refill to full in 1 s |
 | Refill spacing (main line) | at most 22 s apart at a beginner's 2.0 m/s; hot sand at most 14 m apart (or the boardwalk) |
 | Pace | beginner ~2.0 m/s, good ~3.0, expert ~4.2 (slap chains and slides) |
 | Race | ~90-130 s first time, 45-55 s expert; 60 s "Last call" after the first finish; cap 240 s |
 | Cup | 3 races ≈ 6 min with intros (4.5 s), race results (7 s) and cup results (15 s) |
 | Bots in races | skill 0.25-0.85 (two clumsy, three middling, two sharp), × 0.75 in a first race |
 
-Provisional medals (gold / silver / bronze), to be set from simulations: Market 0:50 / 1:05 / 1:30, Kitchen 0:47 / 1:02 / 1:25,
-Beach 0:58 / 1:16 / 1:45, Park 0:55 / 1:12 / 1:40, Boat 0:52 / 1:08 / 1:35, Aquarium 0:56 / 1:14 / 1:42.
-Rule: gold = the skill-1 bot's median over 40 seeds × 1.06; silver = the skill-0.6 median; bronze = the skill-0.3 median × 1.1.
+Medals (gold / silver / bronze), set from bot simulations (6 seeds per skill): Market 0:50 / 1:04 / 1:32, Kitchen 0:46 / 0:58 /
+1:24, Beach 1:12 / 1:45 / 2:40, Park 1:08 / 1:32 / 2:25. Gold sits just above the skill-1 bot's best runs (it takes a clean,
+quick line), silver near the skill-0.55 bot, bronze near the skill-0.3 bot.
 
-**Checked in node tests** (`node --test`):
-- Physics: the arc preview lands where the real flop lands (within 5 cm) on every surface; bounces settle; no tunnelling at the
-  top speed through the thinnest collider; sphere vs box, ramp, cylinder and moving colliders; no NaN after 10 minutes of random
-  input.
-- Water: drain and refill rates; dry-out sends you to the last refill; refill spacing holds on every course's spine at 2.0 m/s.
-- Courses: every spawn and refill point is clear of solids; every course is finished by the skill-1 bot on 40 seeds, all under
-  240 s; skill-1 beats gold in ≥ 60% of seeds, skill-0.3 beats bronze in ≥ 70%; every fish within ±3% of the mackerel.
-- Races: 8 bots on every course end before the cap with sensible places, no runaway (the winner's margin over 2nd is usually under
-  10 s); points and tie-breaks; the slap chain is worth 15-25% over plain flops.
-- Hazards: deterministic for the same clock and seed; every knock is telegraphed ≥ 0.8 s.
-- Room flow through a fake room: host reload mid-race, a leaver, a latecomer admitted at the next race, a forged finish refused.
+**Checked in node tests** (`npm test`):
+- The arc: 800 flops (every course, every fish, four charges and aims) land within 0.3 m of the preview (wall hits: where the
+  fish is when the arc says it touches).
+- Water: drain on dry ground, a puddle fills you in about a second, drying out sends you back to the last puddle.
+- Courses: every start slot settles on the ice; bots of every skill (1, 0.8, 0.55, 0.3; steady, careful, wobbly) reach the sea;
+  the best runs beat gold, gold isn't easy for the skill-0.8 bot, silver and bronze are within reach of the slower bots.
+- Hazards: the same states for the same clock and seed; the cat, chef, gulls and boules warn ≥ 0.8 s; nothing reaches a fish in
+  the gentle start.
+- Cups, medals, ghosts (encode/decode), presence read defensively, and the host refusing forged finishes (too fast, an old race,
+  off the clock, twice) through the stand-in room.
 
 ## Every screen
 
@@ -305,7 +302,7 @@ top-left 150×70 clear (the platform menu) and lays out around `ow.ui.reserved`.
 6. **Cup results (15 s).** The podium on the Quay: three crates stacked, the top three fish flopping on them, confetti of lemon
    slices and ice chips, the winner's tag swinging big; the full standings as tags on the line; the host's Skip. Then the lobby.
 7. **Watching.** The race with the leader followed, our tag "Following Sal" with ‹ ›; the platform's "Watching" note.
-8. **Time Trials menu.** The camera on a fishmonger's ice display: six course tags spiked in the ice (name, best, medal stamp, or a
+8. **Time Trials menu.** The camera on a fishmonger's ice display: four course tags spiked in the ice (name, best, medal stamp, or a
    padlock and "Finish the Kitchen"), a Back tag. A tap starts the course.
 9. **Trial HUD.** Timer tag with the split, the next-medal tag (gold icon + 0:50.0), the gauge, ghosts. Finish: "SPLASH!", the time
    tag, the medal stamped onto it, New best, then **Retry** (R) / **Next course** / **Back**. In a busy public server, a
@@ -346,12 +343,13 @@ button. Tags swing on a spring when they change.
 toward the player (`#FFF1D6`); hemisphere sky `#BFE3FF` over terracotta bounce; PMREM sky environment so wet surfaces and fish
 reflect; ACES Filmic, sRGB; warm sea haze fog (40-160 m). Soft shadows from a tight shadow camera (±14 m) following your fish: none
 on low, 1024 medium, 2048 high. No post-processing: the sea's glints are additive sparkle sprites in its shader, antialiasing by
-quality. Camera: third person, 3.6 m behind and 1.6 m up, looking 1.2 m ahead; yaw is the aim (exact), position springs behind;
+quality. Camera: third person, 2.6 m behind and 1.45 m up, looking 1 m ahead; yaw is the aim (exact), position springs behind;
 it tilts up while charging so the arc shows; it eases in when anything comes between it and the fish (raycast to every solid)
 and never ends up inside one. Portrait widens the vertical FOV to keep 55° across. Landing shake from trauma², none with reduced
 motion.
 
-**Players and bots:** glossy fish (clearcoat, low roughness, a species pattern in a small canvas texture), skinned on the chain;
+**Players and bots:** your fish lies side-on to the camera (broadside) on the ground and through a flop, rolling forward in
+the air, so its shape, curl and face always read from the chase camera. Glossy fish (clearcoat, low roughness, a species pattern in a small canvas texture), skinned on the chain;
 big eyes that squeeze shut while charging, pop wide on release, look where you aim and blink. Drying shows on the body: colour
 fades to chalky, roughness goes up, clearcoat goes away, the mouth gasps; a refill sends a shine down from head to tail. Every
 landing leaves a dark wet splat that dries in 5 s (smaller when you're dry). Your fish has a soft lemon halo on the ground; your
@@ -366,9 +364,9 @@ water; text over the scene in white with a thick slate outline. No boxes around 
   thud, steel plink, ice crack-clink, sand crunch, gravel scatter, grass swish, sizzle, plush fwump, awning boing, net creak.
 - Slap: a bright SPLAT and a chime that rises with each link of the chain. Slide: a squeak that lasts as long as it.
 - Refill: splash and rising bubbles. Low water: dry gasps, faster under 15%. Dry out: a deflating wheeze, then a splash back.
-- Hazards: cat meow and swipe, shoppers' scuffs, the chef's gibberish shout and pan BONG, gull squawk and wingbeat whoosh, boule
-  clack and roll, sprinkler tick-tick, wave wash, net creak, scrubber whir, revolving door creak. Bump between fish: a rubbery bonk.
-- Ambience per course: market crowd murmur, kitchen clatter, surf, park birds, boat creaks and swell, aquarium hum; distant gulls.
+- Hazards: the cat's swipe, shoppers' footfalls, the chef's pan BONG, gull squawks (brighter for the lucky gull), the clack of a
+  boule thrown. Bump between fish: a rubbery bonk.
+- No ambience beds: the music and the hazards carry each course.
 - Stingers: ship's bell 3-2-1, foghorn GO, a big SPLASH with crowd cheer at your finish, an accordion fanfare for a win, medal
   stamp thunk.
 - **Music:** a little sequencer playing a jaunty tarantella in D minor (6/8, 132 BPM): musette accordion (three detuned voices
@@ -379,12 +377,13 @@ water; text over the scene in white with a thick slate outline. No boxes around 
 All posters are drawn by the game itself (`?poster=<name>`, fixed seed, no HUD).
 - **Cover** (`thumb-1`): a mackerel mid-flop high over the market aisle, curled, scales flashing in the sun, other fish below,
   the cat's paw mid-swipe, the harbour glittering through the arch beyond; "FISH OUT OF WATER" once, big.
-- **Action** (`thumb-2`): a gull snatching a fish over the beach, sand spraying, another fish looking up.
+- **Action** (`thumb-2`): a gull flying straight at us with a mackerel in its feet, the surf and lighthouse behind, a puffer
+  mid-flop on the sand.
 - **Win** (`thumb-3`): the splash into the harbour, a crown of water, the fish diving, others on the quay edge behind.
-- **Multi** (`thumb-4`): eight fish flopping down the kitchen line as the chef's pan comes down.
+- **Multi** (`thumb-4`): eight fish on the kitchen line under the chef, his pan high over the red circle.
 - **Icon:** a glossy mackerel curled in a C, mid-flop, with a ring of flying water drops, on a harbour-blue disc. No text.
-- **Badges:** a bold symbol on a coloured disc each (a flop arc, a splash crown, a gold fin, a cracked drop, a gull, a skate
-  trail, a hand-slap star, six fish, a gold crate, a trophy tag).
+- **Badges:** a bold symbol on a coloured disc each (a curled fish, a splash crown, a gold medal, a fish skeleton, a gull, an
+  ice skid, a slap star, a net of fish, a golden fish, a cup).
 - **Trailer** (~30 s, autoplay with the bot brain): 0-3 s eight fish launch off the market's ice, the arc visible, the sea ahead;
   3-8 an ice slide and a slap chain; 8-13 a gull grabs a fish and drops it; 13-19 a near-dry dash (red gauge) into a puddle, the
   refill burst; 19-25 the chef's pan just misses; 25-30 a photo-finish splash into the harbour; last 2 s the title over the Quay.
@@ -402,8 +401,9 @@ the puddle and the shortcut.
 - **Physics feels floaty or random:** own deterministic physics with honest arc previews, gravity 16, numbers tuned in node; the
   visual chain never affects the gameplay body.
 - **Camera in tight spaces** (stalls, the kitchen): raycast boom against every solid, ease in, fade small props near the lens.
-- **Six courses is a lot of content:** one modular kit plus data per course; build the Fish Market to full polish first, then the
-  rest in order, each checked in shots; tests prove every course is finishable and within its medals.
+- **Too much content:** one modular kit plus data per course; the Fish Market to full polish first, then the rest in order, each
+  checked in shots; four courses that are each finished rather than six thin ones; tests prove every course is finishable and
+  within its medals.
 - **Wayfinding:** the sea visible from every start, street signs, the progress line, the "This way" chevron.
 - **Phones:** under 250 draw calls (merged static geometry per material, instanced crates, ice and lemons), shadows by quality,
   courses built only when chosen, fonts and the title first so it paints within 2 s; one big button, drag to turn.
@@ -419,7 +419,9 @@ the puddle and the shortcut.
   sits out a cup. The cost is the ground you lose.
 - **Hazards run on the shared race clock** (no host messages): the same everywhere, and a host change can't break them.
 - **The host picks a cup** (three courses), not one course, since a match is a cup.
-- **The picnic is "The Park"** (picnic, sprinklers and pétanque on the hill above the harbour); the kitchen starts in a colander.
+- **The picnic is "The Park"** (picnic, sprinklers and pétanque on the hill above the harbour); the kitchen starts in a pan of ice.
+- **Four courses, not six:** The Boat and The Aquarium were cut so the four that ship (Market, Kitchen, Beach, Park) are each
+  finished; cups and medals are built around four.
 - **Added for mastery:** the landing slap, wall flops, awning bounces and the lucky gull. **Added for the first minute:** the
   lobby is a playable quay.
 - **Phone:** drag to turn and one Flop button, no stick.

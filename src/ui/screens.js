@@ -10,7 +10,7 @@ export function createScreens(root) {
   let current = null;
   const set = (name, ...kids) => {
     current = name;
-    layer.replaceChildren(...kids);
+    layer.replaceChildren(...kids.filter(Boolean));
     layer.dataset.screen = name ?? '';
   };
 
@@ -72,13 +72,13 @@ export function createScreens(root) {
       const seatKey = JSON.stringify(o.seats.map((s) => [s.name, s.ready, s.host, s.me])) + o.bots;
       if (seats.dataset.k !== seatKey) {
         seats.dataset.k = seatKey;
-        seats.replaceChildren(
+        seats.replaceChildren(...[
           ...o.seats.map((s) =>
             tag([pin(s.colour), h('span', {}, s.name), s.ready ? h('span', { class: 'tick' }, '✓') : h('span', {})], { kind: s.me ? '' : 'wash', swing: false }),
           ),
           o.bots > 0 ? h('div', { class: 'more float' }, `+${o.bots} fish`) : null,
           o.onInvite ? tag('Invite', { kind: 'spray', onclick: o.onInvite, swing: false }) : null,
-        );
+        ].filter(Boolean));
       }
       if (hint.textContent !== (o.hint ?? '')) hint.textContent = o.hint ?? '';
     },
@@ -105,7 +105,7 @@ export function createScreens(root) {
     daily({ courseName, twistName, best, top, onPlay, onBack }) {
       const lines = [h('div', { class: 'big-line float' }, `${courseName}, ${twistName.toLowerCase()}`)];
       if (best) lines.push(h('div', { class: 'big-line float' }, `Your best today ${fmtTime(best)}`));
-      if (top?.length) lines.push(h('div', { class: 'big-line float', style: 'font-size:21px' }, top.map((e, i) => `${i + 1}. ${e.name} ${fmtTime(e.score)}`).join('   ')));
+      if (top?.length) lines.push(h('div', { class: 'big-line float', style: 'font-size:21px' }, top.map((e, i) => `${i + 1}. ${e.player?.name ?? e.name ?? ''} ${fmtTime(e.score)}`).join('   ')));
       set(
         'daily',
         h(

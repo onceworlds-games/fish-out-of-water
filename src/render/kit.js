@@ -1007,7 +1007,7 @@ const DECOR = {
   },
   lamps(batch, sc, d, at) {
     for (let x = d.x0; x <= d.x1; x += d.every) {
-      if (Math.abs(x) < 3) continue;
+      if (Math.abs(x) < (d.skip ?? 3)) continue;
       batch.add(M.blueDeep(), G.cyl8, { p: [x, at[1] + 1.9, at[2]], s: [0.06, 3.8, 0.06] });
       batch.add(M.blueDeep(), G.box, { p: [x, at[1] + 3.8, at[2] + 0.25], s: [0.06, 0.06, 0.5] });
       batch.add(M.lamp(), G.sphere, { p: [x, at[1] + 3.65, at[2] + 0.5], s: [0.16, 0.2, 0.16] });

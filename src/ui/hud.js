@@ -83,6 +83,11 @@ export function createHud(root) {
     el,
     show(on, opts = {}) {
       el.hidden = !on;
+      if (on) {
+        top.hidden = false;
+        right.hidden = false;
+        gauge.style.display = '';
+      }
       placeWrap.hidden = !!opts.trial;
       line.style.display = opts.trial ? 'none' : '';
       medalWrap.hidden = !opts.trial;
@@ -117,7 +122,8 @@ export function createHud(root) {
       }
     },
     /** list: [{ frac 0..1, seat, me, done }] */
-    line(list) {
+    line(all) {
+      const list = [...all.filter((b) => !b.me), ...all.filter((b) => b.me)]; // mine drawn last, on top
       while (bobbers.childNodes.length < list.length) {
         const g = svg('g');
         g.innerHTML = '';
@@ -136,7 +142,6 @@ export function createHud(root) {
         const t = (x - 8) / 520;
         const y = 12 + 10 * 2 * t * (1 - t) * 2 * 0.5 + (b.me ? 0 : 0);
         g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-        if (b.me) bobbers.append(g); // mine on top
       });
     },
     water(m, dt = 0) {
@@ -173,7 +178,7 @@ export function createHud(root) {
     },
     courseCard(name, sub) {
       card.hidden = !name;
-      if (name) card.replaceChildren(tag(name, { kind: 'wash', angle: -2 }), sub ? h('span', { class: 'float' }, sub) : null);
+      if (name) card.replaceChildren(...[tag(name, { kind: 'wash', angle: -2 }), sub ? h('span', { class: 'float' }, sub) : null].filter(Boolean));
     },
     watching(name, onPrev, onNext) {
       watch.hidden = !name;

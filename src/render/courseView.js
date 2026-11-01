@@ -319,6 +319,8 @@ function signTexture() {
   c.width = 256;
   c.height = 384;
   const g = c.getContext('2d');
+  // older Safari has no roundRect: square corners there
+  if (!g.roundRect) g.roundRect = (x, y, w, h) => g.rect(x, y, w, h);
   const draw = (y0, arrow) => {
     g.fillStyle = '#0b5cad';
     g.beginPath();

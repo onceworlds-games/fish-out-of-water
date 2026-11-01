@@ -142,7 +142,20 @@ export function stepBody(b, input, env, dt = STEP) {
   const fish = b.fish;
   b.t += dt;
   if (b.stun > 0) b.stun -= dt;
-  if (b.state === 'done') return;
+  if (b.state === 'done') {
+    // in the water: carry on down under the surface (the splash has happened), then stay
+    if (b.y > b.doneY) {
+      b.vy -= GRAVITY * fish.gravity * dt;
+      b.x += b.vx * 0.6 * dt;
+      b.y += b.vy * dt;
+      b.z += b.vz * 0.6 * dt;
+      if (b.y <= b.doneY) {
+        b.y = b.doneY;
+        b.vx = b.vy = b.vz = 0;
+      }
+    }
+    return;
+  }
 
   // Carried by a gull: the hazard moves us.
   if (b.state === 'grab') {
@@ -328,6 +341,7 @@ export function stepBody(b, input, env, dt = STEP) {
   for (const zone of zones) {
     if (zone.kind === 'finish') {
       b.state = 'done';
+      b.doneY = Math.max(zone.min[1] + 0.2, b.y - 1.6);
       b.events.push({ type: 'finish', x: b.x, y: b.y, z: b.z });
       return;
     }

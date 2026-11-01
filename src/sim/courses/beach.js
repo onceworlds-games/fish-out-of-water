@@ -24,7 +24,7 @@ export function beach() {
   }
   b.wall(-XW - 0.5, -2, XW + 0.5, -2, 8);
   b.decor('huts', [0, 1.0, -7], { x0: -46, x1: 46 });
-  b.decor('lamps', [0, 1.0, 1.8], { x0: -40, x1: 40, every: 9 });
+  b.decor('lamps', [0, 1.0, 1.8], { x0: -40, x1: 40, every: 9, skip: 6 });
   b.decor('crowd', [0, 0, 0], { seed: 7, n: 70, xin: 16, xout: 46, z0: 8, z1: 190 });
 
   // ---------------------------------------------------------------- the start: an angler's cool box of ice on the promenade
