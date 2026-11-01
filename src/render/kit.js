@@ -112,7 +112,7 @@ function iceTop(scatter, w, d, t, y, density = 22, seed = 1) {
   const p = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
     p.set((r() - 0.5) * (w - 0.08), y + r() * 0.03, (r() - 0.5) * (d - 0.08)).applyMatrix4(m);
-    const s = 0.05 + r() * 0.05;
+    const s = 0.035 + r() * 0.035;
     scatter.add('ice', G.box, M.ice(), [p.x, p.y, p.z], [r() * 3, r() * 3, r() * 3], [s, s * 0.8, s]);
   }
 }
@@ -122,13 +122,13 @@ const BOX_LOOKS = {
     batch.add(M.white(), G.box, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
   },
   wettile(batch, sc, w, h, d, t) {
-    batch.add(M.wettile(), tiledBox(w, h, d, 1.2), inFrame(t, [0, 0, 0]));
+    batch.add(M.wettile(), tiledBox(w, h, d, 0.75), inFrame(t, [0, 0, 0]));
   },
   tile(batch, sc, w, h, d, t) {
-    batch.add(M.tile(), tiledBox(w, h, d, 1.2), inFrame(t, [0, 0, 0]));
+    batch.add(M.tile(), tiledBox(w, h, d, 0.75), inFrame(t, [0, 0, 0]));
   },
   quay(batch, sc, w, h, d, t) {
-    batch.add(M.quay(), tiledBox(w, h, d, 2.0), inFrame(t, [0, 0, 0]));
+    batch.add(M.quay(), tiledBox(w, h, d, 1.25), inFrame(t, [0, 0, 0]));
   },
   sand(batch, sc, w, h, d, t) {
     batch.add(M.sand(), tiledBox(w, h, d, 2.5), inFrame(t, [0, 0, 0]));
@@ -419,7 +419,7 @@ const DECOR = {
   mopbucket(batch, sc, d, at) {
     batch.add(M.lemonPaint(), G.cyl, { p: [at[0], at[1] + 0.2, at[2]], s: [0.22, 0.4, 0.22] });
     batch.add(M.iron(), G.cyl8, { p: [at[0] + 0.1, at[1] + 0.75, at[2]], r: [0, 0, 0.35], s: [0.02, 1.2, 0.02] });
-    batch.add(M.white(), G.lowSphere, { p: [at[0] - 0.05, at[1] + 0.32, at[2]], s: [0.16, 0.08, 0.16] });
+    for (let i = 0; i < 7; i++) batch.add(M.rope(), G.cyl8, { p: [at[0] + Math.cos(i) * 0.08, at[1] + 0.3, at[2] + Math.sin(i) * 0.08], r: [Math.sin(i * 2) * 0.4, 0, Math.cos(i * 2) * 0.4], s: [0.018, 0.22, 0.018] });
   },
   bucket(batch, sc, d, at) {
     batch.add(M.lemonPaint(), G.cyl, { p: [at[0], at[1] + 0.14, at[2]], r: [0, 0.4, Math.PI / 2], s: [0.17, 0.32, 0.17] });

@@ -176,6 +176,8 @@ function makeCat(hz) {
 
 const TROUSERS = [0x2f5d8a, 0xcb6b3f, 0x5b6b3a, 0x3a3f47];
 const SHOES = [0xe4432d, 0x6b3f22, 0xffc93c, 0xf4efe6];
+const COATS = [0x1a1d22, 0xffc93c, 0xf4efe6, 0x0b5cad];
+const BAGS = [0xe4432d, 0x4cd3ec, 0xcb6b3f, 0xffc93c];
 
 function makeFeet(hz) {
   const group = new THREE.Group();
@@ -200,6 +202,22 @@ function makeFeet(hz) {
     group.add(shoe);
     legs.push({ leg, shoe });
   }
+  // the bottom of a coat and a shopping bag: a person far too big to see whole
+  const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.56, 1.3, 18, 1, true), std(COATS[look % 4], 0.8));
+  coat.material.side = THREE.DoubleSide;
+  coat.castShadow = true;
+  group.add(coat);
+  const bag = new THREE.Group();
+  const bagBody = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.2), std(BAGS[look % 4], 0.75));
+  bagBody.position.y = -0.55;
+  bagBody.castShadow = true;
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.018, 6, 16, Math.PI), std(0x1a1d22, 0.5));
+  handle.position.y = -0.3;
+  const leek = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 6), std(0x5b8a3a, 0.7));
+  leek.position.set(0.1, -0.25, 0);
+  leek.rotation.z = 0.2;
+  bag.add(bagBody, handle, leek);
+  group.add(bag);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(hz.reach ?? 0.42, 24).rotateX(-Math.PI / 2), shadowMat());
   shadow.scale.z = 1.5;
   group.add(shadow);
@@ -240,6 +258,11 @@ function makeFeet(hz) {
         tmpQ.setFromUnitVectors(UP, tmpB);
         leg.quaternion.copy(tmpQ);
       }
+      coat.position.set(hipX, HIP + 0.55, hipZ);
+      coat.rotation.y = dir;
+      const sway = Math.sin((s.step + s.local) * Math.PI) * 0.18;
+      bag.position.set(hipX + s.dz * 0.62, 1.75, hipZ - s.dx * 0.62);
+      bag.rotation.set(sway, dir, sway * 0.4);
       shadow.position.set(next.x, 0.02, next.z);
       shadow.rotation.y = dir;
       shadow.material.opacity = s.tele > 0 ? 0.12 + s.tele * 0.4 : 0;

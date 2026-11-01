@@ -39,6 +39,12 @@ export function buildCourseView(course) {
     if (lh) root.add(makeLighthouse(lh));
     root.add(makeBoats(course));
   }
+  // gulls wheeling over the water: seen over the rooftops from anywhere on the course, they show where the sea is
+  const gulls = course.sea && course.id !== 'quay' ? makeGullRing(course) : null;
+  if (gulls) root.add(gulls.group);
+  // blue enamel signs: a wave and an arrow
+  const signs = (course.builder.decors ?? []).filter((d) => d.look === 'sign');
+  if (signs.length) root.add(makeSigns(signs));
 
   const view = {
     root,
@@ -47,6 +53,7 @@ export function buildCourseView(course) {
     update(t) {
       sea?.userData.update(t);
       for (const w of waters) w.update(t);
+      gulls?.update(t);
     },
     dispose() {
       root.traverse((o) => {
@@ -138,13 +145,17 @@ function makeTags(list) {
   const pins = [];
   for (const tg of list) {
     const idx = Math.floor(tg.label * 8) % 8;
-    const g = new THREE.PlaneGeometry(0.16, 0.11);
-    const uv = g.attributes.uv;
-    const u0 = (idx % 4) / 4, v0 = 1 - Math.floor(idx / 4) / 2 - 0.5;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) / 4, v0 + uv.getY(i) / 2);
-    g.rotateY(tg.yaw);
-    g.translate(tg.p[0], tg.p[1] + 0.13, tg.p[2]);
-    quads.push(g);
+    // two faces back to back, so the price reads the right way from either side
+    for (const flip of [0, Math.PI]) {
+      const g = new THREE.PlaneGeometry(0.16, 0.11);
+      const uv = g.attributes.uv;
+      const u0 = (idx % 4) / 4, v0 = 1 - Math.floor(idx / 4) / 2 - 0.5;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) / 4, v0 + uv.getY(i) / 2);
+      g.translate(0, 0, 0.002);
+      g.rotateY(tg.yaw + flip);
+      g.translate(tg.p[0], tg.p[1] + 0.13, tg.p[2]);
+      quads.push(g);
+    }
     const pin = new THREE.CylinderGeometry(0.006, 0.006, 0.12, 5);
     pin.translate(tg.p[0], tg.p[1] + 0.04, tg.p[2]);
     pins.push(pin);
@@ -165,7 +176,7 @@ function makeTags(list) {
     }
     return out;
   };
-  const tagMesh = new THREE.Mesh(merge(quads), new THREE.MeshStandardMaterial({ map: atlas, transparent: false, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.55 }));
+  const tagMesh = new THREE.Mesh(merge(quads), new THREE.MeshStandardMaterial({ map: atlas, transparent: false, alphaTest: 0.5, side: THREE.FrontSide, roughness: 0.55 }));
   tagMesh.castShadow = true;
   group.add(tagMesh);
   group.add(new THREE.Mesh(merge(pins), M.red()));
@@ -226,5 +237,123 @@ function makeBoats(course) {
     b.rotation.y = i * 1.3;
     g.add(b);
   });
+  return g;
+}
+
+// ---------------------------------------------------------------- gulls over the harbour
+
+function gullGeometry() {
+  // a white V with dark wing tips, made of two thin triangles per wing
+  const g = new THREE.BufferGeometry();
+  const v = [0, 0, 0, -0.9, 0.25, -0.15, -0.35, 0.05, 0.1, 0, 0, 0, 0.35, 0.05, 0.1, 0.9, 0.25, -0.15];
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+function makeGullRing(course) {
+  const group = new THREE.Group();
+  const end = course.spine[course.spine.length - 1];
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, fog: false });
+  const geo = gullGeometry();
+  const birds = [];
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(geo, mat);
+    m.scale.setScalar(1.6 + (i % 3) * 0.3);
+    group.add(m);
+    birds.push({ m, a: (i / 9) * Math.PI * 2, r: 9 + (i % 4) * 3, h: 17 + (i % 5) * 2.2, s: 0.22 + (i % 3) * 0.05, f: 5 + (i % 4) });
+  }
+  return {
+    group,
+    update(t) {
+      for (const b of birds) {
+        const a = b.a + t * b.s;
+        b.m.position.set(end[0] + Math.cos(a) * b.r, b.h + Math.sin(t * 0.7 + b.a) * 1.2, end[2] + 6 + Math.sin(a) * b.r);
+        b.m.rotation.set(0, -a, Math.sin(t * 0.5 + b.a) * 0.3);
+        b.m.scale.y = (1.6 + (b.r % 3) * 0.1) * (0.7 + 0.3 * Math.sin(t * b.f + b.a));
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------- street signs to the harbour
+
+function signTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 384;
+  const g = c.getContext('2d');
+  const draw = (y0, arrow) => {
+    g.fillStyle = '#0b5cad';
+    g.beginPath();
+    g.roundRect(6, y0 + 6, 244, 116, 18);
+    g.fill();
+    g.strokeStyle = '#f4efe6';
+    g.lineWidth = 7;
+    g.beginPath();
+    g.roundRect(16, y0 + 16, 224, 96, 12);
+    g.stroke();
+    // waves
+    g.lineWidth = 8;
+    g.lineCap = 'round';
+    for (let k = 0; k < 2; k++) {
+      g.beginPath();
+      for (let x = 0; x <= 90; x += 3) g.lineTo(34 + x, y0 + 56 + k * 26 + Math.sin(x * 0.11) * 8);
+      g.stroke();
+    }
+    // arrow
+    g.fillStyle = '#ffc93c';
+    g.save();
+    g.translate(184, y0 + 64);
+    g.rotate(arrow);
+    g.beginPath();
+    g.moveTo(0, -38);
+    g.lineTo(30, -2);
+    g.lineTo(11, -2);
+    g.lineTo(11, 34);
+    g.lineTo(-11, 34);
+    g.lineTo(-11, -2);
+    g.lineTo(-30, -2);
+    g.closePath();
+    g.fill();
+    g.restore();
+  };
+  draw(0, 0);
+  draw(128, -Math.PI / 2);
+  draw(256, Math.PI / 2);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+const ARROW_ROW = { ahead: 0, left: 1, right: 2 };
+function makeSigns(list) {
+  const tex = signTexture();
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.1 });
+  const back = new THREE.MeshStandardMaterial({ color: 0x0b5cad, roughness: 0.4 });
+  const iron = M.iron();
+  const g = new THREE.Group();
+  for (const d of list) {
+    const s = new THREE.Group();
+    s.position.set(d.at[0], d.at[1], d.at[2]);
+    s.rotation.y = d.yaw ?? Math.PI;
+    const geo = new THREE.PlaneGeometry(1.0, 0.5);
+    const row = ARROW_ROW[d.arrow ?? 'ahead'] ?? 0;
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i), 1 - (row + 1 - uv.getY(i)) / 3);
+    const face = new THREE.Mesh(geo, mat);
+    face.position.z = 0.016;
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.52, 0.03), back);
+    s.add(plate, face);
+    if (d.hang) {
+      for (const x of [-0.4, 0.4]) {
+        const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, d.hang, 0.02), iron);
+        wire.position.set(x, 0.25 + d.hang / 2, 0);
+        s.add(wire);
+      }
+    }
+    g.add(s);
+  }
   return g;
 }

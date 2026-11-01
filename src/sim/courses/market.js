@@ -28,12 +28,20 @@ export function market() {
   b.decor('jog', [0, 0, 0], { pts: [[7.6, 116], [13.8, 124]], side: 1 });
   b.decor('railing', [-1.0, 0.6, 140], { z1: 188 });
   b.decor('backwall', [0, 0, -6.6], { w: 16 });
+  // the way to the sea: bunting across the street and blue signs on the walls
+  for (const z of [24, 58, 92]) b.decor('bunting', [0, 0, z], { x0: -7.6, x1: 7.6, h: 4.4 });
+  b.decor('bunting', [0, 0, 150], { x0: -1.2, x1: 13.8, h: 4.4 });
+  b.decor('sign', [0, 3.55, 24], { arrow: 'ahead', hang: 0.75 });
+  b.decor('sign', [0.5, 3.55, 58], { arrow: 'ahead', hang: 0.75 });
+  b.decor('sign', [-0.5, 3.55, 92], { arrow: 'ahead', hang: 0.75 });
+  b.decor('sign', [-7.2, 2.6, 106], { yaw: Math.PI / 2 + 0.6, arrow: 'left' });
+  b.decor('sign', [-1.0, 2.6, 133], { yaw: Math.PI / 2 + 0.4, arrow: 'ahead' });
+  b.decor('sign', [6.5, 3.55, 150], { arrow: 'ahead', hang: 0.75 });
 
   // ---------------------------------------------------------------- the start: a fishmonger's ice table
   b.box([0, 0.45, 0], [6.6, 0.9, 2.6], { surf: 'wood', look: 'counter', tint: 'blue' });
   b.box([0, 0.95, 0], [6.4, 0.1, 2.4], { surf: 'ice', look: 'ice' });
   b.decor('pricetags', [0, 1.0, 0], { w: 6.2, d: 2.2, n: 9, seed: 1 });
-  b.decor('awning', [0, 3.1, -0.4], { w: 7.4, d: 3.4, tint: 'red', slope: 0.25, axis: 'z' });
 
   // ---------------------------------------------------------------- A: the stalls (z 2-30)
   b.stall(5.7, 12, 11, 1, { awning: 'red' });

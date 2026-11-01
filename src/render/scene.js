@@ -17,7 +17,7 @@ export function createStage(canvas, opts = {}) {
 
   const scene = new THREE.Scene();
   const fogColor = new THREE.Color(0xd7e9f2);
-  scene.fog = new THREE.Fog(fogColor, 45, 190);
+  scene.fog = new THREE.Fog(fogColor, 70, 340);
   scene.background = fogColor.clone();
 
   const camera = new THREE.PerspectiveCamera(58, 16 / 9, 0.05, 900);

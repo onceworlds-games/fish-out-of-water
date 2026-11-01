@@ -1,9 +1,11 @@
 # Status (working notes, deleted before the final commit)
 
 Done:
-- DESIGN.md (approved with notes: polish Market first; 4 great courses beat 6 thin; flop feel first; arc must match; slap is a quiet bonus; lucky gull rare + visible; two-thumb phone input; sea always visible or pointed to).
-- package.json, vite config, deps installed.
+- DESIGN.md approved (notes: Market polish first; 4 great courses; flop feel; arc = landing; slap quiet bonus; lucky gull rare + visible; two thumbs; sea always pointed to).
+- Sim (physics, arc, water, hazards cat/feet, bots), Market + Quay, renderer, fish, HUD, screens, audio, net (cup on createMatch, bots, finish rpc, stub room), trials, daily, posters (scenes + badges + test-* inspection scenes).
+- First playable: title, race with bots on the local platform (shot works).
 
 Next:
-- sim core (physics, flop, arc, moisture) + tests
-- quay + market course data, renderer, fish, camera, arc
+- Wayfinding signs; check cat/feet look; tune camera + flop feel
+- Kitchen, Beach (gulls, lucky gull), Park; cups
+- tests; posters; trailer; DESIGN.md/README; re-read all files

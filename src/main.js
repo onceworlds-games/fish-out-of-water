@@ -28,6 +28,7 @@ import { CUPS, cupCourses, nextMedal, fmtTime, dailyCatch, NO_TWIST, ordinal } f
 import { runBot } from './sim/run.js';
 import { createActor, giveBody, simulate, syncFromBody, syncFromSample, stateCode, eventFx, remoteEvents, FISH_IDS, COLOURWAYS } from './actors.js';
 import { hashString } from './sim/rng.js';
+import { loadFonts } from './fonts.js';
 
 const ow = typeof window !== 'undefined' ? window.onceworlds ?? null : null;
 const params = new URLSearchParams(location.search);
@@ -56,9 +57,6 @@ function setFlow(name) {
 }
 
 async function boot() {
-  setFlow('boot-start');
-  addEventListener('error', (e) => setFlow(`err:${String(e.message).slice(0, 120)}`));
-  addEventListener('unhandledrejection', (e) => setFlow(`rej:${String(e.reason?.message ?? e.reason).slice(0, 120)}`));
   const canvas = document.getElementById('game');
   const uiRoot = document.getElementById('ui');
   const settings = ow?.settings ?? null;
@@ -204,9 +202,7 @@ async function boot() {
     return Math.max(0, 1 - d / 14) * 0.6;
   };
 
-  setFlow('boot-progress');
-  await progress.load();
-  setFlow('boot-loaded');
+  await Promise.all([progress.load(), loadFonts()]);
 
   // ---------------------------------------------------------------- actors
   function clearActors() {
@@ -1026,7 +1022,7 @@ async function boot() {
   function chaseCam(dt, a) {
     const b = a.body;
     const s = b ? { x: b.x, y: b.y, z: b.z, yaw: input.state.yaw, curl: a.rs.curl, ground: b.ground } : { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: a.rs.aim, curl: a.rs.curl, ground: a.rs.ground };
-    cam.follow(dt, s, G.course.world, { dist: 3.4, up: 1.45 });
+    cam.follow(dt, s, G.course.world, { dist: 2.75, up: 1.2 });
   }
   function watchCam(dt, a) {
     const yaw = Math.atan2(a.rs.vx, a.rs.vz);

@@ -46,7 +46,7 @@ export function createChaseCam(camera) {
       const dist = (opts.dist ?? 3.7) + charge * 0.7;
       const up = (opts.up ?? 1.55) + charge * 0.55;
       const dx = Math.sin(s.yaw), dz = Math.cos(s.yaw);
-      const ahead = 1.3 + charge * 1.8;
+      const ahead = 1.0 + charge * 1.9;
       look.set(follow.x + dx * ahead, follow.y + 0.25 + charge * 0.1, follow.z + dz * ahead);
       const want = new THREE.Vector3(follow.x - dx * dist, follow.y + up, follow.z - dz * dist);
       // keep the boom out of walls: ease in fast, out slowly
