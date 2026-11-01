@@ -3,7 +3,7 @@
 // It also drives the gold ghost and the trailer's autoplay. Pure: node tests race bots through whole courses.
 
 import { predictArc, canFlop, respawn } from './body.js';
-import { FLOP, SLAP, WATER } from './config.js';
+import { FLOP, SLAP, WATER, SURFACES } from './config.js';
 import { polyLengths, project, pointAt } from './build.js';
 import { createRng, clamp, lerp } from './rng.js';
 
@@ -60,10 +60,14 @@ export function createBrain(course, opts = {}) {
     step(b, dt, t, hazards) {
       brain.airT = b.ground ? 0 : brain.airT + dt;
       if (b.state !== 'ok') {
+        // dried out or carried off: it comes back somewhere else, so progress starts over from there
         brain.mode = 'wait';
         brain.wait = react * 0.6;
         brain.held = 0;
         brain.chain = null;
+        brain.best = -Infinity;
+        brain.stuck = 0;
+        brain.seg = -1;
         return out(false);
       }
       const pr = project(route, lens, b.x, b.z, brain.seg);
@@ -76,6 +80,7 @@ export function createBrain(course, opts = {}) {
       if (brain.stuck > 9 && b.ground) {
         respawn(b);
         brain.stuck = 0;
+        brain.best = -Infinity;
         brain.respawns++;
         brain.seg = -1;
         return out(false);
@@ -200,7 +205,10 @@ export function createBrain(course, opts = {}) {
   function choose(b, t, hazards, from = null) {
     const fx = from ? from.x : b.x, fz = from ? from.z : b.z;
     // water first when running low
-    const low = b.m < waterAt || (from && b.m < waterAt + 12);
+    // on a surface that dries you faster, think of water sooner
+    const sd = SURFACES[b.surf]?.drain ?? 1;
+    const at = Math.min(72, waterAt * clamp(sd, 1, 2.2));
+    const low = b.m < at || (from && b.m < at + 12);
     if (low) {
       const z = nearestRefill(b, 30);
       if (z) {

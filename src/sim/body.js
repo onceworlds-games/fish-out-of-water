@@ -418,6 +418,9 @@ export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
   let t = 0;
   let n = 0;
   if (points) points.push(x, y, z);
+  // Walls the fish is already leaning on: the real step slides off them, so we do too instead of stopping there.
+  const leaning = [];
+  for (const col of world.query(x, y, z, r + 0.03)) if (contact(col, x, y, z, r + 0.03, tmp) && tmp.ny <= GROUND_NY) leaning.push(col);
   // The real step moves first, then resolves: so do we, and we stop at the first contact we're moving into.
   while (t < maxT) {
     t += dt;
@@ -442,6 +445,13 @@ export function predictArc(b, world, yaw, charge, twist = NO_TWIST, opts = {}) {
       x += tmp.nx * tmp.depth;
       y += tmp.ny * tmp.depth;
       z += tmp.nz * tmp.depth;
+      if (tmp.ny <= GROUND_NY && leaning.includes(col)) {
+        const bounce = impactBounce(-vn, surfOf(col.surf));
+        vx += -vn * tmp.nx * (1 + bounce);
+        vy += -vn * tmp.ny * (1 + bounce);
+        vz += -vn * tmp.nz * (1 + bounce);
+        continue;
+      }
       if (!hit || tmp.ny > ny) {
         hit = col;
         ny = tmp.ny;

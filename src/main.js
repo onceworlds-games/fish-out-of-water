@@ -663,7 +663,7 @@ async function boot() {
       if (s.bot && match.isHost) hostBot(a, slot, course.start.yaw, onlyHuman && match.round === 1);
       G.actors.set(s.id, a);
     }
-    if (!G.me) G.camMode = 'watch';
+    G.camMode = G.me ? 'chase' : 'watch';
     hud.courseCard(course.name, match.rounds > 1 ? `Race ${match.round} of ${match.rounds}` : null);
     G.introStart = performance.now();
     G.beat = 4;
@@ -950,6 +950,10 @@ async function boot() {
       }
     } else if (e.type === 'slide' && e.dist >= 10) award('ice-skater');
     else if (e.type === 'dry') hud.callout('Dried out!', { kind: 'red', seconds: 1.1 });
+    else if (e.type === 'grab') {
+      hud.callout(e.lucky ? 'Lucky gull!' : 'Gull!', { kind: e.lucky ? '' : 'red', seconds: 1.1 });
+      if (!e.lucky) award('gull-bait');
+    }
     else if (e.type === 'finish') {
       hud.callout('SPLASH!', { kind: '', seconds: 1.6 });
       if (G.mode === 'match' && match.phase === 'round' && !a.sentFinish) {
@@ -1019,10 +1023,11 @@ async function boot() {
     camL.set(Math.sin(t) * 1.2 + 0.5, 0.2, 4.5);
     cam.place(dt, camP, camL, 2);
   }
+  const CHASE = { dist: 2.6, up: 1.45 };
   function chaseCam(dt, a) {
     const b = a.body;
     const s = b ? { x: b.x, y: b.y, z: b.z, yaw: input.state.yaw, curl: a.rs.curl, ground: b.ground } : { x: a.rs.x, y: a.rs.y, z: a.rs.z, yaw: a.rs.aim, curl: a.rs.curl, ground: a.rs.ground };
-    cam.follow(dt, s, G.course.world, { dist: 2.75, up: 1.2 });
+    cam.follow(dt, s, G.course.world, CHASE);
   }
   function watchCam(dt, a) {
     const yaw = Math.atan2(a.rs.vx, a.rs.vz);
@@ -1228,6 +1233,9 @@ async function boot() {
       const v = 1 - d / 12;
       if (e.type === 'stomp') audio.stomp(0.32 * v);
       else if (e.type === 'swipe') audio.swipe();
+      else if (e.type === 'slam') audio.knock('pan');
+      else if (e.type === 'squawk') audio.gull((e.lucky ? 0.22 : 0.16) * Math.max(0.4, v));
+      else if (e.type === 'throw') audio.clack(0.25 * v);
     }
     hazardSink.length = 0;
   }

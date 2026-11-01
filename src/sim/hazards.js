@@ -110,6 +110,277 @@ const KINDS = {
       return false;
     },
   },
+
+  // The chef works the line: he walks to a station, raises his pan (a red circle on the floor for `tele` seconds) and
+  // slams it down, then on to the next station and back. He stands `back` metres behind the spot, facing -z.
+  chef: {
+    init(h) {
+      h.period = h.period ?? 3.2;
+      h.tele = h.tele ?? 0.8;
+      h.strike = 0.15;
+      h.slamAt = h.period - 0.5;
+      h.radius = h.radius ?? 1.4;
+      h.back = h.back ?? 2.0;
+      h.floor = h.floor ?? 0;
+      const n = h.stations.length;
+      h.seq = [];
+      for (let i = 0; i < n; i++) h.seq.push(i);
+      for (let i = n - 2; i > 0; i--) h.seq.push(i);
+    },
+    state(h, t, s) {
+      const u = t + h.phase;
+      const k = Math.floor(u / h.period);
+      const local = posMod(u, h.period);
+      const cur = h.stations[h.seq[posMod(k, h.seq.length)]];
+      const prev = h.stations[h.seq[posMod(k - 1, h.seq.length)]];
+      const walkEnd = h.slamAt - h.tele;
+      const w = Math.min(1, local / walkEnd);
+      const e = w * w * (3 - 2 * w);
+      s.cycle = k;
+      s.sx = cur[0];
+      s.sz = cur[1];
+      s.x = prev[0] + (cur[0] - prev[0]) * e;
+      s.z = prev[1] + (cur[1] - prev[1]) * e + h.back;
+      s.walking = w < 1;
+      s.walk = local / walkEnd;
+      s.tele = local >= walkEnd && local < h.slamAt ? (local - walkEnd) / h.tele : 0;
+      s.striking = local >= h.slamAt && local < h.slamAt + h.strike;
+      s.after = local >= h.slamAt ? (local - h.slamAt) / (h.period - h.slamAt) : 0;
+      return s;
+    },
+    affect(h, b, t, s) {
+      // his legs are solid: out of a 0.4 m column
+      const cx = b.x - s.x, cz = b.z - s.z;
+      const cd = Math.hypot(cx, cz);
+      if (cd < 0.4 + 0.16 && b.y < h.floor + 1.9 && cd > 1e-4) {
+        const push = 0.56 - cd;
+        b.x += (cx / cd) * push;
+        b.z += (cz / cd) * push;
+        const vn = (b.vx * cx + b.vz * cz) / cd;
+        if (vn < 0) {
+          b.vx -= (vn * cx) / cd;
+          b.vz -= (vn * cz) / cd;
+        }
+      }
+      if (!s.striking || b.y > h.floor + 1.0) return;
+      const dx = b.x - s.sx, dz = b.z - s.sz;
+      const d = Math.hypot(dx, dz);
+      if (d > h.radius) return;
+      if (b.hits[h.id] === s.cycle) return;
+      b.hits[h.id] = s.cycle;
+      const nx = d > 0.05 ? dx / d : 1, nz = d > 0.05 ? dz / d : 0;
+      knock(b, [nx * 6, 4, nz * 6], 'pan');
+    },
+    danger(h, x, z, t) {
+      const s = KINDS.chef.state(h, t, {});
+      const dx = x - s.sx, dz = z - s.sz;
+      if (dx * dx + dz * dz > (h.radius + 0.4) ** 2) return false;
+      const local = posMod(t + h.phase, h.period);
+      return local > h.slamAt - h.tele - 0.4 && local < h.slamAt + 0.3;
+    },
+  },
+
+  // A gull circles over one of its stations, dives (its shadow grows for `dive` seconds), snatches any fish under it,
+  // carries it to that station's drop point (back down the beach, or 20 m ahead for the lucky gull) and flies back up.
+  // Its whole flight is a function of the clock; a carried fish just rides along. Caught fish can't be caught for 3 s.
+  gull: {
+    init(h) {
+      h.period = h.period ?? 8;
+      h.dive = h.dive ?? 1.1;
+      h.strike = 0.3;
+      h.carry = 1.6;
+      h.back = 1.5;
+      h.cruiseH = h.cruiseH ?? 5;
+      h.cruiseR = h.cruiseR ?? 4;
+      h.radius = h.radius ?? 0.8;
+      h.floor = h.floor ?? 0;
+      h.cruise = h.period - h.dive - h.strike - h.carry - h.back;
+    },
+    state(h, t, s) {
+      const u = t + h.phase;
+      const k = Math.floor(u / h.period);
+      const local = posMod(u, h.period);
+      const n = h.stations.length;
+      const st = h.stations[posMod(k, n)];
+      const nx = h.stations[posMod(k + 1, n)];
+      s.cycle = k;
+      s.at = st.at;
+      s.drop = st.drop;
+      s.tele = 0;
+      s.striking = false;
+      s.pos = s.pos ?? [0, 0, 0];
+      const cruise = (c, uu, out) => {
+        const a = uu * 0.9 + (h.spin ?? 0);
+        out[0] = c[0] + Math.cos(a) * h.cruiseR;
+        out[1] = c[1] + h.cruiseH + Math.sin(uu * 1.7) * 0.3;
+        out[2] = c[2] + Math.sin(a) * h.cruiseR;
+        s.heading = a + Math.PI / 2;
+        return out;
+      };
+      const A = h.cruise, D = A + h.dive, S = D + h.strike, C = S + h.carry;
+      const p = s.pos;
+      if (local < A) {
+        s.mode = 'cruise';
+        cruise(st.at, u, p);
+      } else if (local < D) {
+        s.mode = 'dive';
+        const k1 = (local - A) / h.dive;
+        s.tele = k1;
+        const from = cruise(st.at, u - local + A, [0, 0, 0]);
+        const e = k1 * k1;
+        p[0] = from[0] + (st.at[0] - from[0]) * e;
+        p[1] = from[1] + (st.at[1] + 0.35 - from[1]) * (1 - Math.pow(1 - k1, 2.2));
+        p[2] = from[2] + (st.at[2] - from[2]) * e;
+        s.heading = Math.atan2(st.at[0] - from[0], st.at[2] - from[2]);
+      } else if (local < S) {
+        s.mode = 'strike';
+        s.striking = true;
+        p[0] = st.at[0];
+        p[1] = st.at[1] + 0.35;
+        p[2] = st.at[2];
+        s.heading = Math.atan2(st.drop[0] - st.at[0], st.drop[2] - st.at[2]);
+      } else if (local < C) {
+        s.mode = 'carry';
+        const k2 = (local - S) / h.carry;
+        s.k = k2;
+        p[0] = st.at[0] + (st.drop[0] - st.at[0]) * k2;
+        p[1] = st.at[1] + 0.35 + Math.sin(k2 * Math.PI) * 4 + (st.drop[1] + 1.2 - st.at[1]) * k2;
+        p[2] = st.at[2] + (st.drop[2] - st.at[2]) * k2;
+        s.heading = Math.atan2(st.drop[0] - st.at[0], st.drop[2] - st.at[2]);
+      } else {
+        s.mode = 'back';
+        const k3 = (local - C) / h.back;
+        const to = cruise(nx.at, u - local + h.period, [0, 0, 0]);
+        const e = k3 * k3 * (3 - 2 * k3);
+        p[0] = st.drop[0] + (to[0] - st.drop[0]) * e;
+        p[1] = st.drop[1] + 1.55 + (to[1] - st.drop[1] - 1.55) * Math.sqrt(k3);
+        p[2] = st.drop[2] + (to[2] - st.drop[2]) * e;
+        s.heading = Math.atan2(to[0] - st.drop[0], to[2] - st.drop[2]);
+      }
+      return s;
+    },
+    affect(h, b, t, s) {
+      if (!s.striking || b.y > h.floor + s.at[1] + 1.0) return;
+      if ((b.immune ?? -1) > t) return;
+      const dx = b.x - s.at[0], dz = b.z - s.at[2];
+      if (dx * dx + dz * dz > h.radius * h.radius) return;
+      b.state = 'grab';
+      b.grab = { id: h.id, cycle: s.cycle, lucky: !!h.lucky };
+      b.holding = false;
+      b.holdT = 0;
+      b.queued = null;
+      b.events.push({ type: 'grab', lucky: !!h.lucky, x: b.x, y: b.y, z: b.z });
+    },
+    carry(h, b, t) {
+      const s = KINDS.gull.state(h, t, {});
+      if (s.cycle !== b.grab.cycle || (s.mode !== 'strike' && s.mode !== 'carry')) {
+        b.immune = t + 3;
+        return { done: true };
+      }
+      const p = [s.pos[0], s.pos[1] - 0.42, s.pos[2]];
+      const s2 = KINDS.gull.state(h, t + 0.02, {});
+      const vel = s2.cycle === s.cycle ? [(s2.pos[0] - s.pos[0]) / 0.02, (s2.pos[1] - s.pos[1]) / 0.02, (s2.pos[2] - s.pos[2]) / 0.02] : [0, 0, 0];
+      return { pos: p, vel, done: false };
+    },
+    danger(h, x, z, t) {
+      if (h.lucky) return false;
+      const local = posMod(t + h.phase, h.period);
+      if (local < h.cruise - 0.3 || local > h.cruise + h.dive + h.strike + 0.2) return false;
+      const s = KINDS.gull.state(h, t, {});
+      const dx = x - s.at[0], dz = z - s.at[2];
+      return dx * dx + dz * dz < (h.radius + 0.5) ** 2;
+    },
+  },
+
+  // A boules lane: a throw every `period` seconds, from alternate ends. For `wind` seconds before a throw the lane's
+  // start lights up; the boule then rolls across at `speed`. A boule bowls a fish over.
+  boules: {
+    init(h) {
+      h.period = h.period ?? 2.6;
+      h.wind = h.wind ?? 0.8;
+      h.speed = h.speed ?? 5;
+      h.r = h.r ?? 0.36;
+      h.floor = h.floor ?? 0;
+      h.len = Math.abs(h.x1 - h.x0);
+      h.life = h.len / h.speed;
+    },
+    state(h, t, s) {
+      const u = t + h.phase;
+      const k = Math.floor(u / h.period);
+      const local = posMod(u, h.period);
+      s.balls = s.balls ?? [];
+      s.balls.length = 0;
+      // every throw still rolling: thrown at the start of its cycle
+      const back = Math.ceil(h.life / h.period);
+      for (let j = 0; j <= back; j++) {
+        const kk = k - j;
+        const age = local + j * h.period;
+        if (age < 0 || age > h.life) continue;
+        const dir = kk % 2 === 0 ? 1 : -1;
+        const x = dir > 0 ? h.x0 + h.speed * age : h.x1 - h.speed * age;
+        s.balls.push({ x, z: h.z, dir, k: kk, roll: age * h.speed / h.r });
+      }
+      // the next throw's wind-up
+      s.tele = local > h.period - h.wind ? (local - (h.period - h.wind)) / h.wind : 0;
+      s.nextDir = (k + 1) % 2 === 0 ? 1 : -1;
+      return s;
+    },
+    affect(h, b, t, s) {
+      if (b.y > h.floor + h.r * 2 + 0.3) return;
+      for (const ball of s.balls) {
+        const dx = b.x - ball.x, dz = b.z - ball.z;
+        if (dx * dx + dz * dz > (h.r + 0.16) ** 2) continue;
+        const key = `${h.id}`;
+        if (b.hits[key] === ball.k) continue;
+        b.hits[key] = ball.k;
+        knock(b, [ball.dir * 5, 2.2, Math.sign(dz || 1) * 1.2], 'boule');
+      }
+    },
+    danger(h, x, z, t) {
+      if (Math.abs(z - h.z) > h.r + 0.7) return false;
+      for (const dt of [-0.3, 0, 0.3]) {
+        const s = KINDS.boules.state(h, t + dt, {});
+        for (const ball of s.balls) if (Math.abs(ball.x - x) < 1.2) return true;
+      }
+      return false;
+    },
+  },
+
+  // A lawn sprinkler sweeps its jet back and forth: a fish in the jet is watered and nudged along it.
+  sprinkler: {
+    init(h) {
+      h.period = h.period ?? 4.8;
+      h.reach = h.reach ?? 4;
+      h.arc = h.arc ?? 1.6;
+      h.width = 0.22;
+      h.rate = h.rate ?? 55;
+    },
+    state(h, t, s) {
+      const u = (t + h.phase) / h.period;
+      s.angle = h.yaw + Math.sin(u * Math.PI * 2) * h.arc * 0.5;
+      s.dx = Math.sin(s.angle);
+      s.dz = Math.cos(s.angle);
+      return s;
+    },
+    inJet(h, b, s) {
+      const dx = b.x - h.at[0], dz = b.z - h.at[2];
+      const along = dx * s.dx + dz * s.dz;
+      if (along < 0.3 || along > h.reach || b.y > h.at[1] + 2.4) return false;
+      const across = Math.abs(dx * s.dz - dz * s.dx);
+      return across < h.width + along * 0.08;
+    },
+    refill(h, b, t, s) {
+      return KINDS.sprinkler.inJet(h, b, s) ? h.rate : 0;
+    },
+    affect(h, b, t, s) {
+      if (!b.ground || !KINDS.sprinkler.inJet(h, b, s)) return;
+      const along = b.vx * s.dx + b.vz * s.dz;
+      if (along < 1) {
+        b.vx += s.dx * 4 * (1 / 120);
+        b.vz += s.dz * 4 * (1 / 120);
+      }
+    },
+  },
 };
 
 /**

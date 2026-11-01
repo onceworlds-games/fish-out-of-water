@@ -47,7 +47,7 @@ export const SURFACES = {
   wood: { friction: 7, keep: 0.4, rest: 0.3, drain: 1.0, sound: 'thud' },
   steel: { friction: 3, keep: 0.6, rest: 0.2, drain: 0.9, sound: 'plink' },
   ice: { friction: 0.6, keep: 0.9, rest: 0.15, drain: -2, sound: 'ice' },
-  sand: { friction: 14, keep: 0.15, rest: 0.03, drain: 3.0, sound: 'sand' },
+  sand: { friction: 14, keep: 0.15, rest: 0.03, drain: 2.5, sound: 'sand' },
   wetsand: { friction: 9, keep: 0.25, rest: 0.05, drain: 0.4, sound: 'sand' },
   gravel: { friction: 10, keep: 0.25, rest: 0.1, drain: 1.5, sound: 'gravel' },
   grass: { friction: 9, keep: 0.3, rest: 0.3, drain: 0.9, sound: 'grass' },
@@ -56,6 +56,7 @@ export const SURFACES = {
   bounce: { friction: 4, keep: 0.7, rest: 0.85, drain: 1.0, minUp: 6.5, sound: 'boing' },
   net: { friction: 30, keep: 0, rest: 0, drain: 1.0, sticky: 0.6, sound: 'net' },
   water: { friction: 2.0, keep: 0.6, rest: 0.1, drain: 0, sound: 'splash' },
+  rail: { friction: 0.25, keep: 0.92, rest: 0.05, drain: 1.0, sound: 'plink' },
   wall: { friction: 6, keep: 0.45, rest: 0.25, drain: 1.0, sound: 'thud' },
 };
 

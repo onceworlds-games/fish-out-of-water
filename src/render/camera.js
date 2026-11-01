@@ -36,18 +36,21 @@ export function createChaseCam(camera) {
       }
       // critically damped springs: snappy across, softer up and down (flops are bouncy)
       const wx = 11, wy = s.ground ? 7 : 4.5;
+      const subs = Math.max(1, Math.ceil(dt * 90));
+      const h = dt / subs;
       for (const [k, w] of [['x', wx], ['y', wy], ['z', wx]]) {
-        const x = follow[k] - target[k];
-        const a = -w * w * x - 2 * w * followV[k];
-        followV[k] += a * dt;
-        follow[k] += followV[k] * dt;
+        for (let i = 0; i < subs; i++) {
+          const a = -w * w * (follow[k] - target[k]) - 2 * w * followV[k];
+          followV[k] += a * h;
+          follow[k] += followV[k] * h;
+        }
       }
       charge += ((s.curl ?? 0) - charge) * Math.min(1, dt * 5);
       const dist = (opts.dist ?? 3.7) + charge * 0.7;
       const up = (opts.up ?? 1.55) + charge * 0.55;
       const dx = Math.sin(s.yaw), dz = Math.cos(s.yaw);
       const ahead = 1.0 + charge * 1.9;
-      look.set(follow.x + dx * ahead, follow.y + 0.25 + charge * 0.1, follow.z + dz * ahead);
+      look.set(follow.x + dx * ahead, follow.y + 0.15 + charge * 0.1, follow.z + dz * ahead);
       const want = new THREE.Vector3(follow.x - dx * dist, follow.y + up, follow.z - dz * dist);
       // keep the boom out of walls: ease in fast, out slowly
       let free = 1;

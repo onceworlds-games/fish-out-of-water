@@ -55,7 +55,7 @@ export function readPresence(p) {
     h: num(p.h, -1e4, 1e4) ? p.h : 0,
     c: num(p.c, 0, 100) ? p.c / 100 : 0,
     m: num(p.m, 0, 100) ? p.m : 100,
-    s: num(p.s, 0, 4) ? Math.round(p.s) : 0,
+    s: num(p.s, 0, 7) ? Math.round(p.s) : 0,
     p: num(p.p, 0, 1e5) ? p.p / 10 : 0,
     f: num(p.f, 0, 4) ? Math.round(p.f) : 0,
     k: num(p.k, 0, 2) ? Math.round(p.k) : 0,
@@ -115,12 +115,6 @@ export function createCup(room, hooks) {
       const elapsed = m.elapsed;
       if (present.length && present.every((s) => d.fin[s.id] !== undefined)) return m.endRound();
       if (done.length && d.first > 0 && elapsed >= d.first + RACE.lastCall * 1000) return m.endRound();
-      // bots' progress, for the ranking of fish still on their way
-      const bp = hooks.botProgress?.();
-      if (bp && (m._progAt ?? 0) + 2000 < elapsed) {
-        m._progAt = elapsed;
-        hooks.setProg?.(bp);
-      }
     },
     score(m) {
       const d = m.data ?? { fin: {} };
@@ -142,7 +136,7 @@ export function createCup(room, hooks) {
 
   const botsState = host.state('bots', { schema: botsSchema, initial: { rid: '', list: [] } });
 
-  host.rpc('finish', {
+  const sendFinish = host.rpc('finish', {
     args: finishSchema,
     rate: 2,
     validate: (from, a) => {
@@ -176,7 +170,7 @@ export function createCup(room, hooks) {
     /** Tell the host this page's fish reached the water. */
     finish(rid, ms) {
       try {
-        host.rpc('finish').call?.({ rid, t: Math.round(ms) });
+        sendFinish({ rid, t: Math.round(ms) });
       } catch {}
     },
     /** Host: a bot reached the water. */

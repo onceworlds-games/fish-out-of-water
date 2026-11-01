@@ -396,6 +396,7 @@ export function createFishView(spId, cwIndex, opts = {}) {
     flight: false,
   };
   const offY = -0.16 + f.sp.W / 2 + 0.005;
+  const broad = opts.broadside !== false;
   const view = {
     group,
     fish: f,
@@ -405,7 +406,7 @@ export function createFishView(spId, cwIndex, opts = {}) {
           for (let i = 0; i <= n; i++) bendV[i] -= 9 + e.charge * 10;
           st.squashV -= 6;
           st.wide = 0.45;
-          st.spin = (Math.random() < 0.5 ? -1 : 1) * (4 + e.charge * 6);
+          st.spin = (broad || Math.random() < 0.5 ? 1 : -1) * (4.5 + e.charge * 5.5);
           st.flight = true;
         } else if (e.type === 'land') {
           const k = Math.min(1, e.speed / 9);
@@ -433,9 +434,12 @@ export function createFishView(spId, cwIndex, opts = {}) {
       st.t += dt;
       group.position.set(s.x, s.y + offY, s.z);
       const hs = Math.hypot(s.vx, s.vz);
-      // heading: aim while charging on the ground, travel direction in the air
+      // heading: broadside to the aim (head to the left of a camera behind it) on the ground, so the curl reads as a
+      // fish; held through a flight, where it log-rolls forward. Nose-first fish (posed shots) follow their travel.
       let want = st.heading;
-      if (s.curl > 0.02 && s.ground) want = s.aim;
+      if (broad) {
+        if (s.ground || !st.flight) want = s.aim + Math.PI / 2;
+      } else if (s.curl > 0.02 && s.ground) want = s.aim;
       else if (!s.ground && hs > 0.8) want = Math.atan2(s.vx, s.vz);
       let d = want - st.heading;
       d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -443,14 +447,19 @@ export function createFishView(spId, cwIndex, opts = {}) {
       group.rotation.y = st.heading - Math.PI / 2;
 
       // pitch: nose follows the arc in flight
-      const wantPitch = !s.ground && hs + Math.abs(s.vy) > 1 ? Math.atan2(s.vy, Math.max(0.5, hs)) * 0.7 : 0;
+      const wantPitch = !broad && !s.ground && hs + Math.abs(s.vy) > 1 ? Math.atan2(s.vy, Math.max(0.5, hs)) * 0.7 : 0;
       st.pitch += (wantPitch - st.pitch) * Math.min(1, dt * 10);
       // roll: a comic barrel roll in flight, back to lying flat (either side) on the ground
+      // springs step at most 1/90 s at a time, so a long frame can't blow them up
+      const subs = Math.max(1, Math.ceil(dt * 90));
+      const h = dt / subs;
       if (st.flight && !s.ground) st.roll += st.spin * dt;
       else {
         const target = Math.round(st.roll / Math.PI) * Math.PI;
-        st.rollV += (target - st.roll) * 160 * dt - st.rollV * 16 * dt;
-        st.roll += st.rollV * dt;
+        for (let k = 0; k < subs; k++) {
+          st.rollV += ((target - st.roll) * 160 - st.rollV * 16) * h;
+          st.roll += st.rollV * h;
+        }
       }
       tumble.rotation.set(st.roll, 0, st.pitch, 'XYZ');
 
@@ -468,8 +477,10 @@ export function createFishView(spId, cwIndex, opts = {}) {
         let target = curl * 0.62 * flip;
         if (flying) target = Math.sin(st.t * 15 + i * 1.1) * 0.32;
         if (s.state === 'dry') target = Math.sin(st.t * 3 + i) * 0.15;
-        bendV[i] += ((target - bend[i]) * 220 - bendV[i] * 14) * dt;
-        bend[i] += bendV[i] * dt;
+        for (let k = 0; k < subs; k++) {
+          bendV[i] += ((target - bend[i]) * 220 - bendV[i] * 14) * h;
+          bend[i] += bendV[i] * h;
+        }
       }
       // apply: front bones bend one way, back bones the other, so both ends lift
       const B = f.bones;
@@ -477,8 +488,10 @@ export function createFishView(spId, cwIndex, opts = {}) {
       for (let i = 1; i <= nf; i++) B[i].rotation.y = -bend[i - 1] * (i === 1 ? 0.8 : 1.1);
       for (let i = 1; i <= f.sp.back; i++) B[nf + i].rotation.y = bend[nf + i - 1] * (i === 1 ? 0.8 : 1.1);
       // squash and stretch: anticipation while curling, splat on landing
-      st.squashV += (-st.squash * 260 - st.squashV * 16) * dt;
-      st.squash += st.squashV * dt;
+      for (let k = 0; k < subs; k++) {
+        st.squashV += (-st.squash * 260 - st.squashV * 16) * h;
+        st.squash += st.squashV * h;
+      }
       const sq = st.squash + curl * 0.12;
       st.puff = Math.max(0, st.puff - dt * 1.6);
       const puff = f.sp.spikes ? 1 + st.puff * 0.35 : 1;

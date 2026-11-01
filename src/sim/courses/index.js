@@ -5,11 +5,14 @@ import { createWorld } from '../world.js';
 import { polyLengths, project } from '../build.js';
 import { quay } from './quay.js';
 import { market } from './market.js';
+import { kitchen } from './kitchen.js';
+import { beach } from './beach.js';
+import { park } from './park.js';
 
-const MAKERS = { quay, market };
+const MAKERS = { quay, market, kitchen, beach, park };
 /** The race courses, in unlock order. */
-export const COURSE_IDS = ['market'];
-export const COURSE_NAMES = { quay: 'The Quay', market: 'The Fish Market' };
+export const COURSE_IDS = ['market', 'kitchen', 'beach', 'park'];
+export const COURSE_NAMES = { quay: 'The Quay', market: 'The Fish Market', kitchen: 'The Kitchen', beach: 'The Beach', park: 'The Park' };
 
 const cache = new Map();
 

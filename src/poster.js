@@ -43,6 +43,20 @@ export async function runPoster(name, params) {
     params.set('s', m[2]);
     make = SCENES['test-course'];
   }
+  const mh = /^test-h-([a-z]+)-(\d+)-(\d+)$/.exec(name);
+  if (mh) {
+    params.set('c', mh[1]);
+    params.set('i', mh[2]);
+    params.set('t', String(Number(mh[3]) / 10));
+    make = SCENES['test-hazard'];
+  }
+  const ms = /^test-s-(?:([a-z]+)-)?(\d+)-(\d+)$/.exec(name);
+  if (ms) {
+    params.set('c', ms[1] ?? 'market');
+    params.set('t', String(Number(ms[2]) / 100));
+    params.set('f', ms[3]);
+    make = SCENES['test-start'];
+  }
   await make(stage, W, H, params);
   stage.render();
   await new Promise((r) => requestAnimationFrame(r));
@@ -122,7 +136,7 @@ function shoot(stage, pos, look, fov) {
 
 /** A fish posed by hand (for the close-ups): position, heading, curl, in the air or not. */
 function posed(stage, sp, cw, s, steps = 40) {
-  const v = createFishView(sp, cw, { pin: '#ffc93c' });
+  const v = createFishView(sp, cw, { pin: '#ffc93c', broadside: s.broadside ?? false });
   stage.scene.add(v.group);
   if (s.flop) v.events([{ type: 'flop', charge: 1 }]);
   for (let i = 0; i < steps; i++) v.update(1 / 60, { x: s.x, y: s.y, z: s.z, vx: s.vx ?? 0, vy: s.vy ?? 0, vz: s.vz ?? 0, aim: s.aim ?? 0, curl: s.curl ?? 0, ground: !!s.ground, wet: s.wet ?? 1, state: 'ok' });
@@ -185,7 +199,7 @@ const SCENES = {
     chase(stage, r.fish[0], 0);
   },
   async 'test-start'(stage, W, H, params) {
-    const r = stageRace(stage, 'market', Number(params.get('t') ?? 0.6), { seed: 2 });
+    const r = stageRace(stage, params.get('c') ?? 'market', Number(params.get('t') ?? 0.6), { seed: 2 });
     const f = r.fish[Number(params.get('f') ?? 0)];
     chase(stage, f, f.yaw);
     if (f.b.holding) {
@@ -193,6 +207,14 @@ const SCENES = {
       const land = predictArc(f.b, r.course.world, f.yaw, chargeOf(f.b.holdT, f.b.fish), NO_TWIST, { points: pts, every: 3 });
       r.fx.arc(pts, land, 0);
     }
+  },
+  async 'test-hazard'(stage, W, H, params) {
+    const r = stageRace(stage, params.get('c') ?? 'kitchen', Number(params.get('t') ?? 4), { n: 0 });
+    const i = Number(params.get('i') ?? 0);
+    const h = r.hazards.list[i];
+    const st = r.hazards.at(r.time)[i];
+    const x = st.x ?? h.at?.[0] ?? 0, z = st.z ?? h.at?.[2] ?? 0;
+    shoot(stage, [x + 2.5, 2.6, z - 7.5], [x, 1.6, z], 60);
   },
   async 'test-course'(stage, W, H, params) {
     const s = Number(params.get('s') ?? 40);
@@ -204,9 +226,11 @@ const SCENES = {
 };
 
 function chase(stage, f, yaw) {
-  const dist = 3.4, up = 1.45;
+  // the game's chase camera at rest (camera.js with CHASE in main.js)
+  const c = f.b.holding ? chargeOf(f.b.holdT, f.b.fish) : 0;
+  const dist = 2.6 + c * 0.7, up = 1.45 + c * 0.55, ahead = 1 + c * 1.9;
   const dx = Math.sin(yaw), dz = Math.cos(yaw);
-  shoot(stage, [f.b.x - dx * dist, f.b.y + up, f.b.z - dz * dist], [f.b.x + dx * 1.3, f.b.y + 0.25, f.b.z + dz * 1.3]);
+  shoot(stage, [f.b.x - dx * dist, f.b.y + up, f.b.z - dz * dist], [f.b.x + dx * ahead, f.b.y + 0.15 + c * 0.1, f.b.z + dz * ahead]);
 }
 
 // ---------------------------------------------------------------- badges: a bold symbol on a coloured disc

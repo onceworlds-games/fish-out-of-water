@@ -154,6 +154,69 @@ export const TEX = {
         g.fillRect(0, r() * w, w, 1);
       }
     }),
+  gravel: () =>
+    canvasTex(128, 128, (g, w) => {
+      const r = rng(37);
+      g.fillStyle = '#d8cbb0';
+      g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 1400; i++) {
+        g.fillStyle = `rgba(${150 + r() * 80},${140 + r() * 70},${120 + r() * 60},${0.4 + r() * 0.5})`;
+        const s = 1 + r() * 3;
+        g.fillRect(r() * w, r() * w, s, s);
+      }
+    }),
+  gingham: () =>
+    canvasTex(64, 64, (g, w) => {
+      g.fillStyle = '#f4efe6';
+      g.fillRect(0, 0, w, w);
+      g.fillStyle = 'rgba(228,67,45,0.55)';
+      for (let i = 0; i < 4; i++) {
+        g.fillRect(i * 16, 0, 8, w);
+        g.fillRect(0, i * 16, w, 8);
+      }
+    }),
+  // a kitchen floor: black and cream squares, half a metre each
+  checker: () =>
+    canvasTex(128, 128, (g, w) => {
+      const r = rng(29);
+      const s = w / 2;
+      for (let i = 0; i < 2; i++)
+        for (let j = 0; j < 2; j++) {
+          g.fillStyle = (i + j) % 2 ? shade('#3a3f47', (r() - 0.5) * 0.04) : shade('#ece3d2', (r() - 0.5) * 0.04);
+          g.fillRect(i * s, j * s, s, s);
+        }
+      g.fillStyle = 'rgba(120,110,95,0.5)';
+      g.fillRect(0, 0, w, 1.5);
+      g.fillRect(0, s, w, 1.5);
+      g.fillRect(0, 0, 1.5, w);
+      g.fillRect(s, 0, 1.5, w);
+    }),
+  // white wall tiles laid like bricks
+  subway: () =>
+    canvasTex(128, 128, (g, w) => {
+      const r = rng(31);
+      g.fillStyle = '#b9bfc4';
+      g.fillRect(0, 0, w, w);
+      const rows = 8, th = w / rows, tw = w / 2;
+      for (let j = 0; j < rows; j++) {
+        const off = j % 2 ? tw / 2 : 0;
+        for (let i = -1; i < 3; i++) {
+          g.fillStyle = shade('#f6f3ec', (r() - 0.5) * 0.03);
+          g.fillRect(i * tw + off + 1.5, j * th + 1.5, tw - 3, th - 3);
+          g.fillStyle = 'rgba(255,255,255,0.6)';
+          g.fillRect(i * tw + off + 3, j * th + 2, tw - 8, 2);
+        }
+      }
+    }),
+  grate: () =>
+    canvasTex(64, 64, (g, w) => {
+      g.fillStyle = '#1a1d22';
+      g.fillRect(0, 0, w, w);
+      g.fillStyle = '#4d545c';
+      g.fillRect(0, 0, w, w);
+      g.fillStyle = '#23272d';
+      for (let i = 0; i < 8; i++) g.fillRect(i * 8 + 3, 4, 2, w - 8);
+    }),
 };
 
 function roundRect(g, x, y, w, h, r) {
@@ -209,7 +272,7 @@ export const M = {
   awningRed: () => mat('awningRed', () => new THREE.MeshStandardMaterial({ map: tex('stripes', '#f4efe6', '#e4432d'), roughness: 0.8, side: THREE.DoubleSide })),
   awningBlue: () => mat('awningBlue', () => new THREE.MeshStandardMaterial({ map: tex('stripes', '#f4efe6', '#0b5cad'), roughness: 0.8, side: THREE.DoubleSide })),
   sand: () => mat('sand', () => new THREE.MeshStandardMaterial({ map: tex('sand'), roughness: 0.95 })),
-  wetsand: () => mat('wetsand', () => new THREE.MeshStandardMaterial({ map: tex('sand'), color: 0xb8956a, roughness: 0.35 })),
+  wetsand: () => mat('wetsand', () => new THREE.MeshStandardMaterial({ map: tex('sand'), color: 0xd2b386, roughness: 0.3, envMapIntensity: 1.2 })),
   grass: () => mat('grass', () => new THREE.MeshStandardMaterial({ map: tex('grass'), roughness: 0.9 })),
   steel: () => mat('steel', () => new THREE.MeshStandardMaterial({ map: tex('steel'), roughness: 0.3, metalness: 0.75, envMapIntensity: 1.3 })),
   tyre: () => mat('tyre', () => new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })),
@@ -218,6 +281,34 @@ export const M = {
   fabric: (hex) => mat(`fabric${hex}`, () => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.85 })),
   skin: (hex) => mat(`skin${hex}`, () => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.7 })),
   tagSlate: () => mat('tagSlate', () => new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })),
+  warmwall: () => mat('warmwall', () => new THREE.MeshStandardMaterial({ map: tex('plaster'), color: 0xf6dc94, roughness: 0.9 })),
+  bluetile: () => mat('bluetile', () => new THREE.MeshStandardMaterial({ color: 0x0b5cad, roughness: 0.25, envMapIntensity: 1.1 })),
+  driftwood: () => mat('driftwood', () => new THREE.MeshStandardMaterial({ map: tex('planks'), color: 0xa89884, roughness: 0.9 })),
+  sandcastle: () => mat('sandcastle', () => new THREE.MeshStandardMaterial({ map: tex('sand'), color: 0xe0b878, roughness: 0.95 })),
+  rock: () => mat('rock', () => new THREE.MeshStandardMaterial({ color: 0x8a8f94, roughness: 0.85 })),
+  dune: () => mat('dune', () => new THREE.MeshStandardMaterial({ color: 0x9caf5a, roughness: 0.9 })),
+  weed: () => mat('weed', () => new THREE.MeshStandardMaterial({ color: 0x3f5a2a, roughness: 0.6 })),
+  gravel: () => mat('gravel', () => new THREE.MeshStandardMaterial({ map: tex('gravel'), roughness: 0.95 })),
+  gingham: () => mat('gingham', () => { const t = tex('gingham'); t.repeat.set(4, 4); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 }); }),
+  mow: () => mat('mow', () => new THREE.MeshStandardMaterial({ color: 0xf2ffd8, roughness: 0.9, transparent: true, opacity: 0.13, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 })),
+  hedge: () => mat('hedge', () => new THREE.MeshStandardMaterial({ color: 0x3f7a35, roughness: 0.85 })),
+  soil: () => mat('soil', () => new THREE.MeshStandardMaterial({ color: 0x6b4a32, roughness: 0.95 })),
+  bark: () => mat('bark', () => new THREE.MeshStandardMaterial({ color: 0x6b4a32, roughness: 0.9 })),
+  brass: () => mat('brass', () => new THREE.MeshStandardMaterial({ color: 0xd9b45a, roughness: 0.25, metalness: 0.85, envMapIntensity: 1.4 })),
+  kfloor: () => mat('kfloor', () => new THREE.MeshStandardMaterial({ map: tex('checker'), roughness: 0.32, envMapIntensity: 1.1 })),
+  subway: () => mat('subway', () => new THREE.MeshStandardMaterial({ map: tex('subway'), roughness: 0.25, envMapIntensity: 1.1 })),
+  grate: () => mat('grate', () => new THREE.MeshStandardMaterial({ map: tex('grate'), roughness: 0.4, metalness: 0.6 })),
+  hotplate: () => mat('hotplate', () => new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.5, metalness: 0.3 })),
+  glow: () => mat('glow', () => new THREE.MeshStandardMaterial({ color: 0xff5a1f, emissive: 0xff3a0a, emissiveIntensity: 1.6, roughness: 0.5 })),
+  lamp: () => mat('lamp', () => new THREE.MeshStandardMaterial({ color: 0xffb347, emissive: 0xff9a2a, emissiveIntensity: 1.4, roughness: 0.4 })),
+  copper: () => mat('copper', () => new THREE.MeshStandardMaterial({ color: 0xc8703f, roughness: 0.3, metalness: 0.85, envMapIntensity: 1.4 })),
+  burlap: () => mat('burlap', () => new THREE.MeshStandardMaterial({ color: 0xc4a170, roughness: 0.95 })),
+  tomato: () => mat('tomato', () => new THREE.MeshStandardMaterial({ color: 0xe0321e, roughness: 0.35 })),
+  onion: () => mat('onion', () => new THREE.MeshStandardMaterial({ color: 0xe8c9a0, roughness: 0.5 })),
+  china: () => mat('china', () => new THREE.MeshStandardMaterial({ color: 0xfbfaf6, roughness: 0.2, envMapIntensity: 1.2 })),
+  water: () =>
+    mat('water', () => new THREE.MeshStandardMaterial({ color: 0x5fd8ee, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.85, emissive: 0x0d6d8a, emissiveIntensity: 0.3, envMapIntensity: 2.0 })),
+  suds: () => mat('suds', () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, emissive: 0x9ad8e8, emissiveIntensity: 0.15 })),
   puddle: () =>
     mat('puddle', () => new THREE.MeshStandardMaterial({ color: 0x4cd3ec, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.78, emissive: 0x0d6d8a, emissiveIntensity: 0.35, envMapIntensity: 2.0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })),
   puddleRim: () => mat('puddleRim', () => new THREE.MeshBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 })),

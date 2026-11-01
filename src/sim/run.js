@@ -13,7 +13,7 @@ export function runBot(course, opts = {}) {
   const env = { world: course.world, hazards, twist: opts.twist, t: 0 };
   const max = opts.max ?? 240;
   let t = 0;
-  const stats = { dries: 0, knocks: 0, slaps: 0, flops: 0, minWater: 100, respawns: 0, track: opts.track ? [] : null };
+  const stats = { dries: 0, knocks: 0, grabs: 0, slaps: 0, flops: 0, minWater: 100, respawns: 0, track: opts.track ? [] : null };
   let nextTrack = 0;
   while (t < max) {
     t += STEP;
@@ -23,6 +23,7 @@ export function runBot(course, opts = {}) {
     for (const e of b.events) {
       if (e.type === 'dry') stats.dries++;
       else if (e.type === 'knock') stats.knocks++;
+      else if (e.type === 'grab') stats.grabs++;
       else if (e.type === 'flop') {
         stats.flops++;
         if (e.slap) stats.slaps++;

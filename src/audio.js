@@ -233,10 +233,19 @@ export function createAudio() {
         tone(t, 220, 1.1, 0.4, 'square', sfx);
         tone(t, 331, 0.9, 0.25, 'triangle');
         noise(t, 0.08, 1800, 1, 0.5);
+      } else if (kind === 'boule') {
+        tone(t, 2100, 0.12, 0.3, 'triangle', sfx, 1800);
+        tone(t, 3170, 0.08, 0.12, 'sine');
+        tone(t + 0.02, 90, 0.16, 0.5, 'sine', sfx, 45);
       } else {
         tone(t, 90, 0.16, 0.6, 'sine', sfx, 45);
         noise(t, 0.08, 500, 1, 0.45);
       }
+    }),
+    clack: safe((t, vol = 0.25) => {
+      tone(t, 2400, 0.07, vol, 'triangle', sfx, 2000);
+      tone(t + 0.09, 2250, 0.05, vol * 0.5, 'triangle', sfx, 1900);
+      noise(t, 0.05, 3000, 1, vol * 0.5, 'bandpass');
     }),
     stomp: safe((t, vol = 0.3) => {
       tone(t, 75, 0.14, vol, 'sine', sfx, 40);

@@ -907,3 +907,13 @@ button.tag:focus-visible {
     top: calc(var(--top) + 52px);
   }
 }
+
+/* a phone held upright: the timer drops below the platform's menu, the race line gets the width */
+@media (orientation: portrait) and (max-width: 560px) {
+  .hud-top {
+    top: var(--menu-h);
+  }
+  .hud-line {
+    width: 80vw;
+  }
+}

@@ -22,7 +22,7 @@ export function buildCourseView(course) {
   // ---------------------------------------------------------------- puddles and sprays
   const waters = [];
   for (const z of course.builder.zones) {
-    if (!z.rate || z.look === 'spray-hidden') continue;
+    if (!z.rate || z.look === 'spray-hidden' || z.look === 'tub') continue;
     if (z.kind === 'puddle') waters.push(makePuddle(root, z));
     else waters.push(makeSpray(root, z));
   }
@@ -39,6 +39,9 @@ export function buildCourseView(course) {
     if (lh) root.add(makeLighthouse(lh));
     root.add(makeBoats(course));
   }
+  // the surf: a sheet of foam that runs up the sand and back
+  const surf = course.surf ? makeSurf(course.surf) : null;
+  if (surf) root.add(surf.group);
   // gulls wheeling over the water: seen over the rooftops from anywhere on the course, they show where the sea is
   const gulls = course.sea && course.id !== 'quay' ? makeGullRing(course) : null;
   if (gulls) root.add(gulls.group);
@@ -54,6 +57,7 @@ export function buildCourseView(course) {
       sea?.userData.update(t);
       for (const w of waters) w.update(t);
       gulls?.update(t);
+      surf?.update(t);
     },
     dispose() {
       root.traverse((o) => {
@@ -62,6 +66,38 @@ export function buildCourseView(course) {
     },
   };
   return view;
+}
+
+function makeSurf(o) {
+  const group = new THREE.Group();
+  const sheets = [];
+  for (let i = 0; i < 3; i++) {
+    const g = new THREE.PlaneGeometry(o.x1 - o.x0, 2.2 + i * 0.6, 40, 1);
+    g.rotateX(-Math.PI / 2);
+    // a ragged leading edge
+    const pos = g.attributes.position;
+    for (let k = 0; k < pos.count; k++) if (pos.getZ(k) < 0) pos.setZ(k, pos.getZ(k) + Math.sin(pos.getX(k) * 0.7 + i * 2) * 0.35 + Math.sin(pos.getX(k) * 2.3) * 0.12);
+    const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.position.x = (o.x0 + o.x1) / 2;
+    group.add(mesh);
+    sheets.push({ mesh, m, ph: i / 3 });
+  }
+  return {
+    group,
+    update(t) {
+      for (const s of sheets) {
+        const k = ((t / 5.5 + s.ph) % 1 + 1) % 1;
+        const run = Math.sin(k * Math.PI);
+        const z = o.z + 1.2 - run * 4.2;
+        // ride the slope of the sand (y 0 at z0 - 8, down 0.9 over 14 m)
+        const y = Math.min(0, -0.9 * (z - (o.z - 8)) / 14) + 0.03;
+        s.mesh.position.set((o.x0 + o.x1) / 2, Math.max(-0.58, y), z);
+        s.mesh.rotation.x = 0.064;
+        s.m.opacity = 0.75 * Math.sin(k * Math.PI) ** 0.6;
+      }
+    },
+  };
 }
 
 const rimGeo = new THREE.RingGeometry(0.9, 1.0, 40).rotateX(-Math.PI / 2);

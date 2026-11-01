@@ -177,13 +177,18 @@ export function eventFx(ctx, a, e, near = 1) {
       if (loud) audio.finish();
       fx.burst(e.x, e.y, e.z, 40, 'splash', 2.2);
       break;
+    case 'grab':
+      if (loud) audio.gull(0.24);
+      fx.burst(e.x, e.y, e.z, 10, 'splash', 0.8);
+      if (mine) cam.addTrauma(0.25);
+      break;
     case 'drop':
       if (loud) audio.gull(0.12);
       break;
   }
 }
 
-const SOUND_OF = { tile: 'slap', wet: 'wet', stone: 'slap', wood: 'thud', steel: 'plink', ice: 'ice', sand: 'sand', wetsand: 'sand', gravel: 'gravel', grass: 'grass', hot: 'sizzle', plush: 'plush', bounce: 'boing', net: 'net', water: 'splash', wall: 'thud' };
+const SOUND_OF = { tile: 'slap', wet: 'wet', stone: 'slap', wood: 'thud', steel: 'plink', ice: 'ice', sand: 'sand', wetsand: 'sand', gravel: 'gravel', grass: 'grass', hot: 'sizzle', plush: 'plush', rail: 'plink', bounce: 'boing', net: 'net', water: 'splash', wall: 'thud' };
 export const soundOf = (surf) => SOUND_OF[surf] ?? 'slap';
 
 /** A remote fish's flops and landings, from counters in its presence. */
