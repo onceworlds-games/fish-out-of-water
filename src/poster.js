@@ -58,6 +58,7 @@ export async function runPoster(name, params) {
     make = SCENES['test-start'];
   }
   await make(stage, W, H, params);
+  await Promise.race([stage.envReady, new Promise((r) => setTimeout(r, 4000))]);
   stage.render();
   await new Promise((r) => requestAnimationFrame(r));
   stage.render();
@@ -264,6 +265,41 @@ const SCENES = {
   },
 
   // ------------------------------------------------------------ checks (never part of the store art)
+  // The fish on a tiled floor: ?sp=mackerel,goldfish&curl=0.5&hat=bucket,crown&cam=row|close|top&cw=0
+  async 'lab-fish'(stage, W, H, params) {
+    const loader = new THREE.TextureLoader();
+    const load = (n, srgb) =>
+      new Promise((res) =>
+        loader.load(`./tex/${n}.webp`, (t) => {
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(6, 6);
+          if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+          res(t);
+        }, undefined, () => res(null)),
+      );
+    const floorName = params.get('floor') ?? 'terracotta';
+    const [d, n, r] = await Promise.all([load(`${floorName}_d`, true), load(`${floorName}_n`), load(`${floorName}_r`)]);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: d, normalMap: n, roughnessMap: r, aoMap: r, metalnessMap: null }));
+    floor.receiveShadow = true;
+    stage.scene.add(floor);
+    const list = (params.get('sp') ?? 'mackerel,goldfish,flatfish,puffer,eel').split(',');
+    const hats = (params.get('hat') ?? '').split(',');
+    const curls = (params.get('curl') ?? '0').split(',').map(Number);
+    const cw = Number(params.get('cw') ?? 0);
+    const gap = Number(params.get('gap') ?? 1.05);
+    list.forEach((sp, i) => {
+      const x = (i - (list.length - 1) / 2) * -gap;
+      const v = posed(stage, sp, cw, { x, y: 0.16, z: 0, aim: 0, curl: curls[i % curls.length], ground: true, broadside: true, wet: Number(params.get('wet') ?? 1) }, 60);
+      if (hats[i % hats.length]) v.setHat(hats[i % hats.length]);
+      v.update(1 / 60, { x, y: 0.16, z: 0, vx: 0, vy: 0, vz: 0, aim: 0, curl: curls[i % curls.length], ground: true, wet: 1, state: 'ok' });
+    });
+    const cam = params.get('cam') ?? 'row';
+    if (cam === 'close') shoot(stage, [0.15, 0.42, -0.75], [0, 0.06, 0.05], 40);
+    else if (cam === 'eye') shoot(stage, [0.3, 0.32, -0.32], [0.22, 0.05, 0], 30);
+    else if (cam === 'side') shoot(stage, [0, 0.12, -1.1], [0, 0.08, 0], 40);
+    else if (cam === 'top') shoot(stage, [0, 2.4, -0.6], [0, 0, 0.1], 50);
+    else shoot(stage, [0, 0.85, -1.9], [0, 0.05, 0.3], 55);
+  },
   async 'test-quay'(stage) {
     const r = stageRace(stage, 'quay', 3, { n: 5, wander: [-7, -4.5, 7.5, 5.5] });
     chase(stage, r.fish[0], 0);
