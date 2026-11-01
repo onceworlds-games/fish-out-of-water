@@ -14,7 +14,8 @@ export const SUN_DIR = new THREE.Vector3(...SUN);
 
 const SKY = {
   noon: { top: 0x2f7fd8, mid: 0x7db9ec, horizon: 0xdcecf2, sun: 0xfff0d2, fog: 0xcfe2ea, sunI: 3.5, hemiI: 0.7, envI: 0.75, exposure: 1.0 },
-  kitchen: { top: 0x6aa8e0, mid: 0xa9d0ef, horizon: 0xf2ede2, sun: 0xffe4bf, fog: 0xe9dfcf, sunI: 2.4, hemiI: 0.75, envI: 0.65, exposure: 1.02 },
+  // indoors: the 'sun' is the ceiling's lights, nearly overhead (so shadows sit under things), the room's own reflections
+  kitchen: { top: 0x6aa8e0, mid: 0xa9d0ef, horizon: 0xf2ede2, sun: 0xfff1de, fog: 0xe9dfcf, sunI: 1.9, hemiI: 1.05, hemiSky: 0xfff6ea, hemiGround: 0xd9c4a8, envI: 1.0, exposure: 1.0, dir: [0.12, 1, 0.2], indoor: true },
 };
 
 /** The look's grade: warm highlights, cool shadows, a little more saturation and contrast. */
@@ -116,9 +117,48 @@ export function createStage(canvas, opts = {}) {
       }
       envTex?.dispose();
       envTex = t;
-      scene.environment = t;
+      if (!look.indoor) scene.environment = t;
     })
     .catch(() => {});
+
+  // a room's reflections for indoors: cream walls, a red tiled floor, a white ceiling with bright light panels
+  const lightDir = SUN_DIR.clone();
+  let roomEnv = null;
+  function indoorEnv() {
+    if (roomEnv) return roomEnv;
+    const rs = new THREE.Scene();
+    const box = (w, h, d, x, y, z, color, mat = 'basic') => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(...color), side: THREE.BackSide, toneMapped: false }));
+      m.position.set(x, y, z);
+      rs.add(m);
+      return m;
+    };
+    box(14, 4, 40, 0, 1.6, 0, [0.62, 0.58, 0.52]);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 0.12, 0.08), toneMapped: false }));
+    floor.position.y = -0.39;
+    rs.add(floor);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(14, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.7, 0.68, 0.64), toneMapped: false }));
+    ceil.position.y = 3.58;
+    rs.add(ceil);
+    for (let z = -18; z <= 18; z += 4)
+      for (const x of [-3, 3]) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.0).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 5.7, 5.2), toneMapped: false }));
+        p.position.set(x, 3.55, z);
+        rs.add(p);
+      }
+    // the windows down the harbour side
+    for (let z = -16; z <= 16; z += 6) {
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.6).rotateY(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 3.4, 3.8), toneMapped: false }));
+      w.position.set(6.9, 2.0, z);
+      rs.add(w);
+    }
+    roomEnv = pmrem.fromScene(rs, 0.02).texture;
+    rs.traverse((o) => {
+      o.geometry?.dispose();
+      o.material?.dispose();
+    });
+    return roomEnv;
+  }
 
   // ---------------------------------------------------------------- post
   let composer = null;
@@ -171,16 +211,23 @@ export function createStage(canvas, opts = {}) {
       // snap to shadow texels so the edges don't crawl
       const texel = (span * 2) / Math.max(1, sun.shadow.mapSize.x);
       const fx = Math.round(x / texel) * texel, fz = Math.round(z / texel) * texel;
-      sun.position.set(fx + SUN_DIR.x * 40, y + SUN_DIR.y * 40, fz + SUN_DIR.z * 40);
+      sun.position.set(fx + lightDir.x * 40, y + lightDir.y * 40, fz + lightDir.z * 40);
       sun.target.position.set(fx, y, fz);
       sky.position.set(x, 0, z);
     },
-    /** Outdoor noon or the kitchen (warm, softer sun through the windows). */
+    /** Outdoor noon, or the kitchen (overhead light, the room's own reflections). */
     setLook(name) {
-      look = SKY[name] ?? SKY.noon;
+      const next = SKY[name] ?? SKY.noon;
+      if (next === look && stage.lookSet) return;
+      stage.lookSet = true;
+      look = next;
+      lightDir.set(...(look.dir ?? SUN_DIR.toArray())).normalize();
       sun.color.setHex(look.sun);
       sun.intensity = look.sunI;
       hemi.intensity = look.hemiI;
+      hemi.color.setHex(look.hemiSky ?? 0xd8e6f6);
+      hemi.groundColor.setHex(look.hemiGround ?? 0xb0805a);
+      scene.environment = look.indoor ? indoorEnv() : envTex;
       scene.environmentIntensity = look.envI;
       fogColor.setHex(look.fog);
       scene.fog.color.copy(fogColor);

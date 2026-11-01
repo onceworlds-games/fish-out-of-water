@@ -124,6 +124,7 @@ function stageRace(stage, courseId, t, opts = {}) {
   const { course, hazards, fish } = r;
   const view = buildCourseView(course);
   stage.scene.add(view.root);
+  stage.setLook(course.indoor ? 'kitchen' : 'noon');
   const hv = createHazardViews(course, hazards);
   stage.scene.add(hv.root);
   const fx = createFx(stage.scene);

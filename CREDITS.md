@@ -27,7 +27,7 @@ ambient occlusion / roughness / metalness.
 | wetsand | Damp Beach Sand | Dimitrios Savva | https://polyhaven.com/a/damp_beach_sand |
 | grass | Leafy Grass | Charlotte Baglioni | https://polyhaven.com/a/leafy_grass |
 | ktiles | Long White Tiles | Jenelle van Heerden, Sergej Majboroda | https://polyhaven.com/a/long_white_tiles |
-| kfloor | Checkered Pavement Tiles | Amal Kumar | https://polyhaven.com/a/checkered_pavement_tiles |
+| qtiles | Dirty Tiles | Matterfield, Jenelle van Heerden | https://polyhaven.com/a/dirty_tiles |
 | plate | Metal Plate | Rob Tuytel | https://polyhaven.com/a/metal_plate |
 | gravel | Gravel Floor | Jenelle van Heerden, Matterfield | https://polyhaven.com/a/gravel_floor |
 | hessian | Hessian 230 | colormass, Rico Cilliers | https://polyhaven.com/a/hessian_230 |
@@ -42,6 +42,12 @@ ambient occlusion / roughness / metalness.
 | bplaster | Blue Plaster Weathered | Amal Kumar | https://polyhaven.com/a/blue_plaster_weathered |
 | rplaster | Red Plaster Weathered | Amal Kumar | https://polyhaven.com/a/red_plaster_weathered |
 | piazza | Floor Pattern 02 | Rob Tuytel | https://polyhaven.com/a/floor_pattern_02 |
+
+From [ambientCG](https://ambientcg.com), CC0. Converted the same way.
+
+| File | Texture | Source |
+| --- | --- | --- |
+| brushed | Metal 009 | https://ambientcg.com/view?id=Metal009 |
 
 ## Sky and reflections (`public/env/`)
 

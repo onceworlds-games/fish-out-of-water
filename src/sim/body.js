@@ -237,7 +237,7 @@ export function stepBody(b, input, env, dt = STEP) {
     b.vx += twist.wind[0] * dt;
     b.vz += twist.wind[1] * dt;
   }
-  if (!b.ground && world.updrafts.length) b.vy = updraft(world, b.x, b.y, b.z, b.vy, dt);
+  if (!b.ground && world.updrafts.length) updraft(world, b.x, b.y, b.z, b, dt);
   if (b.ground) {
     // friction pulls toward the ground's own motion (a belt, a pan): standing on it, you go with it
     const s = surfOf(b.surf);
@@ -468,14 +468,29 @@ function impactBounce(speed, s) {
 }
 
 /** Rising air: pushes a fish in the air up, toward the zone's top speed. */
-function updraft(world, x, y, z, vy, dt) {
+/** Rising air lifts `v` ({ vx, vy, vz }) in its column; a spout (`spread`) also throws it out from the middle (along
+ *  `dir` when it's dead centre), so nothing hovers in one for ever. */
+function updraft(world, x, y, z, v, dt) {
   for (const zone of world.updrafts) {
     if (!inZone(zone, x, y, z)) continue;
     const top = zone.maxUp ?? UPDRAFT.maxUp;
-    if (vy < top) vy = Math.min(top, vy + zone.lift * dt);
+    if (v.vy < top) v.vy = Math.min(top, v.vy + zone.lift * dt);
+    if (zone.spread) {
+      let dx = x - zone.c[0], dz = z - zone.c[2];
+      const d = Math.hypot(dx, dz);
+      if (d < zone.r * 0.2) {
+        dx = zone.dir?.[0] ?? 0;
+        dz = zone.dir?.[1] ?? 1;
+      } else {
+        dx /= d;
+        dz /= d;
+      }
+      v.vx += dx * zone.spread * dt;
+      v.vz += dz * zone.spread * dt;
+    }
   }
-  return vy;
 }
+const upV = { vx: 0, vy: 0, vz: 0 };
 
 function pickUp(b, world) {
   const items = world.items;
@@ -571,7 +586,15 @@ function trace(fish, world, x, y, z, vx, vy, vz, twist, opts) {
       vx += twist.wind[0] * dt;
       vz += twist.wind[1] * dt;
     }
-    if (ups) vy = updraft(world, x, y, z, vy, dt);
+    if (ups) {
+      upV.vx = vx;
+      upV.vy = vy;
+      upV.vz = vz;
+      updraft(world, x, y, z, upV, dt);
+      vx = upV.vx;
+      vy = upV.vy;
+      vz = upV.vz;
+    }
     x += vx * dt;
     y += vy * dt;
     z += vz * dt;

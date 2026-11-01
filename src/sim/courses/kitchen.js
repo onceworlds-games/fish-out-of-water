@@ -1,5 +1,7 @@
-// The Kitchen: out of the ice pan on the prep island, through the prep room, down the line past the chef and his pan
-// (or along the shelf over the hot stove), along the pass and into the pot sink under the harbour window.
+// The Kitchen: out of the ice pan on the prep island, through the prep room (a tray of jelly bounces you up to the spice
+// shelf), down the line past the chef and his pan (or ride the stockpot's steam up to the pan shelf over the hot range),
+// along the pass under the heat lamps or through the dishwasher on its belt, over the drains of the scullery floor and
+// into the pot sink under the harbour window.
 
 import { courseBuilder } from '../build.js';
 import { slotsOn } from './market.js';
@@ -15,14 +17,23 @@ export function kitchen() {
   b.wall(X1, -5, X1, ZE + 1, 6, -1, drawn);
   b.wall(-7, -4.6, 7, -4.6, 6, -1, drawn);
   b.wall(-7, ZE + 0.4, 7, ZE + 0.4, 6, -1, drawn);
-  b.decor('kwalls', [0, 0, 0], { x0: X0, x1: X1, z0: -4.6, z1: ZE + 0.4, windows: [[6, 16], [24, 36], [48, 62], [70, 90], [102, 118], [126, 142]], end: [-3.6, 3.6], h: 4.2 });
+  const H = 3.6; // the ceiling
+  b.decor('kroom', [0, 0, 0], { x0: X0, x1: X1, z0: -4.6, z1: ZE + 0.4, windows: [[6, 16], [24, 36], [48, 62], [70, 90], [102, 118], [126, 142]], end: [-3.6, 3.6, 1.3, 3.0], h: H, clock: [-2.5, 2.7, -4.58] });
   for (const z of [40, 96, 122]) {
-    b.box([-4.05, 2.1, z], [3.9, 4.2, 0.3], { surf: 'wall', look: 'kwalltile' });
-    b.box([4.05, 2.1, z], [3.9, 4.2, 0.3], { surf: 'wall', look: 'kwalltile' });
-    b.decor('lintel', [0, 3.7, z], { w: 4.2, h: 1.0 });
-    b.decor('sign', [0, 2.75, z - 0.2], { arrow: 'ahead', hang: 0.5 });
+    b.box([-4.05, H / 2, z], [3.9, H, 0.3], { surf: 'wall', look: 'kwalltile' });
+    b.box([4.05, H / 2, z], [3.9, H, 0.3], { surf: 'wall', look: 'kwalltile' });
+    b.decor('lintel', [0, H - 0.2, z], { w: 4.2, h: 0.4, plaster: true });
+    b.decor('sign', [0, 2.6, z - 0.2], { arrow: 'ahead', hang: 0.4 });
   }
-  b.decor('beams', [0, 4.35, 0], { x0: X0, x1: X1, z0: -4, z1: ZE, every: 2.4 });
+  // the hood over the range, the walk-in's door, mats and wet-floor signs at fish height
+  b.decor('khood', [-5.15, 2.92, 68], { w: 1.75, len: 50, h: 0.62 });
+  b.decor('walkin', [X0, 0, 8.5], { sgn: 1 });
+  b.decor('mat', [0, 0, 1.8], { w: 2.4, len: 1.4 });
+  b.decor('mat', [-3.4, 0, 68], { w: 1.0, len: 16 });
+  b.decor('mat', [3.6, 0, 106], { w: 1.0, len: 10 });
+  b.decor('wetsign', [-0.4, 0, 26.2], { yaw: 0.4 });
+  b.decor('wetsign', [2.3, 0, 133.6], { yaw: -0.3 });
+  b.decor('tickets', [-1.05, 2.05, 109], { len: 18 });
 
   // ---------------------------------------------------------------- the start: a pan of ice on the prep island
   b.box([0, 0.45, 0], [6.6, 0.9, 2.6], { surf: 'steel', look: 'steelcounter' });
@@ -51,6 +62,17 @@ export function kitchen() {
   b.puddle(2.2, 0, 6.6, 0.6);
   b.puddle(-1.6, 0, 27, 0.95, { look: 'mop' });
   b.decor('mopbucket', [-2.6, 0, 27.6], {});
+  // a tray of jelly on the right-hand counter: slap it and it throws you up to the spice shelf over the sink
+  b.box([5.35, 1.0, 13.6], [0.95, 0.2, 1.5], { surf: 'bounce', look: 'jelly' });
+  b.box([5.6, 1.86, 21.5], [0.8, 0.08, 9.0], { surf: 'wood', look: 'shelf' });
+  b.decor('jars', [5.75, 1.9, 21.5], { len: 8.6, seed: 4 });
+  b.dropArc([5.35, 1.1, 13.6], [5.6, 1.9, 18.6], 1.6, 3);
+  b.drops([[5.55, 1.9, 18.8], [5.55, 1.9, 24.0]], 1.3, 0.28);
+  b.scale(5.55, 1.9, 25.4);
+  // the floor line, and a drain by the mop that washes a careless fish back to it
+  b.drops([[0, 0, 4.2], [1.8, 0, 8.5], [2.2, 0, 15], [2.2, 0, 19.5]], 1.6);
+  b.drops([[-0.6, 0, 25.5], [-1.0, 0, 30], [0, 0, 36], [0.2, 0, 40.5]], 1.7);
+  b.drain(0.9, 0, 31.6, 0.42);
 
   // ---------------------------------------------------------------- B: the line (z 40-96): the range, the shelf, the chef
   b.box([-5.3, 0.45, 68], [1.4, 0.9, 50], { surf: 'hot', look: 'range' });
@@ -65,6 +87,19 @@ export function kitchen() {
   b.decor('veg', [5.35, 0.92, 62.5], { len: 14, depth: 0.9, seed: 17, sparse: true });
   b.decor('veg', [5.35, 0.92, 80], { len: 10, depth: 0.9, seed: 19, sparse: true });
   b.hazard({ kind: 'chef', id: 'chef', stations: [[-1.4, 59], [1.4, 61.4], [-1.4, 63.8], [1.4, 66.2], [0, 68.6]], period: 3.6, tele: 0.85, radius: 1.4, phase: 0.6 });
+  // the stockpot on the floor at the start of the line: its steam lifts a fish in the air up past the pan shelf
+  b.cyl([-3.25, 0, 45.6], 0.55, 0.86, { surf: 'steel', look: 'stockpot' });
+  b.updraft(-3.25, 0.86, 45.6, 0.62, 2.6, 30, 'steam');
+  b.dropArc([-3.25, 0.9, 43.6], [-5.45, 1.93, 48.6], 1.6, 3);
+  b.drops([[-5.45, 1.93, 49.5], [-5.45, 1.93, 90.0]], 1.6, 0.26);
+  b.scale(-5.45, 1.93, 91.4);
+  b.heat([-6.0, 0.9, 43], [-4.6, 1.8, 93], 2.6);
+  // the floor of the line: drops between the puddles, drains to skirt
+  b.drops([[2.6, 0, 50], [3.4, 0, 57], [3.4, 0, 66]], 1.9);
+  b.drops([[0.5, 0, 75], [-2.6, 0, 79.5]], 1.6);
+  b.drops([[0.6, 0, 88.5], [0, 0, 95]], 1.7);
+  b.drain(1.7, 0, 72.6, 0.42);
+  b.drain(-1.2, 0, 92.4, 0.42);
   b.puddle(2.6, 0, 50, 0.85);
   b.puddle(-2.6, 0, 79.5, 0.85);
   b.puddle(0.6, 0, 88.5, 0.65);
@@ -85,8 +120,18 @@ export function kitchen() {
   b.box([tx, 0.42, tz + 1.55], [2.0, 0.84, 0.1], { surf: 'steel', look: 'steel' });
   b.puddle(tx - 0.05, 0.5, tz, 1.3, { look: 'tub' });
   b.decor('suds', [tx, 0.72, tz], { w: 1.8, d: 3.0 });
-  b.box([4.9, 0.7, 104], [1.4, 1.4, 1.0], { surf: 'steel', look: 'rack' });
-  b.box([4.9, 0.7, 113], [1.4, 1.4, 1.0], { surf: 'steel', look: 'rack' });
+  // the pass is quick but the heat lamps dry you as you go
+  b.heat([-1.1, 1.05, 99], [1.1, 2.4, 119], 2.6);
+  b.drops([[0, 1.05, 100.4], [0, 1.05, 118.4]], 1.5, 0.26);
+  // the dishwasher: a belt that carries a fish through a hood of hot spray (a drink on the way); the hood's steam vent
+  // lifts a fish that jumps off the belt in front of it up onto the hood, where a golden scale waits
+  b.belt([4.65, 0.45, 108.5], [1.3, 0.9, 21], [0, 2.4]);
+  for (const s of [-1, 1]) b.box([4.65 + s * 0.72, 1.4, 109], [0.08, 1.0, 4.4], { surf: 'steel', look: 'hoodside' });
+  b.box([4.65, 1.93, 109], [1.52, 0.1, 4.4], { surf: 'steel', look: 'hoodtop' });
+  b.spray(4.65, 0.9, 109, 0.7, 70, 'spray-hidden', 0.8);
+  b.updraft(4.65, 0.9, 105.6, 0.5, 1.9, 30, 'steam');
+  b.drops([[4.65, 0.9, 99.2], [4.65, 0.9, 104.6]], 1.4, 0.26);
+  b.scale(4.65, 1.98, 109.6);
   b.puddle(2.9, 0, 103.5, 0.7);
   b.puddle(-2.4, 0, 116, 0.6);
 
@@ -94,6 +139,11 @@ export function kitchen() {
   b.slab(-1.0, 123, 1.0, 140, 0.02, 'wet', 'drain', 0.05);
   b.puddle(-2.5, 0, 128, 0.85);
   b.puddle(2.3, 0, 137.5, 0.85);
+  b.drops([[0, 0.02, 123.6], [0, 0.02, 139.6]], 1.4, 0.26);
+  b.drops([[0.4, 0, 142], [0, 0.95, 146.6]], 1.3);
+  b.drain(2.6, 0, 131.2, 0.42);
+  b.drain(-2.3, 0, 136.4, 0.42);
+  b.drain(1.9, 0, 145.0, 0.4);
   b.crate(-1.6, 0, 143.6, { size: [0.9, 0.45, 0.9], yaw: 0.2 });
   b.crate(1.9, 0, 142.8, { size: [1.0, 0.9, 1.0], look: 'cratestack' });
   b.box([-4.4, 0.7, 132], [1.4, 1.4, 1.0], { surf: 'steel', look: 'rack' });
@@ -131,8 +181,8 @@ export function kitchen() {
     sea: { y: -0.6, z0: ZE + 1.2, x0: -60, x1: 80, lighthouse: [14, 0, 230] },
     sky: 'noon',
     gentle: 30,
-    // the chase camera stays under the beams
-    camCeil: 3.95,
+    // the chase camera stays under the ceiling and the lintels
+    camCeil: 3.15,
     indoor: true,
   };
 }

@@ -148,6 +148,7 @@ async function boot() {
     if (shownView && shownView !== v) shownView.root.visible = false;
     v.root.visible = true;
     shownView = v;
+    stage.setLook(course.indoor ? 'kitchen' : 'noon');
     return { course, view: v };
   }
 
@@ -157,7 +158,7 @@ async function boot() {
   for (let i = 0; i < 3; i++) {
     const p = quayDef.podium[i];
     const h = p[1] - 0.15;
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, h, 1.1), [M.crate, M.crate, M.lemonPaint ?? M.crate, M.crate, M.crate, M.crate]);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, h, 1.1), [M.crate(), M.crate(), M.lemonPaint(), M.crate(), M.crate(), M.crate()]);
     mesh.position.set(p[0], h / 2, p[2]);
     mesh.castShadow = mesh.receiveShadow = true;
     podium.add(mesh);
@@ -1520,6 +1521,7 @@ async function boot() {
       else if (e.type === 'slam') audio.knock('pan');
       else if (e.type === 'squawk') audio.gull((e.lucky ? 0.22 : 0.16) * Math.max(0.4, v));
       else if (e.type === 'throw') audio.clack(0.25 * v);
+      else if (e.type === 'snap') audio.clack(0.32 * v);
     }
     hazardSink.length = 0;
   }

@@ -30,8 +30,8 @@ export function cupCourses(cup, seed = 0) {
 export const MEDALS = {
   market: { gold: 21, silver: 38, bronze: 65 },
   kitchen: { gold: 26, silver: 40, bronze: 80 },
-  beach: { gold: 50, silver: 85, bronze: 160 },
-  park: { gold: 42, silver: 75, bronze: 130 },
+  beach: { gold: 36, silver: 62, bronze: 110 },
+  park: { gold: 33, silver: 55, bronze: 100 },
 };
 
 export const MEDAL_NAMES = ['gold', 'silver', 'bronze'];

@@ -7,6 +7,7 @@ import { drawCollider, drawDecor, createScatter, G } from './kit.js';
 import { M } from './materials.js';
 import { makeSea } from './scene.js';
 import { tagAtlas } from './tags.js';
+import { makeKites, makeSpout } from './beach.js';
 
 export function buildCourseView(course, camera = null) {
   const root = new THREE.Group();
@@ -22,7 +23,8 @@ export function buildCourseView(course, camera = null) {
   // ---------------------------------------------------------------- puddles and sprays, running water, belts
   const waters = [];
   for (const z of course.builder.zones) {
-    if (z.kind === 'updraft' && z.look) waters.push(makeSteam(root, z));
+    if (z.kind === 'updraft' && z.look === 'blowhole') waters.push(makeSpout(root, z));
+    else if (z.kind === 'updraft' && z.look) waters.push(makeSteam(root, z));
     if (z.kind === 'drain') waters.push(makeDrain(root, z));
     if (!z.rate || z.look === 'spray-hidden' || z.look === 'tub') continue;
     if (z.kind === 'puddle') waters.push(makePuddle(root, z));
@@ -33,6 +35,12 @@ export function buildCourseView(course, camera = null) {
     if (col.belt && col.look === 'belt') waters.push(makeBelt(root, col));
   }
   for (const d of course.builder.decors) if (d.look === 'fountain') waters.push(makeJets(root, d));
+  for (const d of course.builder.decors)
+    if (d.look === 'kites') {
+      const k = makeKites(d.list);
+      root.add(k.group);
+      waters.push(k);
+    }
 
   // ---------------------------------------------------------------- drops and golden scales
   const pickups = course.builder.items?.length ? makePickups(course.builder.items) : null;

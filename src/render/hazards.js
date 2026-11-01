@@ -827,7 +827,167 @@ function makePendulum(hz) {
   };
 }
 
-const MAKERS = { cat: makeCat, feet: makeFeet, chef: makeChef, gull: makeGull, boules: makeBoules, sprinkler: makeSprinkler, pendulum: makePendulum };
+// ---------------------------------------------------------------- crabs: scuttle sideways from stop to stop, rear up
+// with their claws open (the warning), then snap at whatever is in reach
+
+const CRAB_LEGS = [0.12, 0.04, -0.04, -0.12];
+function makeCrab(hz) {
+  const group = new THREE.Group();
+  const shellM = new THREE.MeshStandardMaterial({ color: 0xd8452a, roughness: 0.32, metalness: 0.05 });
+  const paleM = std(0xf2b48a, 0.55);
+  const tipM = std(0x2a1a14, 0.4);
+  const crab = new THREE.Group();
+  group.add(crab);
+  const body = new THREE.Group();
+  crab.add(body);
+  // the carapace: a broad dome, a paler belly, bumps along the front edge, eyes on stalks
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), shellM);
+  shell.scale.set(0.3, 0.12, 0.22);
+  shell.castShadow = true;
+  body.add(shell);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), paleM);
+  belly.scale.set(0.27, 0.07, 0.19);
+  belly.position.y = -0.035;
+  body.add(belly);
+  for (let i = -2; i <= 2; i++) {
+    const b = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.05, 6), shellM);
+    b.position.set(i * 0.08, 0.02, 0.2 - Math.abs(i) * 0.025);
+    b.rotation.x = 1.2;
+    body.add(b);
+  }
+  const eyes = [];
+  for (const sx of [-1, 1]) {
+    const stalk = new THREE.Group();
+    stalk.position.set(sx * 0.06, 0.06, 0.17);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 0.1, 6), shellM);
+    st.position.y = 0.05;
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), tipM);
+    eye.position.y = 0.105;
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), std(0xffffff, 0.2));
+    glint.position.set(sx * 0.008, 0.115, 0.018);
+    stalk.add(st, eye, glint);
+    body.add(stalk);
+    eyes.push(stalk);
+  }
+  // legs: four a side, two segments each, as instances (one draw)
+  const seg = new THREE.CylinderGeometry(0.018, 0.013, 1, 6);
+  seg.translate(0, 0.5, 0);
+  const legs = new THREE.InstancedMesh(seg, shellM, 16);
+  legs.castShadow = true;
+  crab.add(legs);
+  // claws: an arm, a palm, a fixed finger and a moving one, a side
+  const claws = [];
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Group();
+    arm.position.set(sx * 0.2, 0.0, 0.14);
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.2, 8), shellM);
+    upper.rotation.x = Math.PI / 2;
+    upper.position.z = 0.1;
+    const hand = new THREE.Group();
+    hand.position.z = 0.2;
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), shellM);
+    palm.scale.set(0.075, 0.06, 0.1);
+    palm.position.z = 0.06;
+    palm.castShadow = true;
+    const fixedF = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.16, 8), shellM);
+    fixedF.rotation.x = Math.PI / 2;
+    fixedF.position.set(sx * 0.015, -0.02, 0.22);
+    const tip1 = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), tipM);
+    tip1.position.set(sx * 0.015, -0.02, 0.3);
+    const hinge = new THREE.Group();
+    hinge.position.set(-sx * 0.01, 0.03, 0.13);
+    const moveF = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.15, 8), shellM);
+    moveF.rotation.x = Math.PI / 2;
+    moveF.position.z = 0.075;
+    const tip2 = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), tipM);
+    tip2.position.z = 0.15;
+    hinge.add(moveF, tip2);
+    hand.add(palm, fixedF, tip1, hinge);
+    arm.add(upper, hand);
+    body.add(arm);
+    claws.push({ arm, hand, hinge, sx });
+  }
+  crab.scale.setScalar(1.35);
+  // the warning: a disc of its reach on the sand
+  const warn = new THREE.Mesh(new THREE.CircleGeometry(hz.reach, 32).rotateX(-Math.PI / 2), warnMat());
+  const edge = new THREE.Mesh(new THREE.RingGeometry(hz.reach - 0.07, hz.reach, 32).rotateX(-Math.PI / 2), warnMat());
+  group.add(warn, edge);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 20).rotateX(-Math.PI / 2), shadowMat());
+  shadow.material.opacity = 0.25;
+  group.add(shadow);
+
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  const one = new THREE.Vector3(1, 1, 1);
+  const setSeg = (i, p0, p1) => {
+    dir.subVectors(p1, p0);
+    const len = dir.length();
+    q.setFromUnitVectors(UP, dir.normalize());
+    m.compose(p0, q, one.set(1, len, 1));
+    legs.setMatrixAt(i, m);
+  };
+  let walkT = 0;
+  let lastCycle = -1;
+  let snap = 0;
+  return {
+    group,
+    update(s, t, dt, sink) {
+      const fy = hz.floor;
+      if (s.walking) walkT += dt * 15;
+      const tele = s.tele;
+      if (s.striking && s.cycle !== lastCycle) {
+        lastCycle = s.cycle;
+        snap = 1;
+        sink?.push({ type: 'snap', x: s.x, z: s.z });
+      }
+      snap = Math.max(0, snap - dt * 4);
+      crab.position.set(s.x, fy, s.z);
+      crab.rotation.y = s.face;
+      // body: low and bobbing as it walks, up on its legs to warn, a hop on the snap
+      const rear = tele > 0 ? Math.min(1, tele * 1.6) : 0;
+      body.position.y = 0.15 + (s.walking ? Math.abs(Math.sin(walkT)) * 0.02 : 0) + rear * 0.09 + snap * 0.08;
+      body.rotation.x = -rear * 0.35 + snap * 0.25;
+      body.rotation.z = s.walking ? Math.sin(walkT) * 0.06 : 0;
+      for (const e of eyes) e.rotation.z = (e.position.x > 0 ? -1 : 1) * (0.15 + rear * 0.3) + Math.sin(t * 2 + e.position.x * 9) * 0.08;
+      // legs: alternate pairs lift as it scuttles sideways
+      let k = 0;
+      const by = body.position.y;
+      for (const sx of [-1, 1])
+        for (let i = 0; i < 4; i++) {
+          const zi = CRAB_LEGS[i];
+          const ph = walkT + i * Math.PI * 0.5 + (sx > 0 ? Math.PI : 0);
+          const lift = s.walking ? Math.max(0, Math.sin(ph)) * 0.07 : 0;
+          const swing = s.walking ? Math.cos(ph) * 0.05 * s.dir * sx : 0;
+          a.set(sx * 0.22, by - 0.01, zi);
+          b.set(sx * (0.4 + swing), by + 0.08 + lift - rear * 0.03, zi * 1.5);
+          setSeg(k++, a, b);
+          const foot = new THREE.Vector3(sx * (0.55 + swing * 1.4 + rear * 0.04), lift * 0.6 + 0.005, zi * 1.9);
+          setSeg(k++, b, foot);
+        }
+      legs.instanceMatrix.needsUpdate = true;
+      // claws: up and open to warn, thrust forward and shut on the snap, idle open-close otherwise
+      for (const c of claws) {
+        c.arm.rotation.x = -rear * 0.9 + snap * 0.5;
+        c.arm.rotation.y = c.sx * (0.35 - rear * 0.25 - snap * 0.3);
+        c.hand.rotation.x = rear * 0.4;
+        c.hand.position.z = 0.2 + snap * 0.12;
+        const open = s.striking || snap > 0.5 ? 0 : tele > 0 ? 0.25 + rear * 0.55 : 0.12 + Math.max(0, Math.sin(t * 2.3 + c.sx)) * 0.15;
+        c.hinge.rotation.x = -open;
+      }
+      shadow.position.set(s.x, fy + 0.012, s.z);
+      const op = tele > 0 ? 0.2 + tele * 0.6 : s.striking ? 0.9 : 0;
+      warn.position.set(s.x, fy + 0.02, s.z);
+      edge.position.set(s.x, fy + 0.022, s.z);
+      warn.material.opacity = op * 0.4;
+      edge.material.opacity = op;
+    },
+  };
+}
+
+const MAKERS = { cat: makeCat, feet: makeFeet, chef: makeChef, gull: makeGull, boules: makeBoules, sprinkler: makeSprinkler, pendulum: makePendulum, crab: makeCrab };
 export function registerHazardView(kind, make) {
   MAKERS[kind] = make;
 }

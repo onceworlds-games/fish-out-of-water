@@ -191,7 +191,7 @@ export function createBrain(course, opts = {}) {
   function nearestRefill(b, ahead) {
     let best = null, bd = Infinity;
     for (const z of course.refills ?? []) {
-      if (z.kind === 'spray' && z.rate < 40) continue;
+      if (z.kind === 'spray' && (z.rate < 40 || z.bots === false)) continue;
       const pr = project(route, lens, z.c[0], z.c[2], -1);
       if (pr.s < brain.s - 6 || pr.s > brain.s + ahead) continue;
       if (pr.off > 6) continue;

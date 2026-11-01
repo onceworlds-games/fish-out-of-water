@@ -2,12 +2,15 @@
 // many copies (ice cubes, lemons) go to instanced meshes.
 
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { M } from './materials.js';
 import { tiledBox } from './batch.js';
 
 import { G, rng } from './geo.js';
 import { drawHouse, drawStep, drawRunnel, drawFountain, drawCafeTable, drawChair, drawParasol, drawLedge, drawLamp, drawSail } from './town.js';
 import { HARBOUR_BOX_LOOKS, HARBOUR_DECOR, catchFish } from './harbour.js';
+import { KITCHEN_DECOR } from './kitchen.js';
+import { BEACH_BOX_LOOKS, BEACH_SPHERE_LOOKS, BEACH_DECOR } from './beach.js';
 export { G };
 
 /** Instanced small things (ice cubes, lemons, shells): collect transforms, build at the end. */
@@ -107,6 +110,7 @@ function iceTop(scatter, w, d, t, y, density = 22, seed = 1) {
 }
 
 const BOX_LOOKS = {
+  ...BEACH_BOX_LOOKS,
   ...HARBOUR_BOX_LOOKS,
   house(batch, sc, w, h, d, t, col) {
     drawHouse(batch, sc, col);
@@ -254,9 +258,11 @@ const BOX_LOOKS = {
     batch.add(M.kfloor(), tiledBox(w, h, d, 1.0), inFrame(t, [0, 0, 0]));
   },
   kwalltile(batch, sc, w, h, d, t) {
-    batch.add(M.subway(), tiledBox(w, Math.min(h, 2.9), d, 1.2), inFrame(t, [0, -h / 2 + Math.min(h, 2.9) / 2, 0]));
-    if (h > 2.9) batch.add(M.warmwall(), G.box, inFrame(t, [0, -h / 2 + 2.9 + (h - 2.9) / 2, 0], [0, 0, 0], [w, h - 2.9, d]));
-    batch.add(M.bluetile(), G.box, inFrame(t, [0, -h / 2 + 1.22, 0], [0, 0, 0], [w + 0.02, 0.1, d + 0.02]));
+    const th = Math.min(h, 2.05);
+    batch.add(M.subway(), tiledBox(w, th, d, 1.2), inFrame(t, [0, -h / 2 + th / 2, 0]));
+    if (h > th) batch.add(M.kplaster(), G.box, inFrame(t, [0, -h / 2 + th + (h - th) / 2, 0], [0, 0, 0], [w, h - th, d]));
+    batch.add(M.bluetile(), G.box, inFrame(t, [0, -h / 2 + 1.18, 0], [0, 0, 0], [w + 0.02, 0.09, d + 0.02]));
+    batch.add(M.bluetile(), G.box, inFrame(t, [0, -h / 2 + th - 0.03, 0], [0, 0, 0], [w + 0.03, 0.06, d + 0.03]));
     batch.add(M.steel(), G.box, inFrame(t, [0, -h / 2 + 0.06, 0], [0, 0, 0], [w + 0.02, 0.12, d + 0.04]));
   },
   steelcounter(batch, sc, w, h, d, t) {
@@ -334,6 +340,45 @@ const BOX_LOOKS = {
   drain(batch, sc, w, h, d, t) {
     batch.add(M.grate(), tiledBox(w, h, d, 0.5), inFrame(t, [0, 0, 0]));
   },
+  jelly(batch, sc, w, h, d, t) {
+    // a steel tray of wobbly jelly cubes, red and green, with whipped cream on a few
+    const tray = 0.06;
+    batch.add(M.steel(), G.box, inFrame(t, [0, -h / 2 + tray / 2, 0], [0, 0, 0], [w + 0.06, tray, d + 0.06]));
+    for (const s of [-1, 1]) {
+      batch.add(M.steel(), G.box, inFrame(t, [s * (w / 2 + 0.03), -h / 2 + 0.07, 0], [0, 0, 0], [0.025, 0.12, d + 0.06]));
+      batch.add(M.steel(), G.box, inFrame(t, [0, -h / 2 + 0.07, s * (d / 2 + 0.03)], [0, 0, 0], [w + 0.06, 0.12, 0.025]));
+    }
+    const nx = Math.max(2, Math.round(w / 0.24)), nz = Math.max(2, Math.round(d / 0.24));
+    const cw = w / nx, cd = d / nz, ch = h - tray;
+    const geo = new RoundedBoxGeometry(1, 1, 1, 3, 0.22);
+    for (let i = 0; i < nx; i++)
+      for (let k = 0; k < nz; k++) {
+        const x = -w / 2 + cw * (i + 0.5), z = -d / 2 + cd * (k + 0.5);
+        const red = (i + k) % 2 === 0;
+        batch.add(red ? M.jellyRed() : M.jellyGreen(), geo, inFrame(t, [x, -h / 2 + tray + ch / 2, z], [0, ((i * 7 + k * 3) % 5) * 0.03 - 0.06, 0], [cw * 0.9, ch, cd * 0.9]));
+        if ((i * 5 + k * 3) % 4 === 0) {
+          batch.add(M.cream(), G.lowSphere, inFrame(t, [x, h / 2 + 0.02, z], [0, 0, 0], [cw * 0.28, 0.05, cd * 0.28]));
+          batch.add(M.tomato(), G.sphere, inFrame(t, [x, h / 2 + 0.07, z], [0, 0, 0], [0.025, 0.025, 0.025]));
+        }
+      }
+  },
+  hoodside(batch, sc, w, h, d, t) {
+    batch.add(M.steel(), tiledBox(w, h, d, 1.2), inFrame(t, [0, 0, 0]));
+  },
+  hoodtop(batch, sc, w, h, d, t) {
+    // the dishwasher's hood: a steel box over the belt, a dial and a red light, a steam vent, strip curtains each end
+    batch.add(M.steel(), tiledBox(w, h, d, 1.2), inFrame(t, [0, 0, 0]));
+    batch.add(M.steel(), G.rbox, inFrame(t, [0, h / 2 + 0.03, 0], [0, 0, 0], [w * 0.98, 0.05, d * 0.98]));
+    batch.add(M.iron(), G.cyl, inFrame(t, [0, h / 2 + 0.08, -d / 2 + 0.45], [0, 0, 0], [0.22, 0.12, 0.22]));
+    batch.add(M.slate(), G.box, inFrame(t, [w / 2 + 0.01, -0.25, 0.6], [0, 0, 0], [0.02, 0.32, 0.6]));
+    batch.add(M.glow(), G.sphere, inFrame(t, [w / 2 + 0.03, -0.18, 0.4], [0, 0, 0], [0.035, 0.035, 0.035]), { cast: false });
+    batch.add(M.china(), G.cyl, inFrame(t, [w / 2 + 0.025, -0.3, 0.75], [0, 0, Math.PI / 2], [0.07, 0.02, 0.07]));
+    for (const s of [-1, 1])
+      for (let i = 0; i < 7; i++) {
+        const x = -w / 2 + 0.11 + (i * (w - 0.22)) / 6;
+        batch.add(M.curtain(), G.box, inFrame(t, [x, -0.5, s * (d / 2 - 0.02)], [0, 0, 0], [w / 7.6, 0.92, 0.008]), { cast: false });
+      }
+  },
 
   // ------------------------------------------------------------ the beach
   coolbox(batch, sc, w, h, d, t) {
@@ -346,15 +391,6 @@ const BOX_LOOKS = {
     batch.add(M.red(), G.rbox, inFrame(t, [0, 0, 0], [0, 0, 0], [w, h, d]));
     batch.add(M.white(), G.rbox, inFrame(t, [0, h / 2 + 0.2, -d / 2 - 0.02], [-1.3, 0, 0], [w, 0.08, d * 0.9]));
     iceTop(sc, w * 0.85, d * 0.8, t, h / 2 - 0.02, 30, 9);
-  },
-  groyne(batch, sc, w, h, d, t) {
-    batch.add(M.driftwood(), tiledBox(w * 0.6, h * 0.8, d, 1.6), inFrame(t, [0, -h * 0.1, 0]));
-    for (let z = -d / 2 + 0.6; z < d / 2; z += 1.8) batch.add(M.driftwood(), G.cyl8, inFrame(t, [0, 0.1, z], [0, 0, 0], [0.16, h + 0.2, 0.16]));
-  },
-  boardwalk(batch, sc, w, h, d, t) {
-    batch.add(M.planks(), tiledBox(w, h * 0.5, d, 1.4), inFrame(t, [0, h * 0.25, 0]));
-    for (let z = -d / 2 + 0.5; z < d / 2; z += 1.6)
-      for (const sx of [-1, 1]) batch.add(M.driftwood(), G.box, inFrame(t, [sx * (w / 2 - 0.12), -0.05, z], [0, 0, 0], [0.12, h, 0.12]));
   },
   towerdeck(batch, sc, w, h, d, t) {
     batch.add(M.planks(), tiledBox(w, h, d, 1.2), inFrame(t, [0, 0, 0]));
@@ -579,6 +615,18 @@ const CYL_LOOKS = {
     batch.add(M.white(), G.cyl8, { p: [x, base + col.hh * 2.0, z], s: [0.015, col.hh * 1.6, 0.015] });
     batch.add(M.red(), G.box, { p: [x + 0.12, base + col.hh * 2.6, z], s: [0.22, 0.14, 0.01] });
   },
+  stockpot(batch, sc, col) {
+    // a big stockpot: rolled rim, two loop handles, the lid a little off, a ladle hooked over the side
+    const [x, y, z] = col.c;
+    const r = col.r, hh = col.hh;
+    batch.add(M.steel(), G.cyl, { p: [x, y, z], s: [r, hh * 2, r] });
+    batch.add(M.steel(), G.torus, { p: [x, y + hh, z], r: [Math.PI / 2, 0, 0], s: [r * 1.0, r * 1.0, 0.5] });
+    batch.add(M.iron(), G.cyl, { p: [x, y - hh + 0.01, z], s: [r * 1.02, 0.03, r * 1.02] });
+    for (const s of [-1, 1]) batch.add(M.steel(), G.torus, { p: [x + s * (r + 0.05), y + hh * 0.55, z], r: [0, 0, Math.PI / 2], s: [0.1, 0.1, 0.1] });
+    batch.add(M.steel(), G.cyl, { p: [x + 0.06, y + hh + 0.05, z - 0.08], r: [0.08, 0, 0.12], s: [r * 0.98, 0.03, r * 0.98] });
+    batch.add(M.iron(), G.sphere, { p: [x + 0.06, y + hh + 0.1, z - 0.08], s: [0.06, 0.04, 0.06] });
+    batch.add(M.steel(), G.cyl8, { p: [x - r * 0.6, y + hh + 0.22, z + r * 0.3], r: [0.5, 0, 0.35], s: [0.018, 0.65, 0.018] });
+  },
   pot(batch, sc, col) {
     batch.add(M.steel(), G.cyl, { p: col.c, s: [col.r, col.hh * 2, col.r] });
     batch.add(M.steel(), G.cyl, { p: [col.c[0], col.c[1] + col.hh + 0.02, col.c[2]], s: [col.r * 1.03, 0.04, col.r * 1.03] });
@@ -592,6 +640,7 @@ const CYL_LOOKS = {
 };
 
 const SPHERE_LOOKS = {
+  ...BEACH_SPHERE_LOOKS,
   plain(batch, sc, col) {
     batch.add(M.white(), G.sphere, { p: col.c, s: [col.r, col.r, col.r] });
   },
@@ -682,16 +731,6 @@ function flowers(batch, sc, t, at, r) {
   batch.add(M.leaf(), G.lowSphere, inFrame(t, [at[0], at[1] + 0.1, at[2]], [0, 0, 0], [0.3, 0.08, 0.1]));
 }
 
-function nearPath(path, x, z, r) {
-  if (!path) return false;
-  for (let i = 1; i < path.length; i++) {
-    const [ax, az] = path[i - 1], [cx, cz] = path[i];
-    const dx = cx - ax, dz = cz - az;
-    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
-    if (Math.hypot(x - ax - dx * t, z - az - dz * t) < r) return true;
-  }
-  return false;
-}
 
 export function drawDecor(batch, sc, d, extras) {
   const at = d.at;
@@ -701,6 +740,27 @@ export function drawDecor(batch, sc, d, extras) {
 
 const DECOR = {
   ...HARBOUR_DECOR,
+  ...KITCHEN_DECOR,
+  ...BEACH_DECOR,
+  jars(batch, sc, d, at) {
+    // spice jars and tins along a shelf (along z), on their own: lids, coloured contents behind glass
+    const r = rng(d.seed ?? 3);
+    const fills = [M.spiceRed(), M.spiceYellow(), M.spiceGreen(), M.spiceBrown()];
+    for (let z = -d.len / 2 + 0.15; z < d.len / 2 - 0.1; z += 0.2 + r() * 0.16) {
+      const tin = r() < 0.25;
+      const h = tin ? 0.16 + r() * 0.06 : 0.14 + r() * 0.1;
+      const rad = tin ? 0.065 : 0.05 + r() * 0.025;
+      const p = [at[0] + (r() - 0.5) * 0.15, at[1] + h / 2, at[2] + z];
+      if (tin) {
+        batch.add([M.red(), M.blue(), M.lemonPaint()][Math.floor(r() * 3)], G.cyl, { p, s: [rad, h, rad] });
+        batch.add(M.steel(), G.cyl, { p: [p[0], at[1] + h + 0.005, p[2]], s: [rad * 1.02, 0.012, rad * 1.02] });
+      } else {
+        batch.add(fills[Math.floor(r() * 4)], G.cyl, { p: [p[0], at[1] + h * 0.38, p[2]], s: [rad * 0.9, h * 0.76, rad * 0.9] });
+        batch.add(M.jarGlass(), G.cyl, { p, s: [rad, h, rad] }, { cast: false });
+        batch.add([M.iron(), M.red(), M.china()][Math.floor(r() * 3)], G.cyl, { p: [p[0], at[1] + h + 0.015, p[2]], s: [rad * 1.05, 0.03, rad * 1.05] });
+      }
+    }
+  },
   fountain(batch, sc, d, at) {
     drawFountain(batch, sc, d, at);
   },
@@ -869,7 +929,7 @@ const DECOR = {
   },
   lintel(batch, sc, d, at) {
     const h = d.h ?? 0.9;
-    batch.add(M.warmwall(), G.box, { p: [at[0], at[1], at[2]], s: [d.w, h, 0.3] });
+    batch.add(d.plaster ? M.kplaster() : M.warmwall(), G.box, { p: [at[0], at[1], at[2]], s: [d.w, h, 0.3] });
     batch.add(M.blue(), G.box, { p: [at[0], at[1] - h / 2 - 0.02, at[2]], s: [d.w, 0.06, 0.34] });
   },
   beams(batch, sc, d, at) {
@@ -1027,28 +1087,6 @@ const DECOR = {
     batch.add(M.lemonPaint(), G.sphere, { p: [x, y + 5.5, z], s: [0.25, 0.25, 0.25] });
   },
   // ------------------------------------------------------------ the beach
-  seawall(batch, sc, d, at) {
-    batch.add(M.quayside(), G.box, { p: [(d.x0 + d.x1) / 2, at[1] / 2 - 0.5, at[2] - 0.15], s: [d.x1 - d.x0, at[1] + 1, 0.3] });
-    batch.add(M.white(), G.rbox, { p: [(d.x0 + d.x1) / 2, at[1] + 0.02, at[2] - 0.2], s: [d.x1 - d.x0, 0.1, 0.45] });
-    for (let x = d.x0; x < d.x1; x += 2.5) batch.add(M.iron(), G.box, { p: [x, at[1] + 0.55, at[2] - 0.3], s: [0.05, 1.0, 0.05] });
-    batch.add(M.white(), G.box, { p: [(d.x0 + d.x1) / 2, at[1] + 1.05, at[2] - 0.3], s: [d.x1 - d.x0, 0.06, 0.08] });
-  },
-  huts(batch, sc, d, at) {
-    // a row of beach huts in every colour, gable roofs, striped doors
-    const cols = [M.red(), M.lemonPaint(), M.blue(), M.white(), M.coral(), M.leaf()];
-    const r = rng(53);
-    for (let x = d.x0, i = 0; x < d.x1; x += 3.4, i++) {
-      if (Math.abs(x) < 3) continue;
-      const c = cols[i % cols.length];
-      const h = 2.6;
-      batch.add(c, G.box, { p: [x, at[1] + h / 2, at[2]], s: [2.6, h, 2.6] });
-      const roof = new THREE.CylinderGeometry(0.01, 1.9, 1.0, 4, 1);
-      batch.add(M.white(), roof, { p: [x, at[1] + h + 0.45, at[2]], r: [0, Math.PI / 4, 0], s: [1, 1, 1] });
-      batch.add(i % 2 ? M.white() : M.blueDeep(), G.box, { p: [x, at[1] + 1.05, at[2] + 1.31], s: [1.1, 2.0, 0.04] });
-      batch.add(M.white(), G.box, { p: [x, at[1] + 2.15, at[2] + 1.33], s: [1.3, 0.12, 0.06] });
-      if (r() < 0.5) batch.add(M.white(), G.box, { p: [x - 0.75, at[1] + 0.45, at[2] + 1.6], s: [0.5, 0.06, 0.4] });
-    }
-  },
   lamps(batch, sc, d, at) {
     for (let x = d.x0; x <= d.x1; x += d.every) {
       if (Math.abs(x) < (d.skip ?? 3)) continue;
@@ -1061,48 +1099,11 @@ const DECOR = {
     for (let i = 0; i < 2; i++) batch.add(M.iron(), G.cyl8, { p: [at[0] + i * 0.4, at[1] + 1.6, at[2]], r: [0.25, 0, -0.2 + i * 0.3], s: [0.02, 3.2, 0.02] });
     batch.add(M.lemonPaint(), G.box, { p: [at[0] + 0.6, at[1] + 0.2, at[2] - 0.2], s: [0.6, 0.4, 0.4] });
   },
-  marram(batch, sc, d) {
-    const r = rng(d.seed ?? 1);
-    for (let i = 0; i < d.n; i++) {
-      const x = d.x0 + r() * (d.x1 - d.x0), z = d.z0 + r() * (d.z1 - d.z0);
-      if (nearPath(d.avoid, x, z, 1.8)) continue;
-      for (let k = 0; k < 7; k++) sc.add('marram', G.cone, M.dune(), [x + (r() - 0.5) * 0.5, 0.25, z + (r() - 0.5) * 0.5], [(r() - 0.5) * 0.5, 0, (r() - 0.5) * 0.5], [0.04, 0.55 + r() * 0.3, 0.04]);
-    }
-  },
-  crowd(batch, sc, d) {
-    // the rest of the beach, out of reach beyond the groynes: parasols, towels, windbreaks
-    const r = rng(d.seed ?? 1);
-    const tints = ['red', 'blue', 'lemon'];
-    for (let i = 0; i < d.n; i++) {
-      const side = r() < 0.5 ? -1 : 1;
-      const x = side * (d.xin + r() * (d.xout - d.xin));
-      const z = d.z0 + r() * (d.z1 - d.z0);
-      const tint = tints[Math.floor(r() * 3)];
-      const k = r();
-      if (k < 0.5) {
-        CYL_LOOKS.pole(batch, sc, { c: [x, 1.05, z], hh: 1.05 });
-        CYL_LOOKS.umbrella(batch, sc, { c: [x, 2.14, z], r: 1.1, hh: 0.04, tint });
-        DECOR.towel(batch, sc, { tint: tints[(i + 1) % 3], yaw: r() - 0.5 }, [x + 0.6, 0, z + 1.2]);
-      } else if (k < 0.75) DECOR.towel(batch, sc, { tint, yaw: r() - 0.5 }, [x, 0, z]);
-      else BOX_LOOKS.windbreak(batch, sc, 0.12, 1.2, 3.5, { p: [x, 0.6, z], r: [0, r() * 0.6, 0] });
-    }
-  },
   towel(batch, sc, d, at) {
     const c = d.tint === 'blue' ? M.blue() : d.tint === 'lemon' ? M.lemonPaint() : M.red();
     const tt = { p: [at[0], at[1] + 0.012, at[2]], r: [0, d.yaw ?? 0, 0] };
     batch.add(M.white(), G.box, inFrame(tt, [0, 0, 0], [0, 0, 0], [0.95, 0.02, 1.9]));
     for (let i = 0; i < 4; i++) batch.add(c, G.box, inFrame(tt, [0, 0.006, -0.72 + i * 0.48], [0, 0, 0], [0.96, 0.02, 0.22]));
-  },
-  rocks(batch, sc, d, at) {
-    const r = rng(d.seed ?? 1);
-    const n = Math.round(d.r * 9);
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + r() * 0.3;
-      const rr = d.r + 0.1 + r() * 0.25;
-      const s = 0.18 + r() * 0.22;
-      batch.add(M.rock(), G.lowSphere, { p: [at[0] + Math.cos(a) * rr, at[1] + s * 0.25, at[2] + Math.sin(a) * rr], r: [r(), r() * 3, 0], s: [s * 1.3, s * 0.7, s] });
-    }
-    for (let i = 0; i < 3; i++) sc.add('starfish', G.lowSphere, M.coral(), [at[0] + (r() - 0.5) * d.r, at[1] + 0.02, at[2] + (r() - 0.5) * d.r], [0, r() * 3, 0], [0.08, 0.02, 0.08]);
   },
   tower(batch, sc, d, at) {
     // the lifeguard tower: white legs, a red and lemon hut on the right of the deck (the left is the run-up), a flag

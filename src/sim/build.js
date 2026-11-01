@@ -79,8 +79,8 @@ export function courseBuilder(id) {
       return zone;
     },
     /** A spray or drip zone: refills slower, no puddle on the floor (sprinkler, hose, shower). */
-    spray(x, y, z, r, rate = 45, look = 'spray', h = 2.5) {
-      const zone = { id: `w${zid++}`, kind: 'spray', shape: 'cyl', c: [x, y, z], r, y0: y - 0.3, y1: y + h, rate, respawn: [x, y + 0.16, z], look };
+    spray(x, y, z, r, rate = 45, look = 'spray', h = 2.5, opts = {}) {
+      const zone = { id: `w${zid++}`, kind: 'spray', shape: 'cyl', c: [x, y, z], r, y0: y - 0.3, y1: y + h, rate, respawn: opts.respawn ?? [x, y + 0.16, z], look, bots: opts.bots ?? true };
       zones.push(zone);
       return zone;
     },
@@ -141,8 +141,8 @@ export function courseBuilder(id) {
       items.push({ kind: 'scale', n: scaleN++, p: [x, y + 0.42, z] });
     },
     /** Rising air from a vent or a hood: a column that lifts a fish in the air. */
-    updraft(x, y, z, r, h, lift = 30, look = 'steam') {
-      const zone = { id: `u${zid++}`, kind: 'updraft', shape: 'cyl', c: [x, y, z], r, y0: y, y1: y + h, lift, look };
+    updraft(x, y, z, r, h, lift = 30, look = 'steam', opts = {}) {
+      const zone = { id: `u${zid++}`, kind: 'updraft', shape: 'cyl', c: [x, y, z], r, y0: y, y1: y + h, lift, look, spread: opts.spread ?? 0, dir: opts.dir ?? null };
       zones.push(zone);
       return zone;
     },
