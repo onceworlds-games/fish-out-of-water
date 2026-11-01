@@ -1,5 +1,7 @@
 // Sound, all made here with Web Audio: wet slaps, splashes, bells, a foghorn, gulls, and a tarantella that speeds up
-// when you're drying out. Started on the first input (browsers ask for a gesture). Never throws into the game.
+// when you're drying out; each place has its own air (water lapping on the quay, the market's murmur, the kitchen's hum
+// and sizzle in a tiled room's echo, waves on the beach, birdsong in the park). Started on the first input (browsers
+// ask for a gesture). Never throws into the game.
 
 const SURF_SOUND = {
   slap: { f: 1400, q: 1.2, len: 0.09, thump: 150, vol: 0.9 },
@@ -29,6 +31,15 @@ const CHORD_NOTES = { Am: [57, 60, 64], E: [56, 59, 64], Dm: [57, 62, 65] };
 const BASS = { Am: [45, 52], E: [40, 47], Dm: [50, 45] };
 const mtof = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
+// Each place's air: steady beds (filtered noise, a hum) and things that happen now and then; `rev` is how much echo.
+const PLACES = {
+  quay: { lap: 0.07, wind: 0.025, gulls: 0.16, rev: 0.1 },
+  market: { lap: 0.04, murmur: 0.075, gulls: 0.1, rev: 0.14 },
+  kitchen: { hum: 0.05, fan: 0.035, sizzle: 0.35, clatter: 0.12, rev: 0.34 },
+  beach: { waves: 0.17, wind: 0.04, gulls: 0.22, rev: 0.05 },
+  park: { birds: 0.45, wind: 0.03, trickle: 0.03, rev: 0.07 },
+};
+
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -36,7 +47,10 @@ export function createAudio() {
   let music = null;
   let noiseBuf = null;
   let started = false;
-  const state = { mood: 'calm', tempo: 1, musicOn: true, nextStep: 0, step: 0, low: false };
+  let amb = null;
+  let revSend = null;
+  let bedBuf = null;
+  const state = { mood: 'calm', tempo: 1, musicOn: true, nextStep: 0, step: 0, low: false, place: null, air: null, next: {} };
 
   function init() {
     if (ctx) return true;
@@ -60,6 +74,34 @@ export function createAudio() {
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 1.5, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      // a longer, gently brown noise for the beds (a short loop would be heard repeating)
+      bedBuf = ctx.createBuffer(1, ctx.sampleRate * 6, ctx.sampleRate);
+      const bd = bedBuf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bd.length; i++) bd[i] = last = last * 0.6 + (Math.random() * 2 - 1) * 0.4;
+      // the echo: a convolver with a made-up room, fed by a send that each place sets
+      try {
+        const rev = ctx.createConvolver();
+        const len = Math.floor(ctx.sampleRate * 1.4);
+        const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+        for (let c = 0; c < 2; c++) {
+          const ch = ir.getChannelData(c);
+          for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+        }
+        rev.buffer = ir;
+        revSend = ctx.createGain();
+        revSend.gain.value = 0.1;
+        sfx.connect(revSend);
+        music.connect(revSend);
+        revSend.connect(rev);
+        rev.connect(master);
+      } catch {
+        revSend = null;
+      }
+      amb = ctx.createGain();
+      amb.gain.value = 0.9;
+      amb.connect(master);
+      if (state.place) setAir(state.place);
       return true;
     } catch {
       ctx = null;
@@ -111,6 +153,121 @@ export function createAudio() {
     };
   }
 
+  // ---------------------------------------------------------------- the air of each place
+
+  /** A steady bed: looping noise through a filter into a gain (returned so it can swell). */
+  function bed(type, f, q, vol, hp = 0) {
+    const src = ctx.createBufferSource();
+    src.buffer = bedBuf;
+    src.loop = true;
+    const filt = ctx.createBiquadFilter();
+    filt.type = type;
+    filt.frequency.value = f;
+    filt.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;
+    g.gain.setTargetAtTime(vol, ctx.currentTime, 0.6);
+    src.connect(filt);
+    let tail = filt;
+    if (hp) {
+      const h = ctx.createBiquadFilter();
+      h.type = 'highpass';
+      h.frequency.value = hp;
+      filt.connect(h);
+      tail = h;
+    }
+    tail.connect(g);
+    g.connect(amb);
+    src.start(ctx.currentTime, Math.random() * 5);
+    return { src, filt, g, vol, stop: (at) => src.stop(at) };
+  }
+  function hum(f, vol) {
+    const o = ctx.createOscillator();
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;
+    g.gain.setTargetAtTime(vol, ctx.currentTime, 0.6);
+    o.connect(g);
+    g.connect(amb);
+    o.start();
+    return { g, vol, stop: (at) => o.stop(at) };
+  }
+
+  /** Changes the air to a place's (crossfading), and its echo. */
+  function setAir(id) {
+    const p = PLACES[id] ?? PLACES.quay;
+    const now = ctx.currentTime;
+    if (state.air) for (const b of state.air.beds) {
+      b.g.gain.setTargetAtTime(0.0001, now, 0.4);
+      try {
+        b.stop(now + 2);
+      } catch {}
+    }
+    const beds = [];
+    const air = { id, p, beds };
+    if (p.lap) beds.push((air.lap = bed('lowpass', 420, 0.7, p.lap)));
+    if (p.murmur) beds.push((air.murmur = bed('bandpass', 620, 0.9, p.murmur, 240)));
+    if (p.wind) beds.push((air.wind = bed('lowpass', 260, 0.5, p.wind)));
+    if (p.waves) beds.push((air.waves = bed('lowpass', 500, 0.6, p.waves * 0.3)));
+    if (p.fan) beds.push(bed('lowpass', 900, 0.5, p.fan, 140));
+    if (p.trickle) beds.push(bed('bandpass', 3200, 1.2, p.trickle));
+    if (p.hum) {
+      beds.push(hum(50, p.hum));
+      beds.push(hum(100, p.hum * 0.45));
+    }
+    if (revSend) revSend.gain.setTargetAtTime(p.rev, now, 0.3);
+    state.air = air;
+    state.next = {};
+  }
+
+  /** What happens now and then: waves coming in, gulls, birds, the murmur rising and falling, a pan, a sizzle. */
+  function airEvents() {
+    const air = state.air;
+    if (!air) return;
+    const t = ctx.currentTime;
+    const p = air.p;
+    const due = (k, gap) => {
+      if (state.next[k] === undefined) state.next[k] = t + Math.random() * gap;
+      if (t < state.next[k]) return false;
+      state.next[k] = t + gap * (0.6 + Math.random() * 0.8);
+      return true;
+    };
+    if (air.waves && due('wave', 6.5)) {
+      // a wave: swells in, breaks bright, draws back over the shingle
+      const g = air.waves.g.gain, f = air.waves.filt.frequency;
+      g.cancelScheduledValues(t);
+      g.setTargetAtTime(p.waves, t, 0.9);
+      g.setTargetAtTime(p.waves * 0.25, t + 2.2, 1.2);
+      f.cancelScheduledValues(t);
+      f.setTargetAtTime(1500, t + 1.2, 0.5);
+      f.setTargetAtTime(420, t + 2.4, 1.0);
+    }
+    if (air.lap && due('lap', 2.2)) air.lap.g.gain.setTargetAtTime(p.lap * (0.5 + Math.random()), t, 0.5);
+    if (air.wind && due('wind', 4)) air.wind.g.gain.setTargetAtTime(p.wind * (0.4 + Math.random() * 1.2), t, 1.5);
+    if (air.murmur && due('murmur', 1.6)) air.murmur.g.gain.setTargetAtTime(p.murmur * (0.6 + Math.random() * 0.8), t, 0.4);
+    if (p.gulls && due('gull', 9)) {
+      const v = p.gulls * (0.4 + Math.random() * 0.6) * 0.5;
+      for (let i = 0, n = 1 + Math.floor(Math.random() * 3); i < n; i++) {
+        const o = tone(t + i * 0.3, 1450 + Math.random() * 200, 0.26, v, 'sawtooth', amb, 900, 0.02);
+        o.detune.value = Math.random() * 120;
+      }
+    }
+    if (p.birds && due('bird', 2.4)) {
+      // a little song: a few quick sweeps, sometimes answered
+      const base = 2600 + Math.random() * 1800;
+      const n = 2 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < n; i++) tone(t + i * 0.09, base * (1 + (i % 2) * 0.18), 0.07, p.birds * 0.05, 'sine', amb, base * (1.3 + Math.random() * 0.3), 0.01);
+      if (Math.random() < 0.4) for (let i = 0; i < 3; i++) tone(t + 0.8 + i * 0.12, base * 0.8, 0.09, p.birds * 0.035, 'sine', amb, base * 1.1, 0.01);
+    }
+    if (p.sizzle && due('sizzle', 3.5)) noise(t, 1.2 + Math.random(), 5200, 0.4, p.sizzle * 0.12, 'highpass', amb);
+    if (p.clatter && due('clatter', 7)) {
+      const f = 900 + Math.random() * 1400;
+      tone(t, f, 0.5, p.clatter * 0.3, 'triangle', amb, f * 0.98);
+      tone(t, f * 2.7, 0.25, p.clatter * 0.12, 'sine', amb);
+      noise(t, 0.05, 2500, 1, p.clatter * 0.4, 'bandpass', amb);
+    }
+  }
+
   // ---------------------------------------------------------------- music: a lookahead sequencer
   function schedule() {
     if (!ctx || !state.musicOn || ctx.state !== 'running') return;
@@ -147,7 +304,12 @@ export function createAudio() {
       state.step++;
     }
   }
-  setInterval(schedule, 50);
+  setInterval(() => {
+    schedule();
+    try {
+      if (ctx && ctx.state === 'running') airEvents();
+    } catch {}
+  }, 50);
 
   const api = {
     get ready() {
@@ -167,6 +329,15 @@ export function createAudio() {
       try {
         if (on) ctx.suspend();
         else ctx.resume();
+      } catch {}
+    },
+    /** The place you're in (a course id or 'quay'): its air and its echo. */
+    place(id) {
+      if (state.place === id) return;
+      state.place = id;
+      if (!ctx) return;
+      try {
+        setAir(id);
       } catch {}
     },
     mood(m) {

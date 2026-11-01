@@ -149,6 +149,7 @@ async function boot() {
     v.root.visible = true;
     shownView = v;
     stage.setLook(course.indoor ? 'kitchen' : 'noon');
+    audio.place(id);
     return { course, view: v };
   }
 
