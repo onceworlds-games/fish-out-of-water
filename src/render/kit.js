@@ -18,9 +18,9 @@ export { G };
 export function createScatter() {
   const sets = new Map();
   return {
-    add(key, geo, material, p, r = [0, 0, 0], s = [1, 1, 1]) {
+    add(key, geo, material, p, r = [0, 0, 0], s = [1, 1, 1], cast = true) {
       let set = sets.get(key);
-      if (!set) sets.set(key, (set = { geo, material, list: [] }));
+      if (!set) sets.set(key, (set = { geo, material, list: [], cast }));
       set.list.push({ p, r, s });
     },
     build(group) {
@@ -37,7 +37,7 @@ export function createScatter() {
           m.compose(v.set(it.p[0], it.p[1], it.p[2]), q, sc.set(...it.s));
           mesh.setMatrixAt(i, m);
         });
-        mesh.castShadow = true;
+        mesh.castShadow = set.cast;
         mesh.receiveShadow = true;
         mesh.instanceMatrix.needsUpdate = true;
         mesh.computeBoundingSphere();
@@ -994,7 +994,7 @@ const DECOR = {
       for (const sx of [-1, 1]) batch.add(M.crateDark(), G.box, inFrame(tt, [sx * 0.45, 0.36, sz], [0, 0, sx * 0.45], [0.08, 0.82, 0.1]));
   },
   blanket(batch, sc, d, at) {
-    batch.add(M.gingham(), G.box, inFrame({ p: [at[0], at[1] + 0.012, at[2]], r: [0, d.yaw ?? 0, 0] }, [0, 0, 0], [0, 0, 0], [2.0, 0.02, 1.6]));
+    batch.add(at[0] < 0 ? M.checkBlue() : M.checkRed(), G.box, inFrame({ p: [at[0], at[1] + 0.012, at[2]], r: [0, d.yaw ?? 0, 0] }, [0, 0, 0], [0, 0, 0], [2.0, 0.02, 1.6]));
     batch.add(M.lemonPaint(), G.cyl, inFrame({ p: [at[0], at[1], at[2]], r: [0, d.yaw ?? 0, 0] }, [0.4, 0.15, 0.2], [0, 0, 0], [0.18, 0.3, 0.18]));
     batch.add(M.terracotta(), G.box, inFrame({ p: [at[0], at[1], at[2]], r: [0, d.yaw ?? 0, 0] }, [-0.4, 0.12, -0.2], [0, 0, 0], [0.5, 0.22, 0.35]));
   },

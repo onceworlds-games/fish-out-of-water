@@ -18,8 +18,8 @@ const files = new Map();
 const pending = [];
 const BASE = './tex/';
 // mean linear luminance of each colour map (for painted finishes)
-const LUM = { qtiles: 0.025, brushed: 0.299, piazza: 0.191, concrete: 0.25, rustmetal: 0.12, mshutter: 0.2, mosaic: 0.2, bplaster: 0.3, rplaster: 0.25, bluewood: 0.122, cobbles: 0.268, denim: 0.156, gingham: 0.264, grass: 0.241, gravel: 0.261, hessian: 0.201, ktiles: 0.578, linen: 0.404, planks: 0.058, plaster: 0.168, plate: 0.03, quaystone: 0.206, roof: 0.119, sand: 0.179, sandstone: 0.085, shutter: 0.087, stucco: 0.664, tablewood: 0.036, terracotta2: 0.049, terracotta: 0.027, terry: 0.068, wetsand: 0.122, wornplanks: 0.123 };
-const HAS_ARM = new Set(['qtiles', 'brushed', 'piazza', 'bplaster', 'rplaster', 'bluewood', 'cobbles', 'grass', 'gravel', 'ktiles', 'planks', 'plaster', 'plate', 'quaystone', 'roof', 'sand', 'sandstone', 'shutter', 'stucco', 'tablewood', 'terracotta2', 'terracotta', 'wetsand', 'wornplanks']);
+const LUM = { boulder: 0.345, qtiles: 0.025, brushed: 0.299, piazza: 0.191, concrete: 0.25, rustmetal: 0.12, mshutter: 0.2, mosaic: 0.2, bplaster: 0.3, rplaster: 0.25, bluewood: 0.122, cobbles: 0.268, denim: 0.156, gingham: 0.264, grass: 0.241, gravel: 0.261, hessian: 0.201, ktiles: 0.578, linen: 0.404, planks: 0.058, plaster: 0.168, plate: 0.03, quaystone: 0.206, roof: 0.119, sand: 0.179, sandstone: 0.085, shutter: 0.087, stucco: 0.664, tablewood: 0.036, terracotta2: 0.049, terracotta: 0.027, terry: 0.068, wetsand: 0.122, wornplanks: 0.123 };
+const HAS_ARM = new Set(['boulder', 'qtiles', 'brushed', 'piazza', 'bplaster', 'rplaster', 'bluewood', 'cobbles', 'grass', 'gravel', 'ktiles', 'planks', 'plaster', 'plate', 'quaystone', 'roof', 'sand', 'sandstone', 'shutter', 'stucco', 'tablewood', 'terracotta2', 'terracotta', 'wetsand', 'wornplanks']);
 
 function file(name, srgb) {
   if (files.has(name)) return files.get(name);
@@ -259,6 +259,29 @@ const TEX = {
         }
       }),
     ),
+  // gingham: a woven check in one colour on white (the overlaps darker), for picnic blankets
+  check: (hex, n = 8) =>
+    ctex(`check:${hex}:${n}`, () =>
+      canvasTex(256, 256, (g, w) => {
+        const k = w / n;
+        g.fillStyle = '#f6f2ea';
+        g.fillRect(0, 0, w, w);
+        g.fillStyle = hex;
+        g.globalAlpha = 0.62;
+        for (let i = 0; i < n; i += 2) {
+          g.fillRect(i * k, 0, k, w);
+          g.fillRect(0, i * k, w, k);
+        }
+        g.globalAlpha = 0.9;
+        for (let i = 0; i < n; i += 2) for (let j = 0; j < n; j += 2) g.fillRect(i * k, j * k, k, k);
+        g.globalAlpha = 0.07;
+        for (let i = 0; i < w; i += 2) {
+          g.fillStyle = i % 4 ? '#000' : '#fff';
+          g.fillRect(i, 0, 1, w);
+          g.fillRect(0, i, w, 1);
+        }
+      }),
+    ),
   grate: () =>
     ctex('grate', () =>
       canvasTex(64, 64, (g, w) => {
@@ -329,7 +352,7 @@ export const M = {
   counterWood: W('counterWood', 'tablewood', { size: 1.2, color: 0xffe4c8, normal: 0.9 }),
   driftwood: W('driftwood', 'planks', { size: 1.6, color: 0xd8d0c4, paint: 0.5 }),
   barrel: W('barrel', 'wornplanks', { size: 0.8, color: 0xc88a5a }),
-  bark: W('bark', 'wornplanks', { size: 0.6, color: 0x8a6a4a, paint: 0.6, normal: 1.2 }),
+  bark: W('bark', 'wornplanks', { size: 0.6, color: 0x75553a, paint: 0.7, normal: 1.3, env: 0.35 }),
   // metal
   steel: W('steel', 'brushed', { size: 1.1, color: 0xf2f4f6, metal: 1, rough: 0.85, env: 1.25, macro: 0.08 }),
   iron: W('iron', 'plate', { size: 1.2, color: 0x3a3e44, paint: 0.5, metal: 0.6, rough: 0.8 }),
@@ -410,6 +433,9 @@ export const M = {
   fishSilver: plainStd('fishSilver', { color: 0xc4d2d8, roughness: 0.22, metalness: 0.75, envMapIntensity: 1.8 }),
   fishBack: plainStd('fishBack', { color: 0x284c5e, roughness: 0.3, metalness: 0.5, envMapIntensity: 1.4 }),
   fishRed: plainStd('fishRed', { color: 0xe0583a, roughness: 0.3, metalness: 0.35, envMapIntensity: 1.4 }),
+  checkRed: plainStd('checkRed', () => ({ map: TEX.check('#d8312a'), roughness: 0.9 })),
+  checkBlue: plainStd('checkBlue', () => ({ map: TEX.check('#1f5fb0'), roughness: 0.9 })),
+  checkYellow: plainStd('checkYellow', () => ({ map: TEX.check('#e9a516'), roughness: 0.9 })),
   tarpBlue: plainStd('tarpBlue', () => ({ map: TEX.canvas('#2a6db5'), roughness: 0.75, side: THREE.DoubleSide })),
   tarpRed: plainStd('tarpRed', () => ({ map: TEX.canvas('#cf4630'), roughness: 0.75, side: THREE.DoubleSide })),
   tarpGreen: plainStd('tarpGreen', () => ({ map: TEX.canvas('#2f7d5c'), roughness: 0.75, side: THREE.DoubleSide })),
@@ -432,7 +458,7 @@ export const M = {
   mussel: plainStd('mussel', { color: 0x1d2440, roughness: 0.35, metalness: 0.3 }),
   anemone: plainStd('anemone', { color: 0xc81e3a, roughness: 0.3, emissive: 0x400010, emissiveIntensity: 0.3 }),
   starfish: plainStd('starfish', { color: 0xf07a3a, roughness: 0.7 }),
-  wetrock: W('wetrock', 'sandstone', { size: 1.2, color: 0xc8b8a0, normal: 1.4, wet: 0.3, env: 1.0, macro: 0.25, grime: 0.3, grimeH: 0.18 }),
+  wetrock: W('wetrock', 'boulder', { size: 1.1, color: 0xc9bca6, normal: 1.5, wet: 0.18, env: 0.9, macro: 0.3, grime: 0.55, grimeH: 0.22 }),
   algae: plainStd('algae', { color: 0x3a5a24, roughness: 0.5 }),
   copperGreen: plainStd('copperGreen', { color: 0x5fa890, roughness: 0.45, metalness: 0.3 }),
   coneWafer: plainStd('coneWafer', { color: 0xd8a35a, roughness: 0.8 }),

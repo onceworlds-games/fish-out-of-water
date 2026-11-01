@@ -286,8 +286,9 @@ function bench(batch, p, yaw) {
 }
 
 /** A picnic: a gingham blanket, a basket, plates and a bottle, two or three people on it. */
+const CHECKS = [() => M.checkRed(), () => M.checkBlue(), () => M.checkYellow()];
 function picnicGroup(batch, r, p, yaw) {
-  batch.add(M.gingham(), G.box, at(p, yaw, [0, 0.012, 0], [0, 0, 0], [2.0, 0.02, 1.6]));
+  batch.add(CHECKS[Math.floor(r() * 3)](), G.box, at(p, yaw, [0, 0.012, 0], [0, 0, 0], [2.0, 0.02, 1.6]));
   const bp = loc(p, yaw, 0.55, 0, -0.45);
   batch.add(M.crate(), G.rbox, at(bp, yaw, [0, 0.14, 0], [0, 0, 0], [0.5, 0.28, 0.32]));
   batch.add(M.crateDark(), new THREE.TorusGeometry(0.2, 0.015, 4, 12, Math.PI), at(bp, yaw, [0, 0.28, 0], [0, 0, 0]));
@@ -334,11 +335,13 @@ export const PARK_BOX_LOOKS = {
         const by = standard ? top + 0.75 : top + 0.16;
         const s = standard ? 0.22 : 0.24 + r() * 0.08;
         if (standard) batch.add(M.bark(), G.cyl8, { p: [px, top + 0.38, pz], s: [0.02, 0.76, 0.02] });
-        batch.add(M.leaves(), blobGeo(i * 3 + j, 1), { p: [px, by, pz], r: [0, r() * 3, 0], s: [s, s * 0.8, s] }, { paint: 0 });
+        batch.add(M.leaves(), blobGeo(i * 3 + j, 1), { p: [px, by, pz], r: [0, r() * 3, 0], s: [s, s * 0.8, s] }, { paint: 1 });
+        // the bush in full flower: blooms all over its top and sides, a few buds
         const hm = heads[Math.floor(r() * heads.length)];
-        for (let k = 0; k < 6; k++) {
-          const a = r() * TAU, e = r() * 1.2;
-          sc.add(`rose:${hm}`, ICO0, M[hm](), [px + Math.cos(a) * Math.cos(e) * s * 0.85, by + Math.sin(e) * s * 0.7, pz + Math.sin(a) * Math.cos(e) * s * 0.85], [r() * 3, r() * 3, 0], [0.045, 0.04, 0.045]);
+        for (let k = 0; k < 15; k++) {
+          const a = r() * TAU, e = 0.15 + r() * 1.25, big = k < 11;
+          const q = big ? 0.06 + r() * 0.025 : 0.035;
+          sc.add(`rose:${hm}`, ICO0, M[hm](), [px + Math.cos(a) * Math.cos(e) * s * 0.92, by + Math.sin(e) * s * 0.76, pz + Math.sin(a) * Math.cos(e) * s * 0.92], [r() * 3, r() * 3, 0], [q, q * 0.85, q]);
         }
       }
   },
@@ -418,6 +421,95 @@ const SCALLOP = (() => {
   return new THREE.ShapeGeometry(s, 6);
 })();
 
+// ---------------------------------------------------------------- the lawn's small change: tufts, daisies, clover, leaves
+
+/** One vertex-coloured geometry from triangles [[x,y,z]x3] and a colour per triangle. */
+function triGeo(tris) {
+  const pos = [], col = [];
+  const c = new THREE.Color();
+  for (const [a, b, d, hex] of tris) {
+    c.set(hex);
+    pos.push(...a, ...b, ...d);
+    col.push(c.r, c.g, c.b, c.r, c.g, c.b, c.r, c.g, c.b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+let LAWN = null;
+function lawnGeos() {
+  if (LAWN) return LAWN;
+  const r = rng(51);
+  // a tuft of longer grass the mower missed: a dozen blades, dark at the root, light at the tips
+  const pos = [], col = [], idx = [];
+  const base = new THREE.Color(0x2a521c), mid = new THREE.Color(0x5b9030), tip = new THREE.Color(0xa6c85a);
+  const c = new THREE.Color();
+  for (let b = 0; b < 12; b++) {
+    const a = r() * TAU, lean = 0.2 + r() * 0.5, h = 0.07 + r() * 0.1, w = 0.011 + r() * 0.006;
+    const dx = Math.cos(a), dz = Math.sin(a);
+    const v0 = pos.length / 3;
+    for (let k = 0; k <= 3; k++) {
+      const u = k / 3;
+      const out = lean * u * u * h;
+      const x = dx * (0.02 + out), z = dz * (0.02 + out), y = h * u - lean * u * u * h * 0.3;
+      const ww = w * (1 - u * 0.9);
+      pos.push(x - dz * ww, y, z + dx * ww, x + dz * ww, y, z - dx * ww);
+      c.copy(base).lerp(mid, Math.min(1, u * 1.5)).lerp(tip, Math.max(0, u - 0.5) / 0.5);
+      col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+    }
+    for (let k = 0; k < 3; k++) {
+      const i = v0 + k * 2;
+      idx.push(i, i + 1, i + 3, i, i + 3, i + 2);
+    }
+  }
+  const tuft = new THREE.BufferGeometry();
+  tuft.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  tuft.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  tuft.setIndex(idx);
+  tuft.computeVertexNormals();
+  // a daisy: eight white petals (pink at the tips), a yellow eye, on a short stalk
+  const dt = [];
+  const y = 0.035;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU, w = 0.22;
+    const p0 = [0, y, 0], p1 = [Math.cos(a - w) * 0.022, y, Math.sin(a - w) * 0.022], p2 = [Math.cos(a + w) * 0.022, y, Math.sin(a + w) * 0.022];
+    const p3 = [Math.cos(a) * 0.04, y + 0.004, Math.sin(a) * 0.04];
+    dt.push([p0, p2, p1, 0xffffff], [p1, p2, p3, 0xf7d9e2]);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU, b = ((i + 1) / 6) * TAU;
+    dt.push([[0, y + 0.006, 0], [Math.cos(b) * 0.011, y + 0.004, Math.sin(b) * 0.011], [Math.cos(a) * 0.011, y + 0.004, Math.sin(a) * 0.011], 0xf2c21e]);
+  }
+  dt.push([[-0.002, 0, 0], [0.002, 0, 0], [0, y, 0.002], 0x4f7d2a]);
+  // clover: three round leaves on a stalk, a white head now and then is a separate key
+  const ct = [];
+  for (let l = 0; l < 3; l++) {
+    const a0 = (l / 3) * TAU + 0.3;
+    const cx = Math.cos(a0) * 0.022, cz = Math.sin(a0) * 0.022, yy = 0.025 + l * 0.002;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * TAU, b = ((i + 1) / 7) * TAU;
+      ct.push([[cx, yy, cz], [cx + Math.cos(b) * 0.02, yy, cz + Math.sin(b) * 0.02], [cx + Math.cos(a) * 0.02, yy, cz + Math.sin(a) * 0.02], l === 1 ? 0x3d7a2c : 0x346e27]);
+    }
+  }
+  ct.push([[-0.002, 0, 0], [0.002, 0, 0], [0, 0.025, 0.002], 0x4f7d2a]);
+  // a fallen leaf (a little cupped) and a blossom petal
+  const leaf = (hex, hex2) => triGeo([
+    [[-0.05, 0.006, 0], [0, 0.002, -0.022], [0, 0.004, 0], hex],
+    [[0, 0.002, -0.022], [0.05, 0.008, 0], [0, 0.004, 0], hex2],
+    [[0.05, 0.008, 0], [0, 0.002, 0.022], [0, 0.004, 0], hex],
+    [[0, 0.002, 0.022], [-0.05, 0.006, 0], [0, 0.004, 0], hex2],
+  ]);
+  const petal = triGeo([[[-0.016, 0.004, -0.012], [0.016, 0.006, 0], [-0.016, 0.004, 0.012], 0xf6bfd4]]);
+  LAWN = { tuft, daisy: triGeo(dt), clover: triGeo(ct), leaves: [leaf(0xc8742a, 0xb5622a), leaf(0xd9a632, 0xc89428), leaf(0x8a4a24, 0x7a3e20), leaf(0x6f8a2c, 0x5d7a26)], petal };
+  return LAWN;
+}
+
+/** Is (x, z) clear of every [x, z, r] in the list? */
+const clear = (avoid, x, z) => !(avoid ?? []).some(([ax, az, ar]) => (x - ax) ** 2 + (z - az) ** 2 < ar * ar);
+
 export const PARK_DECOR = {
   /** A tree by the course (b.tree): limbs and a fine crown. */
   parktree(batch, sc, d, at0) {
@@ -436,6 +528,63 @@ export const PARK_DECOR = {
       const seed = Math.floor(r() * 1e5);
       if (skipped(d.skip, z)) continue;
       drawTree(batch, sc, kind, side * ax, levelOf(d.levels, z), z, h, cr, seed, false);
+    }
+  },
+  /**
+   * The lawn up close: tufts the mower missed, patches of daisies and clover, leaves and petals fallen under the trees.
+   * d: { x (half-width of the course's lawn), bands [[z0, z1, y]], avoid [[x, z, r]], trees [[x, y, z, r, kind]],
+   * outer: [x0, x1, walk] (the lawns beyond the hedges, sparser), levels, skip, seed }
+   */
+  lawn(batch, sc, d) {
+    const r = rng(d.seed ?? 5);
+    const L = lawnGeos();
+    const put = (key, geo, x, y, z, s = 1, tilt = 0.12) => sc.add(key, geo, M.marram(), [x, y, z], [(r() - 0.5) * tilt, r() * TAU, (r() - 0.5) * tilt], [s, s, s], false);
+    const patch = (key, geo, cx, y, cz, n, rad, s0, s1) => {
+      for (let i = 0; i < n; i++) {
+        const a = r() * TAU, rr = Math.sqrt(r()) * rad;
+        const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
+        if (clear(d.avoid, x, z)) put(key, geo, x, y, z, s0 + r() * (s1 - s0));
+      }
+    };
+    const field = (x0, x1, z0, z1, y, k, mirror) => {
+      const area = (x1 - x0) * (z1 - z0) * (mirror ? 2 : 1);
+      const sx = () => (mirror && r() < 0.5 ? -1 : 1);
+      for (let i = 0; i < area * 0.48 * k; i++) {
+        // more by the edges, where the mower turns
+        const u = r() < 0.4 ? 1 - r() * r() * 0.35 : r();
+        const x = sx() * (x0 + u * (x1 - x0)), z = z0 + r() * (z1 - z0);
+        const yy = typeof y === 'function' ? y(z) : y;
+        if (yy != null && clear(d.avoid, x, z)) put('lawn:tuft', L.tuft, x, yy, z, 0.9 + r() * 0.9, 0.3);
+      }
+      for (let i = 0; i < (area / 26) * k; i++) {
+        const x = sx() * (x0 + r() * (x1 - x0)), z = z0 + r() * (z1 - z0);
+        const yy = typeof y === 'function' ? y(z) : y;
+        if (yy == null) continue;
+        if (r() < 0.6) patch('lawn:daisy', L.daisy, x, yy, z, 8 + Math.floor(r() * 16), 0.4 + r() * 0.7, 1.2, 1.8);
+        else patch('lawn:clover', L.clover, x, yy, z, 8 + Math.floor(r() * 12), 0.25 + r() * 0.4, 0.9, 1.4);
+      }
+    };
+    for (const [z0, z1, y] of d.bands) field(-d.x, d.x, z0, z1, y, 1, false);
+    if (d.outer) {
+      const [x0, x1, walk] = d.outer;
+      const yOf = (z) => (skipped(d.skip, z) ? null : levelOf(d.levels, z));
+      const zs = [d.bands[0][0] - 6, d.bands[d.bands.length - 1][1]];
+      field(x0, walk - 1.4, zs[0], zs[1], yOf, 0.45, true);
+      field(walk + 1.4, x1, zs[0], zs[1], yOf, 0.3, true);
+    }
+    // under the trees: leaves (petals under the cherry), thickest by the trunk
+    for (const [tx, ty, tz, cr, kind] of d.trees ?? []) {
+      const n = kind === 'blossom' ? 70 : kind === 'pine' ? 0 : 26;
+      for (let i = 0; i < n; i++) {
+        const a = r() * TAU, rr = (0.3 + r() ** 0.7) * cr * 0.95;
+        const x = tx + Math.cos(a) * rr, z = tz + Math.sin(a) * rr;
+        if (!clear(d.avoid, x, z)) continue;
+        if (kind === 'blossom') put('lawn:petal', L.petal, x, ty, z, 0.9 + r() * 0.5, 0.2);
+        else {
+          const k = kind === 'copper' ? (r() < 0.7 ? 2 : 0) : kind === 'lime' || kind === 'birch' ? (r() < 0.6 ? 1 : 3) : Math.floor(r() * 4);
+          put(`lawn:leaf${k}`, L.leaves[k], x, ty, z, 0.8 + r() * 0.5, 0.25);
+        }
+      }
     }
   },
   /** Gravel walks either side beyond the hedges, stone edged, with lamps. */
@@ -509,7 +658,7 @@ export const PARK_DECOR = {
         else if (r() < 0.5) dog(batch, loc(bp, ya, 0.6, 0, 0.6), ya + 0.6, [0, 2, 4, 5, 6][Math.floor(r() * 5)]);
       } else if (kind < 0.9) {
         // someone reading, lying on a towel
-        batch.add(M.gingham(), G.box, at(p, yaw, [0, 0.012, 0], [0, 0, 0], [0.9, 0.02, 1.9]));
+        batch.add(r() < 0.5 ? M.tarpBlue() : M.tarpRed(), G.box, at(p, yaw, [0, 0.012, 0], [0, 0, 0], [0.9, 0.02, 1.9]));
         person(batch, loc(p, yaw, 0, 0.02, 0.2), yaw, 'lieFront', lookOf(r));
         batch.add(M.white(), G.box, at(p, yaw, [0, 0.07, -0.85], [0.6, 0, 0], [0.24, 0.02, 0.16]));
       } else {

@@ -148,6 +148,15 @@ export function park() {
   b.drops([[0, 0.6, 145], [3, 0.6, 146.6], [0.5, 0.6, 156.4]], 1.5);
   b.finish([-40, -8, ZE + 0.25], [40, 0.45, 300], 'sea', 1.6, -0.6);
 
+  // the lawn up close: tufts, daisies and clover, leaves under the trees; clear of water, blankets and anything standing
+  const avoid = [
+    ...b.zones.filter((z) => z.kind === 'puddle').map((z) => [z.c[0], z.c[2], z.r + (z.look === 'pond' ? 0.6 : 0.25)]),
+    [6.5, 30, 1.3], [-7.5, 22, 1.3], [CX, CZ, 2.7], [BX - 0.4, BZ - 5.6, 1.3], [BX, BZ, 2.9], [0, 77.5, 2.9], [0, 0, 1.6],
+    ...[-3, -2, -1, 0, 1, 2, 3].flatMap((k) => [[-6.5 + k, 103, 1.15], [6.2 + k, 131.5, 1.15]]),
+  ];
+  const trees = b.decors.filter((d) => d.look === 'parktree').map((d) => [d.at[0], d.at[1], d.at[2], d.r, d.kind]);
+  b.decor('lawn', [0, 0, 0], { x: 11, bands: [[-6.6, 35.5, 6], [44.5, 50, 4], [70, 85.5, 4], [96.5, 137.5, 1.5]], avoid, trees, outer: [12.9, 30, 17], levels, skip, seed: 12 });
+
   const spine = [
     [0, 6.85, 0], [0, 6, 4.5], [-2.8, 6, 17], [1.5, 6, 25], [-1.5, 6, 33], [0, 5.0, 40], [4.6, 4, 47.5], [-3.2, 4, 59.8],
     [3.6, 4, 67.6], [-3.6, 4, 74], [-3.6, 4, 84], [-3, 1.5, S0 + 11.5], [2.6, 1.5, 99.6], [0, 1.5, 107], [-1.6, 1.5, 114],
