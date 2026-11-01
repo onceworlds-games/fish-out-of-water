@@ -45,7 +45,7 @@ export const GOALS = {
   'gold-kitchen': 'Gold in the Kitchen',
   'scales-all': 'Every golden scale',
   'gold-all': 'Gold on every course',
-  'flow-max': 'Reach Flow ×4',
+  'flow-max': 'Reach Flow ×5',
   'streak-7': 'A seven-day streak',
 };
 

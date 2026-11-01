@@ -160,18 +160,18 @@ export function createFx(scene) {
 
   // ---------------------------------------------------------------- splash crowns (the finish): a ring of water jets that
   // jump up and out round the fish and fall back, with a ring of foam left on the surface
-  const JETS = 18;
-  const jetGeo = new THREE.ConeGeometry(0.11, 1, 6, 1, true).translate(0, 0.5, 0).rotateY(Math.PI / 5);
+  const JETS = 30;
+  const jetGeo = new THREE.ConeGeometry(0.065, 1, 7, 1, true).translate(0, 0.5, 0).rotateY(Math.PI / 5);
   const foamGeo = new THREE.RingGeometry(0.7, 1, 36).rotateX(-Math.PI / 2);
   const crowns = [];
   for (let i = 0; i < 3; i++) {
-    const jets = new THREE.InstancedMesh(jetGeo, new THREE.MeshStandardMaterial({ color: 0xeefaff, roughness: 0.25, transparent: true, opacity: 0.9, depthWrite: false }), JETS);
+    const jets = new THREE.InstancedMesh(jetGeo, new THREE.MeshStandardMaterial({ color: 0xeefaff, roughness: 0.15, transparent: true, opacity: 0.75, depthWrite: false, emissive: 0x6ab8d0, emissiveIntensity: 0.25 }), JETS);
     jets.frustumCulled = false;
     const foam = new THREE.Mesh(foamGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
     jets.visible = foam.visible = false;
     group.add(jets, foam);
     const tilt = [];
-    for (let j = 0; j < JETS; j++) tilt.push(0.75 + ((j * 7) % 5) * 0.12);
+    for (let j = 0; j < JETS; j++) tilt.push(0.55 + ((j * 7) % 5) * 0.1 + ((j * 13) % 3) * 0.08);
     crowns.push({ jets, foam, tilt, age: 9, size: 1, x: 0, y: 0, z: 0, spin: 0 });
   }
   let crownNext = 0;
@@ -187,10 +187,94 @@ export function createFx(scene) {
   group.add(halo);
   halo.visible = false;
 
+  // ---------------------------------------------------------------- glints: sparkles drawn as soft four-point stars, facing the camera
+  const G_N = 160;
+  const glintMat = new THREE.MeshBasicMaterial({ map: glintTexture(), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  const glints = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), glintMat, G_N);
+  glints.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(G_N * 3), 3);
+  glints.frustumCulled = false;
+  glints.count = 0;
+  glints.renderOrder = 8;
+  group.add(glints);
+  const GL = [];
+  const camQ = new THREE.Quaternion();
+  const gq = new THREE.Quaternion();
+  const zAxis = new THREE.Vector3(0, 0, 1);
+  const tmpV = new THREE.Vector3();
+  const tmpS = new THREE.Vector3();
+  const tmpE = new THREE.Euler();
+
+  // ---------------------------------------------------------------- the slap ring: where you come down, a ring closing on
+  // it to the moment you touch (let go then); gold inside the window
+  const ringMat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false });
+  const slapAim = new THREE.Mesh(new THREE.RingGeometry(0.27, 0.36, 48).rotateX(-Math.PI / 2), ringMat());
+  const slapClose = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 64).rotateX(-Math.PI / 2), ringMat());
+  slapAim.renderOrder = slapClose.renderOrder = 7;
+  slapAim.visible = slapClose.visible = false;
+  group.add(slapAim, slapClose);
+
+  // ---------------------------------------------------------------- shock rings: a slap, a perfect, a scale
+  const shocks = [];
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2), ringMat());
+    m.visible = false;
+    m.renderOrder = 7;
+    group.add(m);
+    shocks.push({ m, age: 9, life: 0.4, size: 1 });
+  }
+  let shockNext = 0;
+
   const fx = {
     reduced: false,
     lowQuality: false,
     group,
+    /** The camera the glints face (set by the page). */
+    camera: null,
+    /**
+     * The slap ring at `land` ({ x, y, z }) with `left` seconds to touchdown; `win` the slap window (s); `holding`: the
+     * player is holding (a slap is coming), so it's drawn bold. null hides it.
+     */
+    slapRing(land, left = 1, win = 0.1, holding = false) {
+      if (!land) {
+        slapAim.visible = slapClose.visible = false;
+        return;
+      }
+      const y = land.y - 0.13;
+      const inWin = left <= win;
+      const col = inWin ? 0xffc93c : 0xffffff;
+      slapAim.visible = slapClose.visible = true;
+      slapAim.position.set(land.x, y, land.z);
+      slapClose.position.set(land.x, y + 0.002, land.z);
+      slapAim.material.color.setHex(col);
+      slapClose.material.color.setHex(inWin ? 0xffc93c : 0x4cd3ec);
+      const r = 0.36 + Math.min(2.2, Math.max(0, left) * 2.6);
+      slapClose.scale.setScalar(r);
+      const k = holding ? 1 : 0.45;
+      slapAim.material.opacity = 0.95 * k;
+      slapClose.material.opacity = Math.min(1, 0.35 + (1 - Math.min(1, left / 0.8)) * 0.65) * k;
+      slapAim.scale.setScalar(inWin ? 1.15 : 1);
+    },
+    /** An expanding ring on the ground. */
+    shock(x, y, z, size = 1, color = 0xffffff, life = 0.4) {
+      if (fx.reduced) size *= 0.7;
+      const s = shocks[shockNext++ % shocks.length];
+      s.age = 0;
+      s.life = life;
+      s.size = size;
+      s.m.position.set(x, y + 0.01, z);
+      s.m.material.color.setHex(color);
+      s.m.visible = true;
+    },
+    /** Star glints (a slap, a scale, a perfect). */
+    glint(x, y, z, n = 8, color = 0xffffff, power = 1) {
+      if (fx.lowQuality) n = Math.ceil(n * 0.5);
+      for (let i = 0; i < n; i++) {
+        if (GL.length >= G_N) GL.shift();
+        const a = Math.random() * Math.PI * 2;
+        const sp = (0.6 + Math.random() * 1.6) * power;
+        GL.push({ x, y, z, vx: Math.cos(a) * sp, vy: (0.8 + Math.random() * 2) * power, vz: Math.sin(a) * sp, age: 0, life: 0.35 + Math.random() * 0.4, size: (0.12 + Math.random() * 0.14) * Math.sqrt(power), color, spin: Math.random() * 6 });
+      }
+    },
     /** Draw the arc from a list of points [x,y,z,...] and the landing ring at `land` ({ x, y, z, surf, zone }). */
     arc(points, land, t) {
       if (!points || points.length < 6) {
@@ -236,6 +320,7 @@ export function createFx(scene) {
     },
     /** A burst of drops. kind: 'splash' | 'sparkle' | 'sand' | 'dust' | 'confetti' | 'spray' */
     burst(x, y, z, n, kind = 'splash', power = 1, dir = null) {
+      if (kind === 'sparkle') return fx.glint(x, y, z, Math.ceil(n * 0.6), 0xffffff, power);
       if (fx.lowQuality) n = Math.ceil(n * 0.5);
       if (fx.reduced && kind === 'confetti') n = Math.ceil(n * 0.4);
       for (let i = 0; i < n; i++) {
@@ -273,12 +358,56 @@ export function createFx(scene) {
       c.spin = Math.random() * 6.28;
       c.foam.position.set(x, y + 0.02, z);
       c.jets.visible = c.foam.visible = true;
+      fx.burst(x, y + 0.1, z, Math.round(18 + size * 30), 'splash', 1 + size);
     },
     splat(x, y, z, size = 0.35, wet = 1) {
       const i = sNext++ % S_N;
       S[i] = { x, y, z, size: size * (0.6 + 0.4 * wet), age: 0, life: 5 + wet * 2, rot: Math.random() * 6 };
     },
     update(dt) {
+      // glints: drift up, slow, twinkle out
+      if (fx.camera) camQ.copy(fx.camera.quaternion);
+      let gn = 0;
+      for (let i = GL.length - 1; i >= 0; i--) {
+        const p = GL[i];
+        p.age += dt;
+        if (p.age >= p.life) {
+          GL.splice(i, 1);
+          continue;
+        }
+        p.vx *= 1 - dt * 3;
+        p.vz *= 1 - dt * 3;
+        p.vy = p.vy * (1 - dt * 3) - dt * 1.5;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.z += p.vz * dt;
+      }
+      for (const p of GL) {
+        if (gn >= G_N) break;
+        const k = p.age / p.life;
+        const s = p.size * Math.sin(Math.min(1, k * 1.15) * Math.PI);
+        gq.setFromAxisAngle(zAxis, p.spin + p.age * 3);
+        gq.premultiply(camQ);
+        m4.compose(tmpV.set(p.x, p.y, p.z), gq, tmpS.set(s, s, s));
+        glints.setMatrixAt(gn, m4);
+        glints.setColorAt(gn, col.setHex(p.color));
+        gn++;
+      }
+      glints.count = gn;
+      glints.instanceMatrix.needsUpdate = true;
+      if (glints.instanceColor) glints.instanceColor.needsUpdate = true;
+      for (const sh of shocks) {
+        if (!sh.m.visible) continue;
+        sh.age += dt;
+        const k = sh.age / sh.life;
+        if (k >= 1) {
+          sh.m.visible = false;
+          continue;
+        }
+        const e = 1 - (1 - k) * (1 - k) * (1 - k);
+        sh.m.scale.setScalar(0.2 + e * sh.size);
+        sh.m.material.opacity = 0.85 * (1 - k);
+      }
       // particles
       let n = 0;
       for (let i = P.length - 1; i >= 0; i--) {
@@ -302,7 +431,7 @@ export function createFx(scene) {
         if (n >= P_N) break;
         const k = 1 - p.age / p.life;
         const s = p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
-        if (p.kind === 'confetti') m4.makeRotationFromEuler(new THREE.Euler(p.age * 7, p.age * 5, 0)).scale(new THREE.Vector3(s, s * 0.15, s * 0.7));
+        if (p.kind === 'confetti') m4.makeRotationFromEuler(tmpE.set(p.age * 7, p.age * 5, 0)).scale(tmpS.set(s, s * 0.15, s * 0.7));
         else m4.makeScale(s, s, s);
         m4.setPosition(p.x, p.y, p.z);
         parts.setMatrixAt(n, m4);
@@ -325,7 +454,7 @@ export function createFx(scene) {
         const k = s.age / s.life;
         const sc = s.size * (1 - k * 0.35);
         m4.makeRotationY(s.rot);
-        m4.scale(new THREE.Vector3(sc, 1, sc * 0.8));
+        m4.scale(tmpS.set(sc, 1, sc * 0.8));
         m4.setPosition(s.x, s.y + 0.004, s.z);
         splats.setMatrixAt(sn, m4);
         const v = 0.5 + 0.5 * k;
@@ -360,7 +489,7 @@ export function createFx(scene) {
           c.jets.setMatrixAt(j, jetM);
         }
         c.jets.instanceMatrix.needsUpdate = true;
-        c.jets.material.opacity = 0.92 * Math.min(1, lift * 1.6);
+        c.jets.material.opacity = 0.75 * Math.min(1, lift * 1.6);
         const fr = c.size * (0.85 + k * 1.1);
         c.foam.scale.set(fr, 1, fr);
         c.foam.material.opacity = 0.8 * Math.max(0, 1 - k / 1.6);
@@ -369,6 +498,9 @@ export function createFx(scene) {
     clear() {
       P.length = 0;
       S.length = 0;
+      GL.length = 0;
+      for (const sh of shocks) sh.m.visible = false;
+      slapAim.visible = slapClose.visible = false;
       for (const c of crowns) {
         c.age = 9;
         c.jets.visible = c.foam.visible = false;
@@ -377,6 +509,34 @@ export function createFx(scene) {
     },
   };
   return fx;
+}
+
+let glintT = null;
+/** A soft four-point star on black (drawn additively). */
+function glintTexture() {
+  if (glintT) return glintT;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.18, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  g.globalCompositeOperation = 'lighter';
+  for (const [w, h] of [[30, 2.2], [2.2, 30]]) {
+    const lg = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    lg.addColorStop(0, 'rgba(255,255,255,1)');
+    lg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = lg;
+    g.beginPath();
+    g.ellipse(32, 32, w, h, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  glintT = new THREE.CanvasTexture(c);
+  glintT.colorSpace = THREE.SRGBColorSpace;
+  return glintT;
 }
 
 const probe = { nx: 0, ny: 0, nz: 0, depth: 0 };

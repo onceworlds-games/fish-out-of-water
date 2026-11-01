@@ -296,6 +296,61 @@ export function createAudio() {
     medal: safe((t) => {
       [72, 76, 79, 84].forEach((n, i) => tone(t + i * 0.09, mtof(n + 12), 0.5, 0.14, 'triangle'));
     }),
+    /** A water drop taken: a bright plip, climbing a scale while drops come quickly one after another. */
+    drip: safe((t, step = 0) => {
+      const n = [76, 79, 81, 83, 84, 86, 88, 91][Math.min(7, step)];
+      tone(t, mtof(n), 0.09, 0.2, 'sine', sfx, mtof(n) * 1.9);
+      tone(t + 0.035, mtof(n + 12), 0.12, 0.08, 'sine');
+      noise(t, 0.04, 6000, 2, 0.08, 'bandpass');
+    }),
+    /** A golden scale: a glassy shimmer and a chord. */
+    scale: safe((t) => {
+      [81, 85, 88, 93].forEach((n, i) => tone(t + i * 0.055, mtof(n), 0.9 - i * 0.1, 0.12, 'triangle'));
+      for (let i = 0; i < 6; i++) tone(t + 0.25 + i * 0.045, mtof(96 + (i % 3) * 3), 0.25, 0.04, 'sine');
+      noise(t, 0.5, 8000, 1, 0.07, 'highpass');
+    }),
+    /** A slap in a Flow chain: a rising pluck per link (pentatonic), brighter when perfect. */
+    slapNote: safe((t, chain = 1, perfect = false) => {
+      const steps = [69, 72, 74, 76, 79, 81, 84];
+      const n = steps[Math.min(steps.length - 1, Math.max(0, chain - 1))];
+      tone(t, mtof(n), 0.22, 0.16, 'triangle', sfx, 0, 0.003);
+      tone(t, mtof(n + 7), 0.16, 0.06, 'sine');
+      if (perfect) {
+        tone(t + 0.04, mtof(n + 12), 0.4, 0.12, 'sine');
+        tone(t + 0.08, mtof(n + 19), 0.32, 0.06, 'sine');
+      }
+    }),
+    /** A springy slap: a sproing. */
+    sproing: safe((t) => {
+      const o = tone(t, 240, 0.42, 0.32, 'sine', sfx, 760);
+      const lfo = ctx.createOscillator();
+      const lg = ctx.createGain();
+      lfo.frequency.value = 26;
+      lg.gain.value = 40;
+      lfo.connect(lg);
+      lg.connect(o.frequency);
+      lfo.start(t);
+      lfo.stop(t + 0.44);
+    }),
+    /** The chain broke after a good run: a falling slide. */
+    flowEnd: safe((t, chain = 2) => {
+      tone(t, mtof(69 + Math.min(12, chain * 2)), 0.32, 0.08, 'triangle', sfx, mtof(57));
+    }),
+    /** Something just missed: a whoosh past the ear. */
+    whoosh: safe((t) => {
+      noise(t, 0.32, 500, 1.4, 0.34, 'bandpass', sfx, 3600);
+      tone(t + 0.12, mtof(88), 0.18, 0.06, 'sine', sfx, mtof(93));
+    }),
+    /** The results ticking up. */
+    tick: safe((t, k = 0) => {
+      tone(t, 1800 + k * 600, 0.03, 0.06, 'triangle');
+    }),
+    /** A level gained: a little fanfare. */
+    levelUp: safe((t) => {
+      [[72, 0], [76, 0.1], [79, 0.2], [84, 0.32], [88, 0.32]].forEach(([n, d]) => tone(t + d, mtof(n), 0.7, 0.13, 'triangle'));
+      tone(t + 0.32, mtof(60), 0.8, 0.12, 'sine');
+      noise(t + 0.3, 0.8, 7000, 1, 0.05, 'highpass');
+    }),
     cheer: safe((t) => {
       noise(t, 1.2, 1600, 0.3, 0.25, 'bandpass', sfx, 900);
     }),

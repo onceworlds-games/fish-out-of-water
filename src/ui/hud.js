@@ -68,7 +68,27 @@ export function createHud(root) {
   const watch = h('div', { class: 'watching', hidden: true });
   const extra = h('div', { class: 'hud-extra' });
 
-  el.append(top, right, gauge, hint, card, watch, extra, callout);
+  // ---------------------------------------------------------------- the run: drops, golden scales, Flow, sun, stamps
+  const dropsEl = h('div', { class: 'hud-drops' });
+  dropsEl.innerHTML = `<svg viewBox="0 0 32 40" width="26" height="32"><path d="M16 2 C 22 12, 29 20, 29 26 A 13 13 0 0 1 3 26 C 3 20, 10 12, 16 2 Z" fill="#4cd3ec" stroke="#1a1d22" stroke-width="3" stroke-linejoin="round"/><path d="M10 24 q 1 -6 5 -9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8"/></svg><span class="n">0</span>`;
+  const dropsN = dropsEl.querySelector('.n');
+  const sunEl = h('div', { class: 'hud-sun', 'aria-hidden': 'true' });
+  sunEl.innerHTML = `<svg viewBox="-30 -30 60 60" width="46" height="46"><g class="rays">${Array.from({ length: 8 }, (_, i) => `<path d="M0 -26 L4 -17 L-4 -17 Z" transform="rotate(${i * 45})" fill="#ffc93c" stroke="#1a1d22" stroke-width="2.4" stroke-linejoin="round"/>`).join('')}</g><circle r="13" fill="#ffc93c" stroke="#1a1d22" stroke-width="3"/><g class="shade"><path d="M-22 4 Q 0 -26 22 4 Q 11 -2 0 4 Q -11 -2 -22 4 Z" fill="#4c7fbf" stroke="#1a1d22" stroke-width="3" stroke-linejoin="round"/><path d="M0 4 V 22 q 0 4 -4 4" fill="none" stroke="#1a1d22" stroke-width="3" stroke-linecap="round"/></g></svg>`;
+  const scalesEl = h('div', { class: 'hud-scales', hidden: true });
+  const SCALE_D = 'M0 -11 C 9 -8, 11 3, 8 8 Q 0 13, -8 8 C -11 3, -9 -8, 0 -11 Z';
+  const scaleSlots = [0, 1, 2].map(() => {
+    const e = h('span', { class: 'slot' });
+    e.innerHTML = `<svg viewBox="-14 -14 28 28" width="30" height="30"><path d="${SCALE_D}" stroke="#1a1d22" stroke-width="2.6" stroke-linejoin="round"/><path d="M-4 -4 q 3 -4 7 -3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+    scalesEl.append(e);
+    return e;
+  });
+  const flowEl = h('div', { class: 'hud-flow', hidden: true });
+  const flowPips = h('div', { class: 'pips' }, ...[0, 1, 2, 3, 4].map(() => h('span', { class: 'pip' })));
+  const flowLabel = h('div', { class: 'lab' }, h('span', { class: 'w' }, 'Flow'), h('span', { class: 'x' }, '×1'));
+  flowEl.append(flowLabel, flowPips);
+  const stampsEl = h('div', { class: 'hud-stamps' });
+  const runBox = h('div', { class: 'hud-run' }, dropsEl, sunEl);
+  el.append(top, right, gauge, runBox, scalesEl, flowEl, stampsEl, hint, card, watch, extra, callout);
 
   // ---------------------------------------------------------------- name tags (outside the HUD: they show in the lobby too)
   const tagsLayer = h('div', { class: 'nametags' });
@@ -78,6 +98,7 @@ export function createHud(root) {
   let waterShown = -1;
   let wavePhase = 0;
   let calloutT = 0;
+  let flowOutT = 0;
   let hintText = '';
   const api = {
     el,
@@ -91,7 +112,11 @@ export function createHud(root) {
       placeWrap.hidden = !!opts.trial;
       line.style.display = opts.trial ? 'none' : '';
       medalWrap.hidden = !opts.trial;
+      runBox.hidden = !on;
       if (!on) {
+        scalesEl.hidden = true;
+        flowEl.hidden = true;
+        stampsEl.replaceChildren();
         lastWrap.hidden = true;
         api.hint('');
         watch.hidden = true;
@@ -100,6 +125,7 @@ export function createHud(root) {
     },
     showGauge(on) {
       gauge.style.display = on ? '' : 'none';
+      runBox.hidden = !on;
     },
     timer(seconds, split = null) {
       tv.textContent = fmtTime(seconds);
@@ -215,6 +241,10 @@ export function createHud(root) {
     clearExtra() {
       extra.replaceChildren();
     },
+    /** Add something to the middle layer (the run card beside the standings). */
+    addExtra(node) {
+      extra.append(node);
+    },
     /** rows: [{ place, name, seat, time|null, dist|null, pts, total, me, gone }] */
     standings(head, rows, opts = {}) {
       const list = h('div', { class: 'standings' });
@@ -271,7 +301,66 @@ export function createHud(root) {
         }
       }
     },
+    /** Drops taken this run; `bump` animates the count. */
+    drops(n, bump = false) {
+      dropsN.textContent = String(n);
+      if (bump) {
+        dropsEl.classList.remove('bump');
+        void dropsEl.offsetWidth;
+        dropsEl.classList.add('bump');
+      }
+    },
+    /** The course's golden scales: `got` this run (numbers), `kept` from before. null hides them. */
+    scales(got, kept = [], justN = -1) {
+      scalesEl.hidden = !got;
+      if (!got) return;
+      scaleSlots.forEach((e, i) => {
+        e.className = `slot ${got.includes(i) ? 'got' : kept.includes(i) ? 'kept' : ''}`;
+        if (i === justN) {
+          e.classList.add('just');
+        }
+      });
+    },
+    /** In the sun (the gills dry fast) or the shade. */
+    sun(on) {
+      sunEl.classList.toggle('on', !!on);
+    },
+    /** The slap chain: 0 hides it; `mult` the power it gives. */
+    flow(chain, mult = 1, perfect = false) {
+      if (chain <= 0) {
+        if (!flowEl.hidden && !flowEl.classList.contains('out')) {
+          flowEl.classList.add('out');
+          flowOutT = 0.5;
+        }
+        return;
+      }
+      flowOutT = 0;
+      flowEl.classList.remove('out');
+      flowEl.hidden = false;
+      flowEl.querySelector('.x').textContent = `×${chain}`;
+      flowPips.childNodes.forEach((p, i) => p.classList.toggle('on', i < chain));
+      flowEl.classList.toggle('max', chain >= 5);
+      flowEl.classList.remove('kick', 'gold');
+      void flowEl.offsetWidth;
+      flowEl.classList.add('kick');
+      if (perfect) flowEl.classList.add('gold');
+    },
+    /** A quick inked stamp over the gauge: SLAP, PERFECT, BOING, Close shave... kind: '' | 'gold' | 'red' | 'sea'. */
+    stamp(text, kind = '') {
+      const e = h('div', { class: `stamp-pop ${kind}` }, text);
+      e.style.setProperty('--rot', `${(Math.random() * 10 - 5).toFixed(1)}deg`);
+      stampsEl.append(e);
+      while (stampsEl.childNodes.length > 3) stampsEl.firstChild.remove();
+      setTimeout(() => e.remove(), 1100);
+    },
     update(dt) {
+      if (flowOutT > 0) {
+        flowOutT -= dt;
+        if (flowOutT <= 0) {
+          flowEl.hidden = true;
+          flowEl.classList.remove('out');
+        }
+      }
       if (calloutT > 0) {
         calloutT -= dt;
         if (calloutT <= 0) callout.replaceChildren();

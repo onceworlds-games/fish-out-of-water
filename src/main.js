@@ -30,12 +30,16 @@ import { runBot } from './sim/run.js';
 import { createActor, giveBody, simulate, syncFromBody, syncFromSample, stateCode, eventFx, remoteEvents, FISH_IDS, COLOURWAYS } from './actors.js';
 import { hashString } from './sim/rng.js';
 import { loadFonts } from './fonts.js';
+import { createFeedback } from './feedback.js';
+import { runCard } from './ui/results.js';
 
 const ow = typeof window !== 'undefined' ? window.onceworlds ?? null : null;
 const params = new URLSearchParams(location.search);
 const PROD = /(^|\.)onceworlds(usercontent)?\.com$/.test(location.hostname);
 const AUTOPLAY = !PROD && params.has('autoplay') && params.get('autoplay') !== '0';
 const AUTOPLAY_TO = params.get('autoplay-to');
+// autoplay only: ?trial=<course> runs a time trial on it instead of joining a race (footage of the solo flow)
+const AUTOPLAY_TRIAL = AUTOPLAY ? params.get('trial') : null;
 const POSTER = params.get('poster');
 const NO_HUD = params.get('hud') === '0';
 
@@ -77,6 +81,8 @@ async function boot() {
   const hud = createHud(uiRoot);
   const screens = createScreens(uiRoot);
   const progress = createProgress();
+  const feedback = createFeedback({ hud, fx, audio, cam });
+  fx.camera = camera;
   if (NO_HUD) uiRoot.style.display = 'none';
 
   const applySettings = () => {
@@ -267,6 +273,7 @@ async function boot() {
     if (G.mode === 'title' && (k === 'Space' || k === 'Enter')) toQuay();
     else if (G.mode === 'daily' && (k === 'Space' || k === 'Enter')) startTrial(dailyCatch().course, { daily: true });
     else if (G.mode === 'trial' && k === 'KeyR' && (G.trial?.done || G.paused)) startTrial(G.trial.course.id, { daily: G.trial.daily });
+    else if (G.mode === 'trial' && G.trial?.done && (k === 'Space' || k === 'Enter')) G.trial.card?.skip();
     else if (G.mode === 'match' && !match.me && (k === 'ArrowLeft' || k === 'ArrowRight')) switchWatch(k === 'ArrowLeft' ? -1 : 1);
   };
   input.state.onLockLost = () => {
@@ -505,6 +512,7 @@ async function boot() {
   }
   /** Leave the current trial: its ghosts go with it. */
   function clearTrial() {
+    G.trial?.card?.dispose();
     for (const g of G.trial?.ghosts ?? []) g.actor?.dispose();
     G.trial = null;
   }
@@ -528,6 +536,9 @@ async function boot() {
     G.twist = daily ? daily.twist : NO_TWIST;
     setHazards(course, 0);
     makeMe(0, [course.start.x, course.start.y, course.start.z], course.start.yaw);
+    G.finOrbit = 0;
+    feedback.reset(view, daily ? [] : progress.scalesKept(courseId), { scales: !daily });
+    if (AUTOPLAY) G.autoplayBrain = createBrain(course, { skill: Number(params.get('skill')) || 0.95, seed: 7, yaw: course.start.yaw, personality: 'steady', route: params.get('route') ?? undefined });
     G.me.track = [];
     G.me.nextTrack = 0;
     const trial = { course, daily, t: -1.6, done: false, ghosts: [], best: progress.data.best[courseId] ?? 0, lastBeat: 4 };
@@ -600,13 +611,16 @@ async function boot() {
     setControls(false);
     award('splash');
     if (G.me.body.m < 10) award('bone-dry');
-    let info;
+    const sum = feedback.summary();
+    let head;
+    let medal = null;
     if (tr.daily) {
       const newBest = progress.dailyFinish(tr.daily.day, time);
       submitTime(`daily-${tr.daily.course}-${tr.daily.twistId}`, time);
-      info = { time, newBest, medal: null };
+      head = { time, note: newBest ? 'Best today' : null, sub: `Daily Catch, ${tr.daily.twist.name.toLowerCase()}` };
     } else {
       const r = progress.finish(tr.course.id, time);
+      medal = r.medal;
       submitTime(`time-${tr.course.id}`, time);
       if (r.newBest && G.me.track) progress.saveGhost(tr.course.id, G.me.track);
       if (r.newMedal === 'gold') award('gold-fin');
@@ -614,24 +628,42 @@ async function boot() {
       if (COURSE_IDS.every((c) => progress.data.medals[c] === 'gold')) award('golden-catch');
       if (r.newMedal) audio.medal();
       const fishNames = r.unlockedFish.map((id) => FISH.find((f) => f.id === id)?.name).filter(Boolean);
-      info = { time, medal: r.medal, newBest: r.newBest && tr.best > 0, newMedal: r.newMedal, split: tr.best > 0 ? time - tr.best : null, unlocked: fishNames.length ? `New fish: ${fishNames.join(', ')}` : null };
+      const split = tr.best > 0 ? time - tr.best : null;
+      const note = r.newMedal ? `${r.newMedal[0].toUpperCase()}${r.newMedal.slice(1)}!` : r.newBest && tr.best > 0 ? 'New best' : null;
+      const sub = fishNames.length ? `New fish: ${fishNames.join(', ')}` : split !== null && !r.newBest ? `${split > 0 ? '+' : '−'}${Math.abs(split).toFixed(1)} on your best` : null;
+      head = { time, medal: r.medal, note, sub };
     }
+    const kept = tr.daily ? [] : progress.scalesKept(tr.course.id);
+    const fresh = tr.daily ? [] : progress.keepScales(tr.course.id, sum.scales);
+    const gain = progress.addRun({ course: tr.course.id, finished: true, time, medal, daily: !!tr.daily, drops: sum.drops, scales: sum.scales.length, newScales: fresh.length, oldScales: sum.scales.length - fresh.length, bestChain: sum.bestChain, perfects: sum.perfects, close: sum.close, springs: sum.springs });
     const i = COURSE_IDS.indexOf(tr.course.id);
     const nextId = !tr.daily && i >= 0 && i < COURSE_IDS.length - 1 && progress.courseOpen(COURSE_IDS[i + 1]) ? COURSE_IDS[i + 1] : null;
+    const back = () => {
+      clearHazards();
+      clearTrial();
+      G.mode = 'boot';
+      toQuay();
+    };
     setTimeout(() => {
       if (G.trial !== tr) return;
-      hud.trialEnd(info, {
-        retry: () => startTrial(tr.course.id, { daily: !!tr.daily }),
-        next: nextId ? () => startTrial(nextId, {}) : null,
-        back: () => {
-          clearHazards();
-          clearTrial();
-          G.mode = 'boot';
-          toQuay();
-        },
+      const card = runCard({
+        head,
+        run: { drops: sum.drops, scales: tr.daily ? null : sum.scales, kept, bestChain: sum.bestChain, perfects: sum.perfects },
+        gain,
+        goals: progress.goals(),
+        streak: progress.streak(),
+        audio,
+        actions: [
+          { text: 'Retry', key: 'R', kind: 'red', onclick: () => startTrial(tr.course.id, { daily: !!tr.daily }) },
+          nextId ? { text: 'Next course', kind: '', onclick: () => startTrial(nextId, {}) } : null,
+          { text: 'Back', kind: 'wash', onclick: back },
+        ].filter(Boolean),
       });
+      tr.card = card;
+      hud.clearExtra();
+      hud.addExtra(card.el);
       setFlow('trial-end');
-    }, 900);
+    }, 2700);
   }
 
   // ---------------------------------------------------------------- the cup
@@ -685,6 +717,7 @@ async function boot() {
       if (s.me) {
         const a = makeMe(s.index, slot, course.start.yaw);
         a.name = s.name;
+        feedback.reset(view, progress.scalesKept(d.c));
         if (AUTOPLAY) G.autoplayBrain = createBrain(course, { skill: 0.95, seed: 7, yaw: course.start.yaw, personality: 'steady' });
         continue;
       }
@@ -779,6 +812,16 @@ async function boot() {
     });
     const mine = rows.find((r) => r.me);
     if (mine && fin[G.me?.id] !== undefined) award('splash');
+    if (mine && G.me && G.gainRound !== match.roundId) {
+      G.gainRound = match.roundId;
+      const sum = feedback.summary();
+      const finished = fin[G.me.id] !== undefined;
+      const kept = progress.scalesKept(G.course.id);
+      const fresh = finished ? progress.keepScales(G.course.id, sum.scales) : [];
+      const gain = progress.addRun({ course: G.course.id, race: true, place: mine.place, finished, time: finished ? fin[G.me.id] / 1000 : null, drops: sum.drops, scales: sum.scales.length, newScales: fresh.length, oldScales: finished ? sum.scales.length - fresh.length : 0, bestChain: sum.bestChain, perfects: sum.perfects, close: sum.close, springs: sum.springs });
+      const card = runCard({ head: {}, run: { drops: sum.drops, scales: sum.scales, kept, bestChain: sum.bestChain, perfects: sum.perfects }, gain, goals: progress.goals(), streak: progress.streak(), audio, actions: [] });
+      hud.addExtra(card.el);
+    }
   }
 
   function showResults() {
@@ -973,7 +1016,7 @@ async function boot() {
   // ---------------------------------------------------------------- simulation helpers
   const env = () => ({ world: G.course.world, hazards: G.hazards, twist: G.twist, t: 0 });
   const myInput = (a, dt, t) => {
-    if (G.autoplayBrain && G.mode === 'match') {
+    if (G.autoplayBrain && (G.mode === 'match' || G.mode === 'trial')) {
       const r = G.autoplayBrain.step(a.body, dt, t, G.hazards);
       input.state.yaw = r.yaw;
       return r;
@@ -989,6 +1032,7 @@ async function boot() {
   const onEvent = (a, e) => {
     eventFx(ctx, a, e, nearOf(a));
     if (a.kind !== 'me') return;
+    feedback.event(a, e, G.t);
     if (e.type === 'flop') {
       G.tips.flops++;
       if (G.tips.flops === 1) award('first-flop');
@@ -1004,7 +1048,7 @@ async function boot() {
       if (!e.lucky) award('gull-bait');
     }
     else if (e.type === 'finish') {
-      hud.callout('SPLASH!', { kind: '', seconds: 1.6 });
+      hud.callout('SPLASH!', { kind: '', seconds: 1.0 });
       if (G.mode === 'match' && match.phase === 'round' && !a.sentFinish) {
         a.sentFinish = true;
         cup.finish(match.roundId, a.finishT * 1000);
@@ -1080,10 +1124,19 @@ async function boot() {
     if (b && b.state === 'done') {
       // in: the camera stops up over the edge and looks down into the splash (steep enough to see past the quay wall)
       const [ix, iy, iz] = b.inAt ?? [b.x, b.y, b.z];
-      const yaw = input.state.yaw;
-      camP.set(ix - Math.sin(yaw) * 2.4, Math.min(iy + 3.6, CHASE.ceil), iz - Math.cos(yaw) * 2.4);
-      camL.set(ix, iy + 0.2, iz);
-      cam.place(dt, camP, camL, 4);
+      const surf = b.surfY ?? iy;
+      const yaw = seaYaw();
+      // out over the sea looking back at the splash and the leap, the town behind, the fish right of the card;
+      // drifting a little round it
+      G.finOrbit = (G.finOrbit ?? 0) + dt;
+      const sw = Math.sin(G.finOrbit * 0.35) * 0.28;
+      const a2 = yaw + Math.PI + 0.75 + sw;
+      const cx = ix + Math.sin(yaw) * 2.3, cz = iz + Math.cos(yaw) * 2.3;
+      camP.set(cx - Math.sin(a2) * 3.1, Math.min(surf + 0.75, CHASE.ceil), cz - Math.cos(a2) * 3.1);
+      // look past the fish to the left, so it sits right of the card
+      const lx = Math.cos(a2), lz = -Math.sin(a2);
+      camL.set(cx + lx * 1.0, surf + 0.85, cz + lz * 1.0);
+      cam.place(dt, camP, camL, 2.2);
       return;
     }
     const r = a.rs;
@@ -1186,7 +1239,10 @@ async function boot() {
       hud.nameTags([]);
       sendPresence('title');
       setFlow('title');
-      if (AUTOPLAY && G.t > 1.2) toQuay();
+      if (AUTOPLAY && G.t > 1.2) {
+        if (AUTOPLAY_TRIAL && COURSE_IDS.includes(AUTOPLAY_TRIAL)) startTrial(AUTOPLAY_TRIAL, { daily: params.has('daily') });
+        else toQuay();
+      }
       return;
     }
 
@@ -1208,6 +1264,7 @@ async function boot() {
       }
       syncFromBody(a);
       a.prog = 0;
+      feedback.update(dt, a, G.course.world, G.twist, { off: G.mode !== 'quay' });
       a.view.update(dt, a.rs);
       a.view.setVisible(true);
       fx.halo(a.body.x, (a.body.ground ? a.body.y - 0.16 : a.body.y - 0.16), a.body.z, false);
@@ -1237,6 +1294,55 @@ async function boot() {
     } else hud.nameTags([]);
   }
 
+  /** Which way the open sea lies at the end of the course (the last stretch of its line). */
+  function seaYaw() {
+    const sp = G.course?.spine;
+    if (!sp || sp.length < 2) return input.state.yaw;
+    const a = sp[sp.length - 2], b = sp[sp.length - 1];
+    return Math.atan2(b[0] - a[0], b[2] - a[2]);
+  }
+  /** Home: a moment after the splash the fish leaps clear of the water once, spinning, and dives back in (drawn only). */
+  function victoryLeap(a, ft) {
+    const b = a.body;
+    const at = b.inAt ?? [b.x, b.y, b.z];
+    const surf = b.surfY ?? at[1];
+    const T0 = 0.75, LEN = 1.2;
+    const k = (ft - T0) / LEN;
+    const yaw = seaYaw();
+    if (k > 0 && k < 1) {
+      const d = 0.9 + k * 3.0;
+      a.rs.x = at[0] + Math.sin(yaw) * d;
+      a.rs.z = at[2] + Math.cos(yaw) * d;
+      a.rs.y = surf - 0.35 + Math.sin(k * Math.PI) * 1.9;
+      a.rs.vx = Math.sin(yaw) * 2.5;
+      a.rs.vz = Math.cos(yaw) * 2.5;
+      a.rs.vy = Math.cos(k * Math.PI) * 4.6;
+      a.rs.ground = false;
+      a.rs.state = 'ok';
+      a.rs.curl = 0;
+    }
+    if (!a.leapOut && k > 0.06) {
+      a.leapOut = true;
+      a.view.events([{ type: 'flop', charge: 1, slap: true }]);
+      fx.burst(a.rs.x, surf, a.rs.z, 26, 'splash', 1.3);
+      fx.glint(a.rs.x, surf + 0.3, a.rs.z, 10, 0xffffff, 1.2);
+      audio.flop(0.8, true);
+    }
+    if (!a.leapIn && k > 0.94) {
+      a.leapIn = true;
+      fx.burst(a.rs.x, surf, a.rs.z, 30, 'splash', 1.4);
+      fx.crown(a.rs.x, surf, a.rs.z, 0.55);
+      a.view.events([{ type: 'splashdown' }]);
+      audio.land('splash', 7);
+    }
+    if (k >= 1) {
+      // under again, just below the ring it made
+      a.rs.x = at[0] + Math.sin(yaw) * 3.9;
+      a.rs.z = at[2] + Math.cos(yaw) * 3.9;
+      a.rs.y = Math.max(b.doneY, surf - 0.6);
+    }
+  }
+
   function tickTrial(dt) {
     const tr = G.trial;
     const a = G.me;
@@ -1244,7 +1350,7 @@ async function boot() {
     input.state.enabled = !G.paused && !tr.done;
     if (!G.paused) {
       const before = tr.t;
-      tr.t += dt;
+      tr.t += tr.t > 0 ? dt * feedback.timeScale(dt) : dt;
       // 3, 2, 1 over the first 1.5 s
       if (before < 0) {
         const beat = Math.ceil(-tr.t / 0.5);
@@ -1263,9 +1369,10 @@ async function boot() {
           a.body.t = 0;
         }
       }
-      if (tr.t >= 0 && !tr.done) {
+      if (tr.t >= 0) {
+        // (on past the finish too: the fish sinks into the splash in slow motion)
         simulate(a, tr.t, myInput, env(), onEvent, 30);
-        if (a.body.state === 'done') trialFinished();
+        if (a.body.state === 'done' && !tr.done) trialFinished();
       }
       if (input.state.rHeld > 0.5 && !tr.done && tr.t > 0) {
         input.state.rHeld = -10; // one restart per press
@@ -1274,6 +1381,7 @@ async function boot() {
       }
     }
     syncFromBody(a);
+    if (tr.done) victoryLeap(a, tr.t - (a.finishT ?? tr.t));
     a.prog = G.course.progress(a.body.x, a.body.z, a.hint).s;
     a.view.update(dt, a.rs);
     for (const g of tr.ghosts) {
@@ -1289,11 +1397,14 @@ async function boot() {
     if (!tr.done) chaseCam(dt, a);
     else chaseCam(dt, a);
     fx.halo(a.body.x, a.body.y - 0.16, a.body.z, false);
+    feedback.update(dt, a, G.course.world, G.twist, { running: tr.t > 0 && !tr.done && !G.paused, off: tr.done });
     updateArc();
     updateWay(dt);
     G.view?.update(G.t);
     fx.update(dt);
     hud.timer(Math.max(0, tr.done ? a.finishT ?? tr.t : tr.t));
+    hud.showGauge(!tr.done);
+    if (tr.done) hud.hint('');
     hud.water(a.body.m, dt);
     audio.setLow(a.body.m < WATER.low && !tr.done);
     if (!tr.done) tipHints(a, tr.t);
@@ -1328,7 +1439,7 @@ async function boot() {
       G.tips.lowAt ??= t;
       if (t - G.tips.lowAt > 4) G.tips.shownLow = true;
     }
-    if (input.state.wantLock && !input.state.locked && !touch && !input.state.lockRefused && t > 0.5) text = 'Click to aim with the mouse';
+    if (input.state.wantLock && !input.state.locked && !touch && !input.state.lockRefused && t > 0.5 && !AUTOPLAY) text = 'Click to aim with the mouse';
     hud.hint(text);
   }
 
@@ -1465,6 +1576,7 @@ async function boot() {
       );
       hud.showGauge(!!me && !me.done);
       if (me?.body) {
+        feedback.update(dt, me, course.world, G.twist, { running: racing && !me.done, off: !racing || me.done });
         hud.water(me.body.m, dt);
         audio.setLow(me.body.m < WATER.low && !me.done && racing);
         fx.halo(me.body.x, me.body.y - 0.16, me.body.z, false);
@@ -1551,7 +1663,7 @@ async function boot() {
     });
     if (G.mode === 'title') hideLobby(true);
     if (match.phase !== 'lobby' && match.phase !== 'countdown') enterMatch();
-    else if (G.wantQuay || AUTOPLAY || AUTOPLAY_TO === 'lobby') toQuay();
+    else if (G.wantQuay || (AUTOPLAY && !AUTOPLAY_TRIAL) || AUTOPLAY_TO === 'lobby') toQuay();
   }
 
   // ---------------------------------------------------------------- go
