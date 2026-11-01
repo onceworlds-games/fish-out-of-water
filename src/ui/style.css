@@ -917,3 +917,10 @@ button.tag:focus-visible {
     width: 80vw;
   }
 }
+
+/* a short landscape phone: the hint sits just over the gauge, clear of your fish */
+@media (max-height: 460px) and (orientation: landscape) {
+  .hint {
+    bottom: calc(var(--bottom) + 58px);
+  }
+}
