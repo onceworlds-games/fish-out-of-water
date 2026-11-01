@@ -24,6 +24,7 @@ function catchCard(c) {
       h('div', { class: 'gh' }, 'Today'),
       ...c.goals.map((g) => h('div', { class: `goal ${g.done ? 'done' : ''}` }, h('span', { class: 'box' }), h('span', { class: 'gt' }, g.text), h('span', { class: 'gn' }, g.need > 1 ? `${Math.min(g.have, g.need)}/${g.need}` : ''))),
     ),
+    c.saved ? h('div', { class: 'cc-saved' }, h('b', {}, c.saved.toLocaleString('en')), ' fish back in the sea') : null,
   );
 }
 
@@ -115,7 +116,7 @@ export function createScreens(root) {
         ...courses.map((c, i) =>
           tag(
             [
-              h('span', { class: 'what' }, c.name, h('small', {}, c.open ? (c.best ? `Best ${fmtTime(c.best)}` : 'No time yet') : c.lockText)),
+              h('span', { class: 'what' }, c.name, h('small', {}, c.open ? (c.best ? `Best ${fmtTime(c.best)}` : 'No time yet') : c.lockText), c.record ? h('small', { class: 'rec' }, `Record ${fmtTime(c.record.value)}${c.record.by?.name ? ` · ${c.record.by.name}` : ''}`) : null),
               c.open ? medalDisc(c.medal) : h('span', { class: 'cond' }, 'Locked'),
             ],
             { kind: c.open ? (i % 2 ? 'wash' : '') : 'locked', onclick: c.open ? () => onPick(c.id) : null, angle: i % 2 ? 1.5 : -1.5 },

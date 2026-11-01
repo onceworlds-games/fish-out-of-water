@@ -341,3 +341,37 @@ export function submitTime(board, seconds) {
     return Promise.resolve(null);
   }
 }
+
+// ---------------------------------------------------------------- game data every page shares (onceworlds.json "data")
+
+/** A shared value: a record ({ value, by }) or a counter's number; null when there's no platform or it can't be read. */
+async function shared(key) {
+  try {
+    const v = await ow?.data?.game?.get?.(key);
+    if (typeof v === 'number') return { value: v };
+    if (v && typeof v === 'object' && typeof v.value === 'number' && Number.isFinite(v.value)) return v;
+  } catch {}
+  return null;
+}
+
+/** The fastest anyone has ever flopped a course: { value, by: { name } } or null. */
+export const courseRecord = (courseId) => shared(`record-${courseId}`);
+
+/** Offer a finished time as the course record: resolves { record: true } when it's yours now, or null. */
+export function claimRecord(courseId, seconds) {
+  try {
+    return ow?.data?.game?.best?.(`record-${courseId}`, Math.round(seconds * 10) / 10)?.catch?.(() => null) ?? Promise.resolve(null);
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
+/** How many fish everyone has flopped back to the sea. */
+export async function savedCount() {
+  return (await shared('saved'))?.value ?? null;
+}
+export function countSaved() {
+  try {
+    ow?.data?.game?.add?.('saved', 1)?.catch?.(() => {});
+  } catch {}
+}

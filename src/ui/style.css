@@ -2019,7 +2019,25 @@ button.tag:focus-visible {
   border-width: 0 3px 3px 0;
 }
 
+.cc-saved {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.1;
+  padding-top: 5px;
+  border-top: 2px dashed rgba(26, 29, 34, 0.35);
+}
+.cc-saved b {
+  font-family: var(--slab);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--sea);
+}
+.board .what small.rec {
+  color: var(--sea);
+}
+
 @media (max-height: 560px), (max-width: 620px) {
+  .catch-card .cc-saved,
   .catch-card .cc-goals,
   .catch-card .cc-next {
     display: none;

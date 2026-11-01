@@ -25,5 +25,12 @@
     { "id": "whole-catch", "name": "Whole Catch", "description": "Finish every course." },
     { "id": "golden-catch", "name": "Golden Catch", "description": "Gold on every course." },
     { "id": "cup-champion", "name": "Fish Market Champion", "description": "Win a cup." }
-  ]
+  ],
+  "data": {
+    "record-market": { "type": "record", "order": "min", "min": 8, "max": 600 },
+    "record-kitchen": { "type": "record", "order": "min", "min": 8, "max": 600 },
+    "record-beach": { "type": "record", "order": "min", "min": 8, "max": 600 },
+    "record-park": { "type": "record", "order": "min", "min": 8, "max": 600 },
+    "saved": { "type": "counter", "max": 1000000000000, "add": 1 }
+  }
 }

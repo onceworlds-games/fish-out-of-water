@@ -16,7 +16,7 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './ui/hud.js';
 import { createScreens } from './ui/screens.js';
-import { createProgress, award, submitTime, ghostAt } from './progress.js';
+import { createProgress, award, submitTime, ghostAt, courseRecord, claimRecord, savedCount, countSaved } from './progress.js';
 import { joinRoom, createCup, readPresence, BOT_STYLE, lookToWire, lookFromWire } from './net.js';
 import { getCourse, COURSE_IDS } from './sim/courses/index.js';
 import { createHazards } from './sim/hazards.js';
@@ -427,6 +427,17 @@ async function boot() {
   function drawQuay() {
     screens.quay(quayInfo());
     layout();
+    refreshSaved();
+  }
+  /** How many fish everyone has flopped back to the sea, for the Catch card (read at most once a minute). */
+  function refreshSaved() {
+    if (G.savedAt && performance.now() - G.savedAt < 60000) return;
+    G.savedAt = performance.now();
+    savedCount().then((n) => {
+      if (n === null || n === G.saved) return;
+      G.saved = n;
+      if (G.mode === 'quay') drawQuay();
+    });
   }
 
   // ---------------------------------------------------------------- the time-trial board, the daily, the fish picker
@@ -447,8 +458,14 @@ async function boot() {
         lockText: i > 0 ? `Finish ${getCourse(COURSE_IDS[i - 1]).short ?? getCourse(COURSE_IDS[i - 1]).name}` : '',
       };
     });
-    screens.trials({ courses, onPick: (id) => startTrial(id, {}), onBack: () => toQuay() });
+    const draw = () => screens.trials({ courses, onPick: (id) => startTrial(id, {}), onBack: () => toQuay() });
+    draw();
     setFlow('trials');
+    Promise.all(COURSE_IDS.map((id) => courseRecord(id))).then((recs) => {
+      if (G.mode !== 'trials' || !recs.some(Boolean)) return;
+      recs.forEach((r, i) => (courses[i].record = r));
+      draw();
+    });
   }
   async function toDaily() {
     audio.click();
@@ -487,6 +504,7 @@ async function boot() {
       streak: progress.streak().n,
       next: nx ? { level: nx.level, text: nx.rewards.map((r) => r.name).join(', ') } : null,
       goals: progress.goals(),
+      saved: G.saved ?? null,
     };
   }
   function drawFish(keepScroll = false) {
@@ -620,6 +638,10 @@ async function boot() {
     hud.clearExtra();
     hud.medalTarget(daily ? null : nextMedal(courseId, trial.best));
     hud.courseCard(course.name, daily ? `Daily Catch, ${daily.twist.name.toLowerCase()}` : null);
+    if (!daily)
+      courseRecord(courseId).then((r) => {
+        if (r && G.trial === trial && trial.t < 0) hud.courseCard(course.name, `Record ${fmtTime(r.value)}${r.by?.name ? ` by ${r.by.name}` : ''}`);
+      });
     G.camMode = 'chase';
     audio.mood('race');
     setFlow('trial');
@@ -676,6 +698,7 @@ async function boot() {
     input.releaseLock();
     setControls(false);
     award('splash');
+    countSaved();
     if (G.me.body.m < 10) award('bone-dry');
     const sum = feedback.summary();
     let head;
@@ -688,6 +711,9 @@ async function boot() {
       const r = progress.finish(tr.course.id, time);
       medal = r.medal;
       submitTime(`time-${tr.course.id}`, time);
+      claimRecord(tr.course.id, time).then((res) => {
+        if (res?.record) tr.newRecord = true;
+      });
       if (r.newBest && G.me.track) progress.saveGhost(tr.course.id, G.me.track);
       if (r.newMedal === 'gold') award('gold-fin');
       if (COURSE_IDS.every((c) => progress.data.finished[c])) award('whole-catch');
@@ -712,6 +738,10 @@ async function boot() {
     };
     setTimeout(() => {
       if (G.trial !== tr) return;
+      if (tr.newRecord) {
+        head.note = 'Course record!';
+        audio.medal();
+      }
       const card = runCard({
         head,
         run: { drops: sum.drops, scales: tr.daily ? null : sum.scales, kept, bestChain: sum.bestChain, perfects: sum.perfects },
@@ -1139,6 +1169,7 @@ async function boot() {
         a.sentFinish = true;
         cup.finish(match.roundId, a.finishT * 1000);
         award('splash');
+        countSaved();
         if (a.body.m < 10) award('bone-dry');
       }
     }
