@@ -402,7 +402,7 @@ export function createFx(scene) {
           vz: Math.sin(a) * sp + (dir ? dir[1] * power : 0),
           life: kind === 'confetti' ? 2.5 + Math.random() : 0.5 + Math.random() * 0.5,
           age: 0,
-          size: kind === 'confetti' ? 0.05 : kind === 'sparkle' ? 0.022 : 0.03 + Math.random() * 0.03,
+          size: kind === 'confetti' ? 0.05 : kind === 'sparkle' ? 0.022 : kind === 'splash' ? 0.024 + Math.random() * 0.026 : 0.03 + Math.random() * 0.03,
           color: c,
           kind,
           g: kind === 'confetti' ? 3 : kind === 'sparkle' ? 2 : 12,
@@ -516,8 +516,8 @@ export function createFx(scene) {
         } else if ((p.kind === 'splash' || p.kind === 'sand') && sp > 0.6) {
           // a drop in flight stretches along its path, so a splash reads as flung water, not beads
           tmpQ.setFromUnitVectors(UPV, tmpD.set(p.vx / sp, p.vy / sp, p.vz / sp));
-          const st = 1 + Math.min(2.4, sp * 0.3);
-          m4.compose(tmpV.set(p.x, p.y, p.z), tmpQ, tmpS.set(s * 0.75, s * st, s * 0.75));
+          const st = 1 + Math.min(1.3, sp * 0.16);
+          m4.compose(tmpV.set(p.x, p.y, p.z), tmpQ, tmpS.set(s * 0.7, s * st, s * 0.7));
         } else {
           m4.makeScale(s, s, s);
           m4.setPosition(p.x, p.y, p.z);

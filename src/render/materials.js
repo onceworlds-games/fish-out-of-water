@@ -21,12 +21,35 @@ const BASE = './tex/';
 const LUM = { boulder: 0.345, qtiles: 0.025, brushed: 0.299, piazza: 0.191, concrete: 0.25, rustmetal: 0.12, mshutter: 0.2, mosaic: 0.2, bplaster: 0.3, rplaster: 0.25, bluewood: 0.122, cobbles: 0.268, denim: 0.156, gingham: 0.264, grass: 0.241, gravel: 0.261, hessian: 0.201, ktiles: 0.578, linen: 0.404, planks: 0.058, plaster: 0.168, plate: 0.03, quaystone: 0.206, roof: 0.119, sand: 0.179, sandstone: 0.085, shutter: 0.087, stucco: 0.664, tablewood: 0.036, terracotta2: 0.049, terracotta: 0.027, terry: 0.068, wetsand: 0.122, wornplanks: 0.123 };
 const HAS_ARM = new Set(['boulder', 'qtiles', 'brushed', 'piazza', 'bplaster', 'rplaster', 'bluewood', 'cobbles', 'grass', 'gravel', 'ktiles', 'planks', 'plaster', 'plate', 'quaystone', 'roof', 'sand', 'sandstone', 'shutter', 'stucco', 'tablewood', 'terracotta2', 'terracotta', 'wetsand', 'wornplanks']);
 
+// Until a scan arrives its surface shows a flat stand-in (never black): a grey as bright as the colour map on average, a flat
+// normal, full light with a matte finish.
+const standIns = new Map();
+function standIn(name) {
+  const kind = name.slice(-1);
+  const lum = LUM[name.slice(0, -2)] ?? 0.2;
+  const srgb = Math.round(255 * (lum <= 0.0031308 ? lum * 12.92 : 1.055 * lum ** (1 / 2.4) - 0.055));
+  const css = kind === 'n' ? 'rgb(128,128,255)' : kind === 'r' ? 'rgb(255,215,0)' : `rgb(${srgb},${srgb},${srgb})`;
+  if (!standIns.has(css)) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 1;
+    const g = c.getContext('2d');
+    g.fillStyle = css;
+    g.fillRect(0, 0, 1, 1);
+    standIns.set(css, c);
+  }
+  return standIns.get(css);
+}
+
 function file(name, srgb) {
   if (files.has(name)) return files.get(name);
   const t = new THREE.Texture();
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.anisotropy = anisotropy;
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  try {
+    t.image = standIn(name);
+    t.needsUpdate = true;
+  } catch {}
   files.set(name, t);
   // a flaky connection gets two more tries before the surface is left plain
   pending.push(
@@ -35,6 +58,8 @@ function file(name, srgb) {
         loader.load(
           `${BASE}${name}.webp`,
           (img) => {
+            // the stand-in's 1×1 storage is let go first, so the scan gets storage of its own size
+            t.dispose();
             t.image = img.image;
             t.needsUpdate = true;
             resolve();

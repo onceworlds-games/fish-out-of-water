@@ -1324,7 +1324,12 @@ async function boot() {
     } catch (err) {
       console.error(err);
     }
-    hud.update(dt);
+    // the frame is always drawn, whatever goes wrong above it (a capture waits on every draw)
+    try {
+      hud.update(dt);
+    } catch (err) {
+      console.error(err);
+    }
     // the sun's shadow box follows what the camera is looking at (your fish, in a race)
     stage.camera.getWorldDirection(sunAt).multiplyScalar(5).add(stage.camera.position);
     if (G.camMode === 'chase' && G.me?.rs) {
