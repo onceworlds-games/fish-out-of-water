@@ -134,3 +134,25 @@ test('a slap on something springy goes higher than one on sand', async () => {
   };
   assert.ok(top('bounce') > top('sand') * 1.15, `springy ${top('bounce').toFixed(2)} vs sand ${top('sand').toFixed(2)}`);
 });
+
+test('the kitchen holds every fish: no leap goes out through its ceiling, hood, lamps or lintels', () => {
+  const c = getCourse('kitchen');
+  const env = { world: c.world, hazards: null, t: 0 };
+  // thrown straight up harder than any slap chain, from the floor, the pan shelf, the pass and a doorway
+  for (const [x, y, z] of [[0, 0.2, 20], [-5.45, 2.1, 70], [0, 1.25, 110], [0, 0.2, 96.4], [3, 0.2, 140]]) {
+    const b = createBody('mackerel', [x, y, z], 0);
+    b.vy = 15;
+    let top = 0;
+    for (let t = 0; t < 2.5; t += STEP) {
+      stepBody(b, { hold: false, yaw: 0 }, env);
+      top = Math.max(top, b.y + 0.16);
+    }
+    assert.ok(top < 5.45, `a fish from (${x}, ${y}, ${z}) flew up to ${top.toFixed(2)} m`);
+  }
+  // and the sharpest bots, on both routes, stay inside the room the whole way
+  for (const route of ['spine', 'expert']) for (const personality of ['steady', 'showoff', 'hothead']) for (let seed = 0; seed < 3; seed++) {
+    const r = runBot(c, { skill: 1, seed, route, personality, max: 200, track: true });
+    assert.ok(r.finished);
+    for (const [, x, y] of r.track) assert.ok(y < 5.3 && Math.abs(x) < 6, `a bot left the room at (${x.toFixed(1)}, ${y.toFixed(1)})`);
+  }
+});

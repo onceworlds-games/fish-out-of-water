@@ -10,7 +10,7 @@ import { G, rng } from './geo.js';
 import { tiledBox } from './batch.js';
 
 const NO_CAST = { cast: false };
-const TILE_H = 2.05;
+export const TILE_H = 2.45;
 
 /** A run of wall along z at x (facing `sgn` into the room), with window openings [[z0, z1]] from `sill` to `head`. */
 function sideWall(batch, x, sgn, z0, z1, H, windows, sill = 1.25, head = 2.85) {
@@ -33,8 +33,11 @@ function sideWall(batch, x, sgn, z0, z1, H, windows, sill = 1.25, head = 2.85) {
       batch.add(M.kplaster(), G.box, { p: [xx, TILE_H + (H - TILE_H) / 2, cz], s: [T, H - TILE_H, len] });
       continue;
     }
-    // below the sill, above the head, the frames and frosted daylight glass between
-    batch.add(M.subway(), tiledBox(T, sill, len, 1.2), { p: [xx, sill / 2, cz] });
+    // below the sill (tiles, and plaster above them under a high window), above the head, the frames and frosted daylight
+    // glass between
+    const th = Math.min(sill, TILE_H);
+    batch.add(M.subway(), tiledBox(T, th, len, 1.2), { p: [xx, th / 2, cz] });
+    if (sill > th) batch.add(M.kplaster(), G.box, { p: [xx, th + (sill - th) / 2, cz], s: [T, sill - th, len] });
     batch.add(M.kplaster(), G.box, { p: [xx, head + (H - head) / 2, cz], s: [T, H - head, len] });
     // the sill: a deep tiled ledge
     batch.add(M.china(), G.rbox, { p: [xx - sgn * 0.08, sill + 0.03, cz], s: [T + 0.22, 0.06, len + 0.04] });
@@ -87,8 +90,8 @@ export const KITCHEN_DECOR = {
   /** The room. d: { x0, x1, z0, z1, h, windows: [[z0, z1]] (harbour side, +x), end: [x0, x1, sill, head] }. */
   kroom(batch, sc, d) {
     const H = d.h;
-    sideWall(batch, d.x0, -1, d.z0, d.z1, H, null);
-    sideWall(batch, d.x1, 1, d.z0, d.z1, H, d.windows);
+    sideWall(batch, d.x0, -1, d.z0, d.z1, H, d.high?.windows ?? null, d.high?.sill, d.high?.head);
+    sideWall(batch, d.x1, 1, d.z0, d.z1, H, d.windows, d.sill, d.head);
     endWall(batch, d.z0, -1, d.x0, d.x1, H, null);
     endWall(batch, d.z1, 1, d.x0, d.x1, H, d.end);
     // the ceiling: painted board, a cornice, rows of light panels (they light the room's reflections, and bloom)
@@ -106,11 +109,19 @@ export const KITCHEN_DECOR = {
     // pipes along the ceiling on the range side, a clock and a fire extinguisher at the start
     batch.add(M.pipe(), G.cyl8, { p: [d.x0 + 0.35, H - 0.25, (d.z0 + d.z1) / 2], r: [Math.PI / 2, 0, 0], s: [0.07, L - 0.6, 0.07] }, NO_CAST);
     batch.add(M.pipe(), G.cyl8, { p: [d.x0 + 0.55, H - 0.2, (d.z0 + d.z1) / 2], r: [Math.PI / 2, 0, 0], s: [0.045, L - 0.6, 0.045] }, NO_CAST);
-    const clock = d.clock ?? [0, 2.75, d.z0 + 0.02];
-    batch.add(M.white(), G.cyl, { p: clock, r: [Math.PI / 2, 0, 0], s: [0.32, 0.06, 0.32] });
-    batch.add(M.slate(), G.torus, { p: [clock[0], clock[1], clock[2] + 0.035], s: [0.32, 0.32, 0.5] });
-    batch.add(M.slate(), G.box, { p: [clock[0] + 0.06, clock[1] + 0.08, clock[2] + 0.05], r: [0, 0, -0.6], s: [0.025, 0.2, 0.01] });
-    batch.add(M.slate(), G.box, { p: [clock[0] - 0.05, clock[1] + 0.03, clock[2] + 0.05], r: [0, 0, 1.0], s: [0.03, 0.14, 0.01] });
+    // clocks: [x, y, z, facing (+1: +z, -1: -z), size]
+    for (const c of d.clocks ?? [[0, 2.75, d.z0 + 0.02, 1]]) {
+      const [cx, cy, cz, f = 1, k = 1] = c;
+      batch.add(M.white(), G.cyl, { p: [cx, cy, cz], r: [Math.PI / 2, 0, 0], s: [0.32 * k, 0.06, 0.32 * k] });
+      batch.add(M.slate(), G.torus, { p: [cx, cy, cz + f * 0.035], s: [0.32 * k, 0.32 * k, 0.5] });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        batch.add(M.slate(), G.box, { p: [cx + Math.sin(a) * 0.25 * k, cy + Math.cos(a) * 0.25 * k, cz + f * 0.035], r: [0, 0, -a], s: [0.018 * k, (i % 3 ? 0.04 : 0.07) * k, 0.01] }, NO_CAST);
+      }
+      batch.add(M.slate(), G.box, { p: [cx + f * 0.06 * k, cy + 0.08 * k, cz + f * 0.05], r: [0, 0, -0.6 * f], s: [0.025 * k, 0.2 * k, 0.01] });
+      batch.add(M.slate(), G.box, { p: [cx - f * 0.05 * k, cy + 0.03 * k, cz + f * 0.05], r: [0, 0, 1.0 * f], s: [0.03 * k, 0.14 * k, 0.01] });
+      batch.add(M.red(), G.box, { p: [cx, cy - 0.06 * k, cz + f * 0.055], r: [0, 0, 0.3 * f], s: [0.01 * k, 0.24 * k, 0.008] }, NO_CAST);
+    }
   },
 
   /** The stainless canopy over the range: a sloped front, grease filters, a light strip under it, along z. */

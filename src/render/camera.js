@@ -147,6 +147,8 @@ export function createChaseCam(camera) {
       pos.set(follow.x + (want.x - follow.x) * k, follow.y + 0.35 + (want.y - follow.y - 0.35) * k, follow.z + (want.z - follow.z) * k);
       // never far above or below the fish itself
       pos.y = THREE.MathUtils.clamp(pos.y, s.y + 0.25, s.y + up + 1.2 + lift * 1.5);
+      // ... and never through the ceiling, even with the fish right up against it
+      pos.y = Math.min(pos.y, ceil);
       // a little bank into a turn of the aim
       const turn = opts.turnRate ?? 0;
       roll += (THREE.MathUtils.clamp(-turn * 0.02, -0.05, 0.05) - roll) * Math.min(1, dt * 4);

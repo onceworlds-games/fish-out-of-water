@@ -347,7 +347,7 @@ export function createFx(scene) {
         else if (kind === 'gold') fx.glint(x + jx, y + jy, z + jz, 1, Math.random() < 0.5 ? 0xffc93c : 0xffe7a0, 0.3);
         else if (kind === 'rainbow') fx.glint(x + jx, y + jy, z + jz, 1, col.setHSL((state.hue + Math.random() * 0.08) % 1, 0.9, 0.62).getHex(), 0.28);
         else if (kind === 'confetti') pushP(x + jx, y + jy, z + jz, jx * 6, 0.6 + Math.random(), jz * 6, 1.4 + Math.random(), 0.045, CONFETTI[(Math.random() * 5) | 0], 'confetti', 3);
-        else if (kind === 'ink') pushP(x + jx, y + jy, z + jz, jx, 0.1, jz, 0.9 + Math.random() * 0.4, 0.05 + Math.random() * 0.04, 0x2a2440, 'ink', 0);
+        else if (kind === 'ink') pushP(x + jx, y + jy, z + jz, jx, 0.1, jz, 0.7 + Math.random() * 0.35, 0.026 + Math.random() * 0.024, Math.random() < 0.3 ? 0x4a2f6e : 0x1e1830, 'ink', 0);
       }
     },
     /** The finish splash in a fish's style: plain | crown | fireworks | geyser | whale. */
@@ -508,7 +508,7 @@ export function createFx(scene) {
       for (const p of P) {
         if (n >= P_N) break;
         const k = 1 - p.age / p.life;
-        const s = p.kind === 'ink' ? p.size * (1 + (1 - k) * 2.2) * Math.min(1, k * 3) : p.kind === 'bubble' ? p.size * (0.7 + 0.3 * Math.sin(p.age * 9)) * Math.min(1, k * 4) : p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
+        const s = p.kind === 'ink' ? p.size * (1 + (1 - k) * 1.6) * Math.min(1, k * 3) : p.kind === 'bubble' ? p.size * (0.7 + 0.3 * Math.sin(p.age * 9)) * Math.min(1, k * 4) : p.size * (p.kind === 'confetti' ? 1 : 0.4 + 0.6 * k);
         const sp = Math.hypot(p.vx, p.vy, p.vz);
         if (p.kind === 'confetti') {
           m4.makeRotationFromEuler(tmpE.set(p.age * 7, p.age * 5, 0)).scale(tmpS.set(s, s * 0.15, s * 0.7));

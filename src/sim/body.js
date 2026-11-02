@@ -611,7 +611,8 @@ function trace(fish, world, x, y, z, vx, vy, vz, twist, opts) {
       x += tmp.nx * tmp.depth;
       y += tmp.ny * tmp.depth;
       z += tmp.nz * tmp.depth;
-      if (tmp.ny <= GROUND_NY && leaning.includes(col)) {
+      // a wall it leans on, or something overhead (a ceiling, a hood): the real step bounces off and flies on, so we do
+      if ((tmp.ny < -0.3 && !col.knock) || (tmp.ny <= GROUND_NY && leaning.includes(col))) {
         const bounce = impactBounce(-vn, surfOf(col.surf));
         vx += -vn * tmp.nx * (1 + bounce);
         vy += -vn * tmp.ny * (1 + bounce);

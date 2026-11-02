@@ -1248,6 +1248,14 @@ async function boot() {
       // drifting a little round it
       G.finOrbit = (G.finOrbit ?? 0) + dt;
       const sw = Math.sin(G.finOrbit * 0.35) * 0.28;
+      if (G.course.indoor) {
+        // indoors (the kitchen's pot sink): from the room, over the fish's splash to the harbour window behind it
+        const a3 = yaw + 0.42 + sw * 0.8;
+        camP.set(ix - Math.sin(a3) * 2.5, Math.min(surf + 1.05, CHASE.ceil), iz - Math.cos(a3) * 2.5);
+        camL.set(ix + Math.sin(yaw) * 1.1, surf + 0.55, iz + Math.cos(yaw) * 1.1);
+        cam.place(dt, camP, camL, 2.2);
+        return;
+      }
       const a2 = yaw + Math.PI + 0.75 + sw;
       const cx = ix + Math.sin(yaw) * 2.3, cz = iz + Math.cos(yaw) * 2.3;
       camP.set(cx - Math.sin(a2) * 3.1, Math.min(surf + 0.75, CHASE.ceil), cz - Math.cos(a2) * 3.1);

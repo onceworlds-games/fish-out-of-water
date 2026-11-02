@@ -17,16 +17,25 @@ export function kitchen() {
   b.wall(X1, -5, X1, ZE + 1, 6, -1, drawn);
   b.wall(-7, -4.6, 7, -4.6, 6, -1, drawn);
   b.wall(-7, ZE + 0.4, 7, ZE + 0.4, 6, -1, drawn);
-  const H = 3.6; // the ceiling
-  b.decor('kroom', [0, 0, 0], { x0: X0, x1: X1, z0: -4.6, z1: ZE + 0.4, windows: [[6, 16], [24, 36], [48, 62], [70, 90], [102, 118], [126, 142]], end: [-3.6, 3.6, 1.3, 3.0], h: H, clock: [-2.5, 2.7, -4.58] });
+  // A tall old harbour kitchen: a leap from the pan shelf or the pass clears the hood and the heat lamps, and the ceiling,
+  // the lintels, the hood and the lamps are all solid, so a fish (and the camera) can never fly out through them.
+  const H = 5.4; // the ceiling
+  const DOOR = 3.3; // the doorways' head
+  b.decor('kroom', [0, 0, 0], { x0: X0, x1: X1, z0: -4.6, z1: ZE + 0.4, windows: [[6, 16], [24, 36], [48, 62], [70, 90], [102, 118], [126, 142]], head: 3.7, end: [-3.6, 3.6, 1.3, 3.9], h: H,
+    // high windows over the inner wall where there's no hood, clocks at the start and over each doorway
+    high: { windows: [[4, 16], [22, 36], [100, 118], [126, 144]], sill: 3.55, head: 4.85 },
+    clocks: [[-2.5, 3.0, -4.58, 1], ...[40, 96, 122].map((z) => [0, 4.35, z - 0.16, -1, 1.6])] });
+  for (let z = -5; z < ZE + 1; z += 26) b.box([0, H + 0.2, z + 13], [13, 0.4, 26], { surf: 'wall', look: null });
   for (const z of [40, 96, 122]) {
     b.box([-4.05, H / 2, z], [3.9, H, 0.3], { surf: 'wall', look: 'kwalltile' });
     b.box([4.05, H / 2, z], [3.9, H, 0.3], { surf: 'wall', look: 'kwalltile' });
-    b.decor('lintel', [0, H - 0.2, z], { w: 4.2, h: 0.4, plaster: true });
-    b.decor('sign', [0, 2.6, z - 0.2], { arrow: 'ahead', hang: 0.4 });
+    b.box([0, (DOOR + H) / 2, z], [4.2, H - DOOR, 0.3], { surf: 'wall', look: null });
+    b.decor('lintel', [0, (DOOR + H) / 2, z], { w: 4.2, h: H - DOOR, plaster: true });
+    b.decor('sign', [0, DOOR - 0.4, z - 0.2], { arrow: 'ahead', hang: 0.15 });
   }
-  // the hood over the range, the walk-in's door, mats and wet-floor signs at fish height
-  b.decor('khood', [-5.15, 2.92, 68], { w: 1.75, len: 50, h: 0.62 });
+  // the hood over the range (hung high, under the ceiling), the walk-in's door, mats and wet-floor signs at fish height
+  b.decor('khood', [-5.15, 4.8, 68], { w: 1.75, len: 50, h: 0.6 });
+  b.box([-5.15, 5.1, 68], [1.75, 0.6, 50], { surf: 'steel', look: null });
   b.decor('walkin', [X0, 0, 8.5], { sgn: 1 });
   b.decor('mat', [0, 0, 1.8], { w: 2.4, len: 1.4 });
   b.decor('mat', [-3.4, 0, 68], { w: 1.0, len: 16 });
@@ -108,7 +117,8 @@ export function kitchen() {
 
   // ---------------------------------------------------------------- C: the pass (z 96-122) and the dish pit
   b.box([0, 0.525, 109], [2.2, 1.05, 20], { surf: 'steel', look: 'pass' });
-  b.decor('heatlamps', [0, 2.45, 109], { len: 19 });
+  b.decor('heatlamps', [0, 4.15, 109], { len: 19, top: H });
+  b.box([0, 4.25, 109], [0.6, 0.5, 19], { surf: 'steel', look: null });
   b.decor('plates', [0.55, 1.05, 100.5], { n: 3 });
   b.decor('plates', [-0.5, 1.05, 117.6], { n: 2 });
   // the dish pit: a deep tub of soapy water
@@ -121,7 +131,7 @@ export function kitchen() {
   b.puddle(tx - 0.05, 0.5, tz, 1.3, { look: 'tub' });
   b.decor('suds', [tx, 0.72, tz], { w: 1.8, d: 3.0 });
   // the pass is quick but the heat lamps dry you as you go
-  b.heat([-1.1, 1.05, 99], [1.1, 2.4, 119], 2.6);
+  b.heat([-1.1, 1.05, 99], [1.1, 3.95, 119], 2.6);
   b.drops([[0, 1.05, 100.4], [0, 1.05, 118.4]], 1.5, 0.26);
   // the dishwasher: a belt that carries a fish through a hood of hot spray (a drink on the way); the hood's steam vent
   // lifts a fish that jumps off the belt in front of it up onto the hood, where a golden scale waits
@@ -181,8 +191,8 @@ export function kitchen() {
     sea: { y: -0.6, z0: ZE + 1.2, x0: -60, x1: 80, lighthouse: [14, 0, 230] },
     sky: 'noon',
     gentle: 30,
-    // the chase camera stays under the ceiling and the lintels
-    camCeil: 3.15,
+    // the chase camera stays under the ceiling
+    camCeil: 4.9,
     indoor: true,
   };
 }

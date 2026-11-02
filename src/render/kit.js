@@ -260,7 +260,7 @@ const BOX_LOOKS = {
     batch.add(M.kfloor(), tiledBox(w, h, d, 1.0), inFrame(t, [0, 0, 0]));
   },
   kwalltile(batch, sc, w, h, d, t) {
-    const th = Math.min(h, 2.05);
+    const th = Math.min(h, 2.45);
     batch.add(M.subway(), tiledBox(w, th, d, 1.2), inFrame(t, [0, -h / 2 + th / 2, 0]));
     if (h > th) batch.add(M.kplaster(), G.box, inFrame(t, [0, -h / 2 + th + (h - th) / 2, 0], [0, 0, 0], [w, h - th, d]));
     batch.add(M.bluetile(), G.box, inFrame(t, [0, -h / 2 + 1.18, 0], [0, 0, 0], [w + 0.02, 0.09, d + 0.02]));
@@ -954,16 +954,15 @@ const DECOR = {
     batch.add(M.blue(), G.cyl, { p: [at[0], at[1] + 0.12, at[2]], r: [Math.PI / 2, 0.3, 0], s: [0.11, 0.3, 0.11] });
   },
   heatlamps(batch, sc, d, at) {
+    // a gantry of red heat lamps over the pass, hung from the ceiling on rods (nothing stands on the pass itself)
     batch.add(M.steel(), G.box, { p: [at[0], at[1] + 0.25, at[2]], s: [0.5, 0.08, d.len] });
-    for (const z of [at[2] - d.len / 2 + 0.2, at[2] + d.len / 2 - 0.2]) batch.add(M.steel(), G.cyl8, { p: [at[0], at[1] / 2 + 0.55, z], s: [0.04, at[1] - 1.0, 0.04] });
+    const top = d.top ?? at[1] + 1;
+    for (const z of [at[2] - d.len / 2 + 0.6, at[2], at[2] + d.len / 2 - 0.6])
+      for (const s of [-1, 1]) batch.add(M.iron(), G.cyl8, { p: [at[0] + s * 0.18, (at[1] + 0.29 + top) / 2, z], s: [0.018, top - at[1] - 0.29, 0.018] }, { cast: false });
     for (let z = at[2] - d.len / 2 + 1; z < at[2] + d.len / 2; z += 2) {
       batch.add(M.red(), G.cyl, { p: [at[0], at[1], z], s: [0.22, 0.32, 0.22] });
       batch.add(M.lamp(), G.cyl, { p: [at[0], at[1] - 0.17, z], s: [0.17, 0.03, 0.17] }, { cast: false });
     }
-    // order tickets on a rail
-    batch.add(M.steel(), G.box, { p: [at[0] - 0.3, at[1] - 0.5, at[2]], s: [0.04, 0.05, d.len * 0.8] });
-    const r = rng(41);
-    for (let z = at[2] - d.len * 0.38; z < at[2] + d.len * 0.38; z += 0.5 + r() * 0.5) batch.add(M.white(), G.box, { p: [at[0] - 0.32, at[1] - 0.68, z], r: [0, 0, (r() - 0.5) * 0.15], s: [0.01, 0.3, 0.2] });
   },
   plates(batch, sc, d, at) {
     for (let k = 0; k < d.n; k++)
