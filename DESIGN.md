@@ -432,10 +432,10 @@ All posters are drawn by the game itself (`?poster=<name>`, fixed seed, no HUD).
 - **Icon:** a glossy mackerel curled in a C, mid-flop over the market's red tiles, water flying off its tail. No text.
 - **Badges:** a bold symbol on a coloured disc each (a curled fish, a splash crown, a gold medal, a fish skeleton, a gull, an
   ice skid, a slap star, a net of fish, a golden fish, a cup).
-- **Trailer** (24 s, six hard cuts of autoplay races driven by the bot brain, the game's own sound): a mackerel flopping
-  across the quay at the sea and lighthouse, off the edge into a crown of water (the goal, 0-3 s); the eight fish leaving the
-  fishmonger's ice down the market street; the chef's pan coming down on the kitchen line; a gull taking a fish off the beach;
-  the boules lane and a swim through the park fountain; the title over the Quay to end.
+- **Trailer** (23 s, six hard cuts of autoplay races driven by the bot brain, the game's own sound): a mackerel in a captain's
+  cap flying off the quay over the sea into its splash (the goal, 0-3 s); the market's fountain square under the parasols; the
+  pan shelf down the kitchen line past the chef and his pan; a crab on the beach dunes; the park's bouncy castle; the locker at
+  level 17 with the cap on; the title over the Quay to end.
 
 ## Originality check
 
