@@ -15,6 +15,8 @@ Play: https://onceworlds.com/play/fish-out-of-water
 - `npm test`: the physics, the arc preview, every course with bots (each golden scale reachable), hazards, cups, ghosts and
   the host's checks
 - `?poster=cover` (or `action`, `win`, `multi`, `icon`) renders a store shot of the built game
+- Footage (not on onceworlds.com): `?autoplay=1&hud=0&course=kitchen` races a bot in your place (`&route=expert`,
+  `&xp=9000&wear=hat:captain,trail:sparkle` to wear earned looks, `&open=locker&tab=hat` for the locker)
 - `DESIGN.md`: how it plays and why
 
 MIT licensed.
