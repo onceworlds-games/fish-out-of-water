@@ -86,7 +86,8 @@ core, so they look floppy too.
   Vertical speed 3.2 + 5.7c m/s (to 8.9), horizontal 2.0 + 3.4c m/s (to 5.4). On flat ground: hop 0.8 m long / 0.32 m high /
   0.4 s; full 6.0 m long / 2.47 m high / 1.11 s. A flop needs contact (or the last 0.1 s of it; a release up to 0.1 s before
   touchdown is buffered).
-- **Contact:** normal.y > 0.55 is ground (slides), 0 to 0.55 is a wall or slope (can flop off it), below 0 is a ceiling.
+- **Contact:** normal.y > 0.55 is ground (slides), 0 to 0.55 is a wall or slope (can flop off it), below 0 is a ceiling
+  (a bonk: the fish bounces down and flies on; the arc preview and the bots' planning bounce off it the same way).
 - **Landing:** vertical speed × restitution bounces; horizontal speed × keep; then friction slows sliding.
 - **Knock** (a hazard): velocity set to the hazard's push, 0.3 s stun (no flop), a spin and a bonk.
 - **Bumps between fish:** soft spheres (0.3 m), each page pushes only its own fish away (1.5 m/s; 2.5 m/s if the other is
@@ -133,8 +134,11 @@ little, and taken quickly they climb a scale.
 | 3 | **The Beach** | 158 m | the surf line | **crabs** that scuttle along the rock pools, rear up and snap; **gulls** that grab you; hot sand | rock pools, kids' buckets, the beach shower, a melting cool box, the paddling pool, wet sand near the water | parasols in a row (bounce lane); the lifeguard tower; the **blowhole** that throws you high to a scale; the old groyne; the **lucky gull** |
 | 4 | **The Park** | 182 m | the harbour wall at the bottom of the hill | **boules** rolling across two lanes; sweeping **sprinklers** (moving refills that nudge you) | sprinkler jets, the fountain, the duck pond, dog bowls, watering cans, puddles | the **bouncy castle** (a scale high over it); the brass handrails down the grand stairs (a scale over them); a trampoline onto the **bandstand's** springy roof |
 
-**The Kitchen** is a real room: tiled walls to head height under plaster, a ceiling with light panels, pipes and a clock, the
-hood over the range, the ticket rail, the walk-in, wet-floor signs and mats. **The Beach** runs from the promenade (railings,
+**The Kitchen** is a real room, a tall old harbour kitchen (5.4 m): tiled walls to head height under plaster, high windows on
+the inner wall, a ceiling with light panels and pipes, clocks over the doorways, the hood hung high over the range, the heat
+lamps on rods over the pass, the ticket rail, the walk-in, wet-floor signs and mats. Its ceiling, lintels, hood and lamps are
+solid: a slap chain off the pan shelf bonks the hood instead of flying out through the roof (a test throws fish straight up
+from every raised surface). **The Beach** runs from the promenade (railings,
 lamps, bunting, the ice-cream kiosk, a row of painted huts) over dunes of marram and sand fences, past a pier with its
 helter-skelter, a crowd under parasols beyond the groynes and kites over the dunes, to rock pools (barnacles, mussels,
 anemones, starfish, weed) and the surf. **The Park** starts on a picnic trestle's ice tray at the top of the hill: the lawn and
@@ -375,7 +379,8 @@ following your fish (none on low, 1024 medium, 2048 high). Camera: third person 
 looking ahead of the fish; yaw is the aim (exact), position springs behind; it pulls back and tilts up while charging so the arc
 shows, kicks the FOV on release and shakes on hard landings (trauma², none with reduced motion). When something solid is right
 behind the fish the boom swings round it or up over it; it never ends up inside a solid (a sphere sweep against every solid,
-including the invisible walls under the drawn houses and kitchen walls; the Kitchen also keeps it under the beams). A node check
+including the invisible walls under the drawn houses and kitchen walls; indoors it never rises through the ceiling, even
+with the fish against it). A node check
 over bot races counts frames with the camera inside a solid: none. Hanging signs and shoppers' legs that pass through the lens
 step out of the picture. Over the finish line the camera stops, up over the edge, and looks down at where the fish will go in: a
 crown of water jets, a ring of foam, the fish sinking in slow motion. Portrait widens the vertical FOV to keep 55° across.
