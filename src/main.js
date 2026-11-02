@@ -233,6 +233,9 @@ async function boot() {
   await Promise.all([progress.load(), loadFonts()]);
   // a preview of a later save (for checking the locker and the quay)
   if (AUTOPLAY && Number(params.get('xp')) > 0) progress.data.xp = Math.floor(Number(params.get('xp')));
+  // ... wearing what it has earned (&wear=hat:captain,trail:sparkle), in a colourway (&cw=2)
+  if (AUTOPLAY && params.get('wear')) for (const kv of params.get('wear').split(',')) progress.wear(...kv.split(':'));
+  if (AUTOPLAY && params.has('cw')) progress.data.cw = Math.max(0, Math.min(COLOURWAY_LEVELS.length - 1, Number(params.get('cw')) | 0));
 
   // ---------------------------------------------------------------- actors
   function clearActors() {
@@ -1300,12 +1303,14 @@ async function boot() {
     const yaw = G.t * 0.35;
     // the locker sits on the left (or along the bottom on a tall screen): pan so the fish turns beside it
     const wide = innerWidth > innerHeight * 1.05;
-    const side = wide ? -Math.min(0.62, 0.3 + (440 / innerWidth) * 0.55) : 0;
-    const down = wide ? 0 : -0.42;
+    // close enough that the hat and the colours read
+    const D = 1.12;
+    const side = wide ? -Math.min(0.62, 0.3 + (440 / innerWidth) * 0.55) * (D / 1.5) : 0;
+    const down = wide ? 0 : -0.32;
     const rx = Math.cos(yaw) * side, rz = -Math.sin(yaw) * side;
     G.cuY = G.cuY === undefined ? a.rs.y : G.cuY + (a.rs.y - G.cuY) * Math.min(1, dt * 2.5);
-    camP.set(a.rs.x + Math.sin(yaw) * 1.5 + rx, G.cuY + 0.52 + down, a.rs.z + Math.cos(yaw) * 1.5 + rz);
-    camL.set(a.rs.x + rx, G.cuY + 0.16 + down, a.rs.z + rz);
+    camP.set(a.rs.x + Math.sin(yaw) * D + rx, G.cuY + 0.42 + down, a.rs.z + Math.cos(yaw) * D + rz);
+    camL.set(a.rs.x + rx, G.cuY + 0.14 + down, a.rs.z + rz);
     cam.place(dt, camP, camL, 4);
   }
   function finishCam(dt) {
