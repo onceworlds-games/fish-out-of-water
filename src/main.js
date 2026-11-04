@@ -269,11 +269,6 @@ async function boot() {
       ow?.controls?.set?.(on ? { buttons: [{ id: 'flop', label: 'Flop', key: ' ' }] } : null);
     } catch {}
   }
-  const hideLobby = (on) => {
-    try {
-      room?.hideLobby?.(on);
-    } catch {}
-  };
 
   // ---------------------------------------------------------------- input wiring
   input.state.onAnyInput = () => audio.unlock();
@@ -282,10 +277,9 @@ async function boot() {
     else if (G.mode === 'trials' || G.mode === 'fish' || G.mode === 'daily') toQuay();
   };
   input.state.onKey = (k) => {
-    if (G.mode === 'title' && (k === 'Space' || k === 'Enter')) toQuay();
-    else if (G.mode === 'daily' && (k === 'Space' || k === 'Enter')) startTrial(dailyCatch().course, { daily: true });
+    if (G.mode === 'daily' && k === 'Space') startTrial(dailyCatch().course, { daily: true });
     else if (G.mode === 'trial' && k === 'KeyR' && (G.trial?.done || G.paused)) startTrial(G.trial.course.id, { daily: G.trial.daily });
-    else if (G.mode === 'trial' && G.trial?.done && (k === 'Space' || k === 'Enter')) G.trial.card?.skip();
+    else if (G.mode === 'trial' && G.trial?.done && k === 'Space') G.trial.card?.skip();
     else if (G.mode === 'match' && !match.me && (k === 'ArrowLeft' || k === 'ArrowRight')) switchWatch(k === 'ArrowLeft' ? -1 : 1);
   };
   input.state.onLockLost = () => {
@@ -313,7 +307,6 @@ async function boot() {
     hud.show(false);
     setControls(false);
     input.setWantLock(false);
-    hideLobby(true);
     const { course, view } = showCourse('quay');
     G.course = course;
     G.view = view;
@@ -328,7 +321,7 @@ async function boot() {
       a.brain = createWanderer(course.world, box, 11 + i * 7);
       wanderers.push(a);
     });
-    screens.title({ tally: progress.tally(), onPlay: () => toQuay() });
+    screens.title({ tally: progress.tally() });
     audio.mood('calm');
     G.camMode = 'orbit';
     setFlow('title');
@@ -342,10 +335,7 @@ async function boot() {
   function toQuay() {
     audio.unlock();
     if (G.mode === 'closed') return;
-    if (!match) {
-      G.wantQuay = true;
-      return;
-    }
+    if (!match) return;
     audio.setLow?.(false);
     if (match.phase !== 'lobby' && match.phase !== 'countdown') {
       enterMatch();
@@ -374,7 +364,6 @@ async function boot() {
     hud.show(false);
     setControls(true);
     input.setWantLock(false);
-    hideLobby(false);
     G.camMode = 'chase';
     audio.mood('calm');
     drawQuay();
@@ -393,7 +382,7 @@ async function boot() {
     const seats = online
       .slice()
       .sort((a, b) => (a.id < b.id ? -1 : 1))
-      .map((p) => ({ name: p.name, ready: !!p.ready, host: p.id === room.host, me: p.id === room.me?.id, colour: SEAT_COLOURS[ids.indexOf(p.id) % 8] }));
+      .map((p) => ({ name: p.name, host: p.id === room.host, me: p.id === room.me?.id, colour: SEAT_COLOURS[ids.indexOf(p.id) % 8] }));
     const canChange = room.isHost && room.kind !== 'public';
     const daily = dailyCatch();
     const fish = FISH.find((f) => f.id === progress.data.fish);
@@ -448,7 +437,6 @@ async function boot() {
   function toTrials() {
     audio.click();
     G.mode = 'trials';
-    hideLobby(true);
     setControls(false);
     const courses = COURSE_IDS.map((id) => {
       const c = getCourse(id);
@@ -474,7 +462,6 @@ async function boot() {
   async function toDaily() {
     audio.click();
     G.mode = 'daily';
-    hideLobby(true);
     setControls(false);
     const d = dailyCatch();
     const c = getCourse(d.course);
@@ -489,7 +476,6 @@ async function boot() {
   function toFish() {
     audio.click();
     G.mode = 'fish';
-    hideLobby(true);
     setControls(false);
     G.camMode = 'closeup';
     G.lockerTab = G.lockerTab ?? 'fish';
@@ -613,7 +599,6 @@ async function boot() {
     G.mode = 'trial';
     G.paused = false;
     screens.clear();
-    hideLobby(true);
     setControls(true);
     input.setWantLock(true);
     showPodium(false);
@@ -835,6 +820,7 @@ async function boot() {
     }
     G.camMode = G.me ? 'chase' : 'watch';
     hud.courseCard(course.name, match.rounds > 1 ? `Race ${match.round} of ${match.rounds}` : null);
+    G.courseCardUp = true;
     G.introStart = performance.now();
     G.beat = 4;
     audio.mood('race');
@@ -1381,13 +1367,12 @@ async function boot() {
       hud.nameTags([]);
       sendPresence('title');
       setFlow('title');
-      if (AUTOPLAY && G.t > 1.2) {
-        if (AUTOPLAY_TRIAL && COURSE_IDS.includes(AUTOPLAY_TRIAL)) startTrial(AUTOPLAY_TRIAL, { daily: params.has('daily') });
-        else toQuay();
-      }
+      if (AUTOPLAY && AUTOPLAY_TRIAL && COURSE_IDS.includes(AUTOPLAY_TRIAL) && G.t > 1.2) startTrial(AUTOPLAY_TRIAL, { daily: params.has('daily') });
       return;
     }
 
+    // readying (or a countdown) leaves any menu: the fish is back on the Quay for the start
+    if ((G.mode === 'trials' || G.mode === 'fish' || G.mode === 'daily') && (room.me?.ready || mph === 'countdown')) toQuay();
     if (G.mode === 'quay' || G.mode === 'trials' || G.mode === 'fish' || G.mode === 'daily') return tickQuay(dt);
     if (G.mode === 'trial') return tickTrial(dt);
     if (G.mode === 'match') return tickMatch(dt);
@@ -1503,7 +1488,7 @@ async function boot() {
         const beat = Math.ceil(-tr.t / 0.5);
         if (beat !== tr.lastBeat && beat >= 0 && beat <= 3) {
           tr.lastBeat = beat;
-          if (beat > 0) {
+          if (beat > 0 && match?.phase !== 'countdown') {
             hud.callout(String(beat), { kind: beat === 1 ? 'red' : '', seconds: 0.45 });
             audio.bell(false);
           }
@@ -1682,27 +1667,25 @@ async function boot() {
 
     // cameras
     if (ph === 'intro') {
+      // between the races of a cup: a look along the next course, no numerals
       const left = match.secondsLeft ?? 0;
-      const total = RACE.introSeconds;
-      const k = Math.min(1, (total - left) / 2.6);
+      const k = Math.min(1, (RACE.introSeconds - left) / 2.6);
       if (k < 1) flyCam(dt, k);
       else if (me) chaseCam(dt, me);
       else watchLeader(dt);
-      const beat = Math.ceil(left / 0.5);
-      if (left <= 1.5 && beat !== G.beat && beat > 0) {
-        G.beat = beat;
-        hud.callout(String(beat), { kind: beat === 1 ? 'red' : '', seconds: 0.45 });
-        audio.bell(false);
-        hud.courseCard(null);
-      }
     } else if (ph === 'round') {
       if (G.beat !== 0) {
         G.beat = 0;
-        hud.courseCard(null);
         if (G.raceT < 1.5) {
           hud.callout('Flop!', { kind: 'red', seconds: 0.7 });
+          audio.unlock();
           audio.horn();
         }
+      }
+      // the course's name stays a moment into the race (the first race has no intro to show it in)
+      if (G.raceT > 2.5 && G.courseCardUp) {
+        G.courseCardUp = false;
+        hud.courseCard(null);
       }
       if (me && (!me.done || me.simT - (me.finishT ?? 0) < 2.5)) chaseCam(dt, me);
       else watchLeader(dt);
@@ -1760,7 +1743,7 @@ async function boot() {
     else if (G.me) chaseCam(dt, G.me);
   }
 
-  // ---------------------------------------------------------------- the room (joined while the title shows)
+  // ---------------------------------------------------------------- the room (joined as the page loads: the title shows only until it's in)
   let room = null;
   let cup = null;
   let match = null;
@@ -1809,9 +1792,8 @@ async function boot() {
       }
       progress.save();
     });
-    if (G.mode === 'title') hideLobby(true);
     if (match.phase !== 'lobby' && match.phase !== 'countdown') enterMatch();
-    else if (G.wantQuay || (AUTOPLAY && !AUTOPLAY_TRIAL) || AUTOPLAY_TO === 'lobby') toQuay();
+    else if (AUTOPLAY_TO !== 'title' && !AUTOPLAY_TRIAL) toQuay();
   }
 
   // ---------------------------------------------------------------- go

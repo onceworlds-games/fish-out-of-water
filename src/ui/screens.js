@@ -46,7 +46,8 @@ export function createScreens(root) {
       set(null);
     },
 
-    title({ tally, onPlay }) {
+    /** Shows only until the room is joined: it has nothing to press. */
+    title({ tally }) {
       const word = h(
         'div',
         { class: 'wordmark', role: 'heading', 'aria-level': 1 },
@@ -54,8 +55,7 @@ export function createScreens(root) {
         h('span', { class: 'row' }, h('span', { class: 'small' }, 'OUT OF')),
         h('span', { class: 'row' }, 'WATER'),
       );
-      const play = h('div', { class: 'play' }, tag(['Play', keyCap('Space')], { kind: 'red', onclick: onPlay, angle: -3 }));
-      const kids = [word, play];
+      const kids = [word];
       if (tally && tally.gold + tally.silver + tally.bronze > 0) {
         kids.push(
           h(
@@ -94,12 +94,12 @@ export function createScreens(root) {
         cup.dataset.k = cupKey;
         cup.replaceChildren(tag([o.cupName, h('small', {}, o.races === 1 ? '1 race' : `${o.races} races`)], { kind: 'slate', onclick: o.canChange ? o.onCup : null, angle: 1 }));
       }
-      const seatKey = JSON.stringify(o.seats.map((s) => [s.name, s.ready, s.host, s.me])) + o.bots;
+      const seatKey = JSON.stringify(o.seats.map((s) => [s.name, s.host, s.me])) + o.bots;
       if (seats.dataset.k !== seatKey) {
         seats.dataset.k = seatKey;
         seats.replaceChildren(...[
           ...o.seats.map((s) =>
-            tag([pin(s.colour), h('span', {}, s.name), s.ready ? h('span', { class: 'tick' }, '✓') : h('span', {})], { kind: s.me ? '' : 'wash', swing: false }),
+            tag([pin(s.colour), h('span', {}, s.name)], { kind: s.me ? '' : 'wash', swing: false }),
           ),
           o.bots > 0 ? h('div', { class: 'more float' }, `+${o.bots} fish`) : null,
           o.onInvite ? tag('Invite', { kind: 'spray', onclick: o.onInvite, swing: false }) : null,

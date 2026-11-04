@@ -262,14 +262,6 @@ button.tag:focus-visible {
   border-radius: 4px;
 }
 
-.title .play {
-  margin-top: clamp(18px, 4vh, 40px);
-}
-
-.title .play .tag {
-  font-size: clamp(34px, 5vw, 54px);
-}
-
 .tally {
   display: flex;
   gap: 14px;
@@ -350,16 +342,11 @@ button.tag:focus-visible {
   justify-content: space-between;
 }
 
-.seats .tag > span:not(.tick):not(.pin) {
+.seats .tag > span:not(.pin) {
   max-width: 9.5em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.seats .tag .tick {
-  font-family: var(--slab);
-  color: var(--sea);
 }
 
 .seats .more {

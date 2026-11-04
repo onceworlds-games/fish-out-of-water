@@ -16,11 +16,11 @@ First fish into the sea wins.
 | Time | What the screen shows | Hint (2-5 words, once, then gone) |
 |---|---|---|
 | 0 s | **Title.** The Quay at noon: whitewashed houses, red-striped awnings, the harbour glittering behind. Four bot fish flop about a fishmonger's stall in the foreground; one sails across the frame and splats into a puddle. Gulls wheel. Big "FISH OUT OF WATER", one big lemon-pinned price tag: **PLAY** (`Space`). Soft accordion. | none |
-| 2 s | Tap Play: a wet slap, the music opens up, the camera swoops down behind *your* fish on the Quay (your name on the price tag pinned to its fin). This is the lobby, and it's playable. Touch: the Flop button appears bottom right. | "Hold to curl" (with the key: Space / Click / Flop) |
+| 2 s | The room joined: the camera swoops down behind *your* fish on the Quay (your name on the price tag pinned to its fin). This is the lobby, and it's playable. Touch: the Flop button appears bottom right. | "Hold to curl" (with the key: Space / Click / Flop) |
 | 4 s | You hold: the fish curls into a C, a squelch rises in pitch, a dotted arc of water drops stretches out to a landing ring. | "Let go to flop!" |
 | 5 s | Release: SLAP, the fish flings itself, spins, lands with a splat, bounces, leaves a wet mark that dries. | "Drag to turn" / "Mouse to turn" / "A D to turn" |
 | 8 s | You flop around the Quay (a puddle, a crate, an awning that bounces). Right side: seat tags (you, plus "+7 fish" that will fill). The platform's Ready strip is at the bottom. | "Ready to race" (after 3 flops, first visit only) |
-| 12 s | Ready (alone: the race starts at once). **Intro, 4.5 s:** the camera flies from the sea back along the Fish Market to the start (the goal first), the course tag swings in ("THE FISH MARKET · Race 1 of 3"), eight fish on a crate of ice, ship's bell 3-2-1, foghorn GO. | "Flop to the sea!" with an arrow at GO |
+| 12 s | Ready (alone: the race starts at once). The platform's 3-2-1, then the race: behind your fish, the course tag swings in ("THE FISH MARKET · Race 1 of 3"), eight fish on a crate of ice, foghorn GO. | "Flop to the sea!" with an arrow at GO |
 | 17-35 s | Fish spill off the ice onto wet tiles. The gauge under your fish drains; the arc's landing ring turns cyan with a drop symbol over a puddle. | "Drying out!" (first time under 50%), then "Puddles = water" (first time a refill is in reach) |
 | 35 s | First refill: a burst of droplets, the fish shines again, the gauge sloshes full. A bot gets batted across the aisle by the cat (the laugh). | "Watch the red!" (first telegraph near you) |
 | 55 s | Ice crates: a long slide, a whoosh. The street opens; the harbour fills the screen. | none |
@@ -40,7 +40,7 @@ the player's second race, never in the first.
 | Pause / free the mouse | Esc | Platform menu |
 
 - No stick: `ow.controls.set({ buttons: [{ id: 'flop', label: 'Flop', key: ' ' }] })` during play and in the lobby (the Quay is
-  playable); `set(null)` on title, trial menu, results.
+  playable); `set(null)` on trial menu, results.
 - The launch angle is fixed by the charge (no pitch control): direction = camera yaw, distance = how long you held. Turning the
   camera mid-air is allowed (to line up the next flop); the body has no air control.
 - Lobby and menus: the mouse stays free (tags are clicked); aim with A/D or by dragging with the mouse. Pointer lock only in races
@@ -194,16 +194,16 @@ then the daily and the boards.
 
 ## Multiplayer
 
-- **A public game.** `ow.rooms.join({ maxPlayers: 8, minPlayers: 1, lobby: 'bar', countdown: 0, settings })`, joined once as the
+- **A public game.** `ow.rooms.join({ maxPlayers: 8, minPlayers: 1, lobby: 'bar', settings })`, joined once as the
   page loads. Private servers come from the platform's menu.
-- **Settings** (the host picks them on our Cup tag; `room.setSetting`, `clearReady()` after a change):
+- **Settings** (the host picks them on our Cup tag; `room.setSetting`):
   `cup`: Harbour Cup (Market, Kitchen, Beach), Seaside Cup (Beach, Park, Market), Grand Tour (all four, shuffled by `match.seed`,
   three of them in a 3-race cup); default Harbour. `races`: 1 or 3, default 3. (The spec's "host picks the course" becomes "host picks the cup".)
 - **Lobby:** the Quay, playable for everyone (players see each other's fish flopping). The platform's Ready/Start strip at the
   bottom. Nothing starts until all are ready: a private server waits for the host's Start (`room.canStart`), a public one starts by
   itself once everyone is ready.
-- **Match = a cup** run by `createMatch`: `rounds: 'races'`, `introSeconds: 4.5` (our flyover and our 3-2-1, the only countdown:
-  `countdown: 0`), `roundSeconds: 240` (a hard cap), `roundEndSeconds: 7`, `resultsSeconds: 15` (the host can skip),
+- **Match = a cup** run by `createMatch`: `rounds: 'races'`, the platform's 3-2-1 and the first race at once, `introSeconds: 3` between races (a flyover, no
+  numerals), `roundSeconds: 240` (a hard cap), `roundEndSeconds: 7`, `resultsSeconds: 15`,
   `admit: 'round'` (latecomers watch, then take a bot's seat at the next race).
 - **A race ends** when every present seat has finished, or 60 s after the first finish (the "Last call" tag), or at 240 s.
 - **Points** by place: 10, 8, 6, 5, 4, 3, 2, 1. Finishers by time, then the rest by distance along the spine. Cup ties go to the
@@ -313,16 +313,16 @@ The Quay is the stage for the title, the lobby and the podium: one scene, the ca
 top-left 150×70 clear (the platform menu) and lays out around `ow.ui.reserved`.
 
 1. **Title.** The Quay alive (bots flopping, gulls, glittering sea). Centre-top: "FISH OUT OF WATER" (three lines in portrait).
-   Centre-low: the **PLAY** tag (lemon pin, `Space`), swinging gently. Under it: your medal tally (three medal discs with counts)
-   once you have any. Nothing else.
+   Under it: your medal tally (three medal discs with counts) once you have any. Nothing to press: it shows only until the room is
+   joined, then the Quay. The only call to action is the platform's Ready.
 2. **Lobby (the Quay).** Your fish in the middle, playable. Top centre: the **Cup tag** ("HARBOUR CUP · 3 races"; the host taps it
-   to change cup and races). Right edge: the **seat tags** on a fishing line (avatar head, name, a stamped tick when ready, a
+   to change cup and races). Right edge: the **seat tags** on a fishing line (avatar head, name, a
    captain's cap for the host, "+5 fish" for the bots that will fill). Left edge under the menu: three tags: **Time Trials**,
    **Daily Catch**, **Fish** (opens the picker: the five fish on the ice, locked ones as silhouettes with their condition). Bottom:
    the platform's Ready strip. Portrait: seats become a row of heads under the Cup tag; the three tags stack on the right side.
    An empty seat area offers `ow.ui.showInvite()`.
-3. **Intro (each race).** Flyover from the water to the start, the course tag ("THE BEACH · Race 2 of 3"), then behind your fish:
-   3-2-1 as huge numerals on a swinging tag, ship's bell, foghorn GO.
+3. **Start.** The platform's 3-2-1 on the Quay, then the first race at once: the course tag ("THE BEACH · Race 1 of 3"), foghorn,
+   "Flop!". Between the races of a cup: a 3 s flyover from the water to the start with the course tag, no numerals.
 4. **Race HUD.** Top centre: the **timer tag** (0:42.3). Top right: the **place tag** ("3rd", huge), and under it the red
    **Last call** tag (bell + 0:45) once someone finishes. Along the top between them: the **fishing line**, one bobber per fish
    (seat colour + shape) moving toward a wave at the right end. Bottom centre: the **gill gauge** (a glass fish-shaped vial of

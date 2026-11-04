@@ -112,7 +112,7 @@ export const UNLOCKS = {
 export const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 export const RACE = {
   seats: 8,
-  introSeconds: 4.5,
+  introSeconds: 3,
   capSeconds: 240,
   lastCall: 60,
   roundEndSeconds: 7,

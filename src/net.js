@@ -21,7 +21,6 @@ export const JOIN = {
   maxPlayers: 8,
   minPlayers: 1,
   lobby: 'bar',
-  countdown: 0,
   settings: [
     { id: 'cup', label: 'Cup', options: [{ value: 'harbour', label: 'Harbour Cup' }, { value: 'seaside', label: 'Seaside Cup' }, { value: 'tour', label: 'Grand Tour' }], default: 'harbour' },
     { id: 'races', label: 'Races', options: [{ value: 3, label: '3 races' }, { value: 1, label: '1 race' }], default: 3 },
@@ -105,10 +104,14 @@ export function createCup(room, hooks) {
     const r = readPresence(p?.presence);
     if (r) lastProg.set(p.id, r.p);
   });
-  const match = createMatch(room, {
+  let match = null;
+  match = createMatch(room, {
     rounds: 'races',
     roundSeconds: RACE.capSeconds,
-    introSeconds: RACE.introSeconds,
+    // The first race starts right after the platform's 3-2-1. Between the races of a cup: a look along the next course.
+    get introSeconds() {
+      return match?.round >= 1 ? RACE.introSeconds : 0;
+    },
     roundEndSeconds: RACE.roundEndSeconds,
     resultsSeconds: RACE.resultsSeconds,
     points: POINTS,
@@ -279,7 +282,6 @@ export function stubRoom() {
       emit('settings', room.settings);
     },
     admit() {},
-    hideLobby() {},
     setOpen() {},
     reportResult() {},
     setPrivate() {},
